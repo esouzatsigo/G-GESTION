@@ -67,8 +67,8 @@ export async function downloadFile(
 
 /**
  * Helper especializado para PDFs generados por jsPDF.
- * Descarga el archivo Y retorna un blobUrl que el caller puede usar
- * para ofrecer un botón "Abrir ahora" en la notificación.
+ * Descarga el archivo Y retorna un viewerUrl (HTML con título correcto)
+ * para que el caller pueda ofrecer un botón "Abrir ahora".
  */
 export async function downloadPDF(
     doc: { output: (type: 'blob') => Blob },
@@ -76,16 +76,30 @@ export async function downloadPDF(
 ): Promise<{ success: boolean; blobUrl?: string }> {
     try {
         const blob = doc.output('blob');
-        const blobUrl = URL.createObjectURL(blob);
+        const pdfBlobUrl = URL.createObjectURL(blob);
         const success = await downloadFile(blob, fileName, 'application/pdf');
 
         if (success) {
-            // Retornar el blobUrl para que el caller pueda ofrecer "Abrir ahora"
-            // Se limpia después de 2 minutos
-            setTimeout(() => URL.revokeObjectURL(blobUrl), 120000);
-            return { success: true, blobUrl };
+            // Crear una página HTML que envuelve el PDF con <title> = nombreArchivo
+            // Así la pestaña muestra el nombre real en vez de un UUID
+            const displayName = fileName.replace('.pdf', '');
+            const viewerHtml = `<!DOCTYPE html>
+<html><head><title>${displayName}</title></head>
+<body style="margin:0;overflow:hidden">
+<embed src="${pdfBlobUrl}" type="application/pdf" width="100%" height="100%" style="position:fixed;top:0;left:0;right:0;bottom:0;border:none">
+</body></html>`;
+            const viewerBlob = new Blob([viewerHtml], { type: 'text/html' });
+            const viewerUrl = URL.createObjectURL(viewerBlob);
+
+            // Limpiar después de 3 minutos
+            setTimeout(() => {
+                URL.revokeObjectURL(pdfBlobUrl);
+                URL.revokeObjectURL(viewerUrl);
+            }, 180000);
+
+            return { success: true, blobUrl: viewerUrl };
         }
-        URL.revokeObjectURL(blobUrl);
+        URL.revokeObjectURL(pdfBlobUrl);
         return { success: false };
     } catch (err) {
         console.error('[downloadPDF] Error al generar blob:', err);
