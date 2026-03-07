@@ -1,14 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-    collection,
-    query,
-    where,
     getDocs,
-    doc,
-    updateDoc
+    where
 } from 'firebase/firestore';
-import { db } from '../services/firebase';
 import { tenantQuery } from '../services/tenantContext';
+import { updateOTStatus } from '../services/dataService';
 import { useAuth } from '../hooks/useAuth';
 import {
     MapPin,
@@ -123,11 +119,12 @@ export const MisServiciosPage: React.FC = () => {
 
         navigator.geolocation.getCurrentPosition(async (pos) => {
             try {
-                await updateDoc(doc(db, 'ordenesTrabajo', otId), {
-                    estatus: 'Llegada a Sitio',
-                    coordsLlegada: { lat: pos.coords.latitude, lng: pos.coords.longitude },
-                    'fechas.llegada': new Date().toISOString()
-                });
+                if (user) {
+                    await updateOTStatus(otId, 'Llegada a Sitio', user, {
+                        coordsLlegada: { lat: pos.coords.latitude, lng: pos.coords.longitude },
+                        'fechas.llegada': new Date().toISOString()
+                    });
+                }
                 fetchData();
                 showNotification("Llegada registrada exitosamente.", "success");
             } catch {
@@ -136,10 +133,11 @@ export const MisServiciosPage: React.FC = () => {
         }, () => {
             // Fallback: Registrar sin coordenadas o con mensaje
             showNotification("No se pudo obtener el GPS. Se registrará la llegada basada en antena/red.", "warning");
-            updateDoc(doc(db, 'ordenesTrabajo', otId), {
-                estatus: 'Llegada a Sitio',
-                'fechas.llegada': new Date().toISOString()
-            }).then(() => fetchData());
+            if (user) {
+                updateOTStatus(otId, 'Llegada a Sitio', user, {
+                    'fechas.llegada': new Date().toISOString()
+                }).then(() => fetchData());
+            }
         });
     };
 

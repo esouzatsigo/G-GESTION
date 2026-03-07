@@ -16,7 +16,7 @@ import {
 import type { WorkOrder, Cliente, User, Sucursal, Equipo } from '../types';
 import { generateServiceReport } from '../utils/serviceReport';
 import { useAuth } from '../hooks/useAuth';
-import { updateOTWithAudit } from '../services/dataService';
+import { updateOTStatus } from '../services/dataService';
 import { useNotification } from '../context/NotificationContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 
@@ -38,9 +38,9 @@ export const SupervisarPage: React.FC = () => {
     // Modal de Visualización
     const [selectedOT, setSelectedOT] = useState<WorkOrder | null>(null);
     const [bitacora, setBitacora] = useState<any[]>([]);
-    const { user } = useAuth();
+    const { user, activeClienteId } = useAuth();
 
-    const fetchData = async () => {
+    const fetchData = React.useCallback(async () => {
         if (!user) return;
         setLoading(true);
         try {
@@ -61,11 +61,11 @@ export const SupervisarPage: React.FC = () => {
             console.error(e);
         }
         finally { setLoading(false); }
-    };
+    }, [user, activeClienteId]);
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [fetchData]);
 
     useEscapeKey(() => setSelectedOT(null), !!selectedOT);
 
@@ -126,7 +126,16 @@ export const SupervisarPage: React.FC = () => {
             const dateStr = now.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
             const timeStr = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
 
-            const updatedOT: WorkOrder = {
+            if (user) {
+                await updateOTStatus(ot.id, 'Finalizada', user, {
+                    'fechas.finalizada': now.toISOString(),
+                    'fechas.finalizadaFecha': dateStr,
+                    'fechas.finalizadaHora': timeStr
+                });
+            }
+
+            // Auto PDF
+            await handleDownloadPdf({
                 ...ot,
                 estatus: 'Finalizada',
                 fechas: {
@@ -135,12 +144,7 @@ export const SupervisarPage: React.FC = () => {
                     finalizadaFecha: dateStr,
                     finalizadaHora: timeStr
                 }
-            };
-
-            await updateOTWithAudit(ot.id, ot, updatedOT, user as any, "Autorización y Cierre de OT (Supervisor)");
-
-            // Auto PDF
-            await handleDownloadPdf(updatedOT);
+            });
 
             setSelectedOT(null);
             fetchData();

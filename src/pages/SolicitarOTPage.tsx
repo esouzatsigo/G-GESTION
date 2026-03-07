@@ -115,7 +115,7 @@ export const SolicitarOTPage: React.FC = () => {
                 fotosGerente: photoUrls
             };
 
-            const result = await createOT(newOT);
+            const result = await createOT(newOT, user);
             console.log("Orden de Trabajo creada exitosamente:", result);
 
             setLastOTNumber(result.numero);

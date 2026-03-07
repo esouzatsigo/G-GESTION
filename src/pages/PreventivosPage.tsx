@@ -3,7 +3,6 @@ import {
     collection,
     getDocs,
     addDoc,
-    query,
     where
 } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -33,10 +32,10 @@ import {
     X,
     Users,
     Lock,
-    Clock
+    Clock,
+    Plus
 } from 'lucide-react';
 import {
-    getPlanPreventivo,
     updatePreventivoPlan,
     getBitacoraPreventivos,
     undoPreventivoChange,
@@ -45,7 +44,6 @@ import {
     updateCounterConfig,
     updateWorkOrder,
     addBitacoraEntry,
-    getWorkOrders,
     type PreventivoPlanEntry,
     type BitacoraPreventivo
 } from '../services/dataService';
@@ -153,7 +151,7 @@ const MESES = [
 ];
 
 export const PreventivosPage: React.FC = () => {
-    const { user } = useAuth();
+    const { user, isSuperAdmin } = useAuth();
     const isAdmin = user?.rol === 'Admin';
     const [activeTab, setActiveTab] = useState<'resumen' | 'calendario' | 'directorio'>('resumen');
     const [sucursales, setSucursales] = useState<Sucursal[]>([]);
@@ -622,13 +620,6 @@ export const PreventivosPage: React.FC = () => {
         e.preventDefault();
         if (!editingEvent || !user) return;
 
-        // Recuperar los datos originales antes de la edición para la comparación
-        const originalData = planEvents.find(ev => ev.id === editingEvent.id);
-        if (!originalData) {
-            showNotification("No se encontró el registro original.", "error");
-            return;
-        }
-
         try {
             // Validación de fechas
             const dateError = validateDateInput(editingEvent.fechas, editingEvent.mes);
@@ -640,18 +631,32 @@ export const PreventivosPage: React.FC = () => {
             // Asegurar tipos correctos para Firestore
             const finalData = {
                 ...editingEvent,
-                mes: Number(editingEvent.mes)
+                mes: Number(editingEvent.mes),
+                clienteId: user.clienteId
             };
 
-            // Llamada al servicio con datos originales y nuevos
-            await updatePreventivoPlan(editingEvent.id, originalData, finalData, user);
+            if (editingEvent.id) {
+                // Recuperar los datos originales antes de la edición para la comparación
+                const originalData = planEvents.find(ev => ev.id === editingEvent.id);
+                if (!originalData) {
+                    showNotification("No se encontró el registro original.", "error");
+                    return;
+                }
+                // Llamada al servicio con datos originales y nuevos
+                await updatePreventivoPlan(editingEvent.id, originalData, finalData, user);
+                showNotification("Programación actualizada correctamente.", "success");
+            } else {
+                // Creación de nuevo registro
+                await addDoc(collection(db, 'planPreventivo2026'), finalData);
+                showNotification("Nueva programación creada con éxito.", "success");
+            }
 
-            showNotification("Programación actualizada correctamente.", "success");
             setShowEditModal(false);
+            setEditingEvent(null);
             fetchData();
         } catch (error) {
-            console.error("Error en update:", error);
-            showNotification("Error al actualizar la programación.", "error");
+            console.error("Error en update/create:", error);
+            showNotification("Error al procesar la programación.", "error");
         }
     };
 
@@ -774,7 +779,9 @@ export const PreventivosPage: React.FC = () => {
 
         setIsImporting(true);
         try {
-            await importPreventivoPlan(importData);
+            if (user) {
+                await importPreventivoPlan(importData, user);
+            }
             showNotification("Calendario importado y actualizado con éxito.", "success");
             setShowImportModal(false);
             setImportData([]);
@@ -812,7 +819,7 @@ export const PreventivosPage: React.FC = () => {
                 </div>
 
                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                    {isAdmin && (
+                    {isSuperAdmin && (
                         <button
                             onClick={() => setShowConfigModal(true)}
                             className="btn"
@@ -824,6 +831,19 @@ export const PreventivosPage: React.FC = () => {
                             title="Configuración de Folios"
                         >
                             <Settings size={18} />
+                        </button>
+                    )}
+                    {isAdmin && (
+                        <button
+                            onClick={() => {
+                                setEditingEvent({ id: '', mes: 2, fechas: '15', sucursalId: '', txtPDF: '', clienteId: user?.clienteId || '' } as any);
+                                setShowEditModal(true);
+                            }}
+                            className="btn"
+                            style={{ border: '1px solid var(--primary)', color: 'var(--primary)', background: 'rgba(var(--primary-rgb), 0.05)', padding: '0.6rem 1.25rem', fontSize: '0.85rem' }}
+                        >
+                            <Plus size={16} />
+                            Añadir Programación
                         </button>
                     )}
                     {isAdmin && (
@@ -967,7 +987,7 @@ export const PreventivosPage: React.FC = () => {
                                 </button>
                             ))}
                         </div>
-                        {isAdmin && (
+                        {isSuperAdmin && (
                             <button
                                 onClick={() => setShowConfigModal(true)}
                                 className="btn"
@@ -2263,8 +2283,8 @@ export const PreventivosPage: React.FC = () => {
                 </div>
             )}
 
-            {/* --- MODAL DE CONFIGURACIÓN DE FOLIOS (ADMIN ONLY) --- */}
-            {showConfigModal && isAdmin && (
+            {/* --- MODAL DE CONFIGURACIÓN DE FOLIOS (SUPER ADMIN ONLY) --- */}
+            {showConfigModal && isSuperAdmin && (
                 <div className="modal-overlay" style={{ zIndex: 110000 }}>
                     <div className="glass-card modal-content animate-scale-up" style={{ maxWidth: '450px', padding: '2rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
@@ -2316,9 +2336,10 @@ export const PreventivosPage: React.FC = () => {
                                     style={{ flex: 2 }}
                                     disabled={isSavingConfig}
                                     onClick={async () => {
+                                        if (!user) return;
                                         setIsSavingConfig(true);
                                         try {
-                                            await updateCounterConfig(user.clienteId, configFolios.otNumber, configFolios.preventiveOtNumber);
+                                            await updateCounterConfig(user.clienteId, configFolios.otNumber, configFolios.preventiveOtNumber, user);
                                             showNotification("Configuración de folios actualizada.", "success");
                                             setShowConfigModal(false);
                                         } catch (e) {
@@ -2333,34 +2354,39 @@ export const PreventivosPage: React.FC = () => {
                         </div>
                     </div>
                 </div>
-            )}
+            )
+            }
 
             {/* --- WIZARD DE GENERACIÓN MASIVA v2.0 --- */}
-            {showGenModal && genEvent && user && (
-                <MassiveOTWizard
-                    evento={genEvent}
-                    equipos={equipos}
-                    sucursales={sucursales}
-                    allTecnicos={allTecnicos}
-                    user={user}
-                    preSelectedTecnicoId={preSelectedTecnicoForGen}
-                    onClose={() => { setShowGenModal(false); setPreSelectedTecnicoForGen(undefined); }}
-                    onSuccess={() => fetchData()}
-                />
-            )}
+            {
+                showGenModal && genEvent && user && (
+                    <MassiveOTWizard
+                        evento={genEvent}
+                        equipos={equipos}
+                        sucursales={sucursales}
+                        allTecnicos={allTecnicos}
+                        user={user}
+                        preSelectedTecnicoId={preSelectedTecnicoForGen}
+                        onClose={() => { setShowGenModal(false); setPreSelectedTecnicoForGen(undefined); }}
+                        onSuccess={() => fetchData()}
+                    />
+                )
+            }
 
             {/* --- DASHBOARD DE GESTIÓN MASIVA v2.0 --- */}
-            {showDashboardModal && genEvent && user && (
-                <MassiveOTDashboard
-                    evento={genEvent}
-                    allTecnicos={allTecnicos}
-                    equipos={equipos}
-                    user={user}
-                    onClose={() => setShowDashboardModal(false)}
-                    onUpdate={() => fetchData()}
-                />
-            )}
-        </div>
+            {
+                showDashboardModal && genEvent && user && (
+                    <MassiveOTDashboard
+                        evento={genEvent}
+                        allTecnicos={allTecnicos}
+                        equipos={equipos}
+                        user={user}
+                        onClose={() => setShowDashboardModal(false)}
+                        onUpdate={() => fetchData()}
+                    />
+                )
+            }
+        </div >
     );
 };
 

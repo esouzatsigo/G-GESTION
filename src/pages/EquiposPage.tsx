@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Edit2, Search, Save, X, HardDrive, FileSpreadsheet, Store } from 'lucide-react';
+import { Plus, Edit2, Search, Save, X, HardDrive, FileSpreadsheet, Store, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { useNotification } from '../context/NotificationContext';
 import { ImportModal } from '../components/ImportModal';
-import { getSucursales, getClientes, getFranquicias } from '../services/dataService';
+import { getSucursales, getClientes, getFranquicias, logEntityChange } from '../services/dataService';
+import { tenantQuery } from '../services/tenantContext';
 import { db } from '../services/firebase';
 import { addDoc, collection, doc, updateDoc, getDocs } from 'firebase/firestore';
 import { useEscapeKey } from '../hooks/useEscapeKey';
+import { useAuth } from '../hooks/useAuth';
 import type { Equipo, Cliente, Sucursal, Franquicia } from '../types';
 
 export const EquiposPage: React.FC = () => {
@@ -15,10 +18,15 @@ export const EquiposPage: React.FC = () => {
     const [franquicias, setFranquicias] = useState<Franquicia[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [filterCliente, setFilterCliente] = useState('');
+    const [filterFranquiciaId, setFilterFranquiciaId] = useState('');
+    const [filterSucursalId, setFilterSucursalId] = useState('');
+    const [filterFamilia, setFilterFamilia] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingEquipo, setEditingEquipo] = useState<Equipo | null>(null);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const { showNotification } = useNotification();
+    const { user, activeClienteId, isSuperAdmin } = useAuth();
 
     // Form State
     const [clienteId, setClienteId] = useState('');
@@ -29,12 +37,24 @@ export const EquiposPage: React.FC = () => {
 
     const familias: Equipo['familia'][] = ['Aires', 'Coccion', 'Refrigeracion', 'Cocina', 'Restaurante', 'Local', 'Agua', 'Generadores'];
 
-    const fetchData = async () => {
+    const fetchData = React.useCallback(async () => {
         setLoading(true);
         try {
-            const snapshot = await getDocs(collection(db, 'equipos'));
+            // Contexto de cliente para filtrar catálogos y datos
+            const targetClienteId = (isSuperAdmin && activeClienteId && activeClienteId !== 'ADMIN')
+                ? activeClienteId
+                : (!isSuperAdmin ? user?.clienteId : undefined);
+
+            const qEquipos = tenantQuery('equipos', user);
+
+            const [snapshot, sData, cData, fData] = await Promise.all([
+                getDocs(qEquipos),
+                getSucursales(targetClienteId),
+                getClientes(),
+                getFranquicias(targetClienteId)
+            ]);
+
             const eData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Equipo));
-            const [sData, cData, fData] = await Promise.all([getSucursales(), getClientes(), getFranquicias()]);
             setEquipos(eData);
             setSucursales(sData);
             setClientes(cData);
@@ -44,30 +64,34 @@ export const EquiposPage: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [user, activeClienteId, isSuperAdmin]);
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [fetchData]);
 
     useEscapeKey(() => setIsModalOpen(false), isModalOpen);
     useEscapeKey(() => setIsImportModalOpen(false), isImportModalOpen);
 
     const handleOpenModal = (equipo?: Equipo) => {
+        const effectiveClientId = (activeClienteId && activeClienteId !== 'ADMIN')
+            ? activeClienteId
+            : (user?.clienteId && user.clienteId !== 'ADMIN' ? user.clienteId : '');
+
         if (equipo) {
             setEditingEquipo(equipo);
-            setClienteId(equipo.clienteId);
-            setSucursalId(equipo.sucursalId);
+            setClienteId(equipo.clienteId || '');
+            setFranquiciaId(equipo.franquiciaId || '');
+            setSucursalId(equipo.sucursalId || '');
             setFamilia(equipo.familia);
             setNombre(equipo.nombre);
-            setFranquiciaId(equipo.franquiciaId || '');
         } else {
             setEditingEquipo(null);
-            setClienteId('');
+            setClienteId(effectiveClientId || '');
+            setFranquiciaId('');
             setSucursalId('');
             setFamilia('Refrigeracion');
             setNombre('');
-            setFranquiciaId('');
         }
         setIsModalOpen(true);
     };
@@ -108,9 +132,31 @@ export const EquiposPage: React.FC = () => {
         try {
             if (editingEquipo) {
                 await updateDoc(doc(db, 'equipos', editingEquipo.id), data);
+                if (user) {
+                    await logEntityChange({
+                        clienteId: data.clienteId,
+                        entityName: 'Equipo',
+                        entityId: editingEquipo.id,
+                        oldData: editingEquipo,
+                        newData: data,
+                        user: user,
+                        fieldsToTrack: ['nombre', 'familia', 'sucursalId']
+                    });
+                }
                 showNotification("Equipo actualizado correctamente.", "success");
             } else {
-                await addDoc(collection(db, 'equipos'), data);
+                const docRef = await addDoc(collection(db, 'equipos'), data);
+                if (user) {
+                    await logEntityChange({
+                        clienteId: data.clienteId,
+                        entityName: 'Equipo',
+                        entityId: docRef.id,
+                        oldData: null,
+                        newData: data,
+                        user: user,
+                        fieldsToTrack: []
+                    });
+                }
                 showNotification("Equipo creado correctamente.", "success");
             }
             setIsModalOpen(false);
@@ -121,10 +167,30 @@ export const EquiposPage: React.FC = () => {
         }
     };
 
-    const filteredEquipos = equipos.filter(e =>
-        e.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        e.familia.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredEquipos = equipos.filter(e => {
+        const matchSearch = e.nombre.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchCliente = !filterCliente || e.clienteId === filterCliente;
+        const matchFranquicia = !filterFranquiciaId || e.franquiciaId === filterFranquiciaId;
+        const matchSucursal = !filterSucursalId || e.sucursalId === filterSucursalId;
+        const matchFamilia = !filterFamilia || e.familia === filterFamilia;
+
+        return matchSearch && matchCliente && matchFranquicia && matchSucursal && matchFamilia;
+    });
+
+    const exportToExcel = () => {
+        const dataToExport = filteredEquipos.map(e => ({
+            Nombre: e.nombre,
+            Familia: e.familia,
+            Sucursal: sucursales.find(s => s.id === e.sucursalId)?.nombre || '',
+            Franquicia: franquicias.find(f => f.id === e.franquiciaId)?.nombre || '',
+            Cliente: clientes.find(c => c.id === e.clienteId)?.nombre || e.clienteId
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Equipos");
+        XLSX.writeFile(workbook, "catalogo_equipos.xlsx");
+    };
 
     return (
         <>
@@ -144,16 +210,103 @@ export const EquiposPage: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="glass-card" style={{ marginBottom: '2rem' }}>
-                    <div style={{ position: 'relative' }}>
-                        <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                        <input
-                            type="text"
-                            placeholder="Buscar por nombre o familia..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            style={{ width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', outline: 'none' }}
-                        />
+                <div className="glass-card" style={{ marginBottom: '1.5rem', padding: '1rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
+                        <div style={{ position: 'relative' }}>
+                            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                            <input
+                                type="text"
+                                placeholder="Buscar por nombre..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                style={{ width: '100%', padding: '0.6rem 0.75rem 0.6rem 2.25rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem' }}
+                            />
+                        </div>
+
+                        <div>
+                            <select
+                                value={filterFamilia}
+                                onChange={(e) => setFilterFamilia(e.target.value)}
+                                style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem', appearance: 'none' }}
+                            >
+                                <option value="" style={{ color: 'black' }}>Todas las Familias</option>
+                                {familias.map(f => (
+                                    <option key={f} value={f} style={{ color: 'black' }}>{f}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {(activeClienteId === 'ADMIN' || !activeClienteId) && (
+                            <div>
+                                <select
+                                    value={filterCliente}
+                                    onChange={(e) => { setFilterCliente(e.target.value); setFilterFranquiciaId(''); setFilterSucursalId(''); }}
+                                    style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem', appearance: 'none' }}
+                                >
+                                    <option value="" style={{ color: 'black' }}>Todas las Empresas</option>
+                                    {clientes.map(c => (
+                                        <option key={c.id} value={c.id} style={{ color: 'black' }}>{c.nombre}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+                        <div>
+                            <select
+                                value={filterFranquiciaId}
+                                onChange={(e) => { setFilterFranquiciaId(e.target.value); setFilterSucursalId(''); }}
+                                style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem', appearance: 'none' }}
+                            >
+                                <option value="" style={{ color: 'black' }}>Todas las Franquicias</option>
+                                {franquicias.filter(f => !filterCliente || f.clienteId === filterCliente).map(f => (
+                                    <option key={f.id} value={f.id} style={{ color: 'black' }}>{f.nombre}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <select
+                                value={filterSucursalId}
+                                onChange={(e) => setFilterSucursalId(e.target.value)}
+                                style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem', appearance: 'none' }}
+                            >
+                                <option value="" style={{ color: 'black' }}>Todas las Sucursales</option>
+                                {sucursales.filter(s => !filterFranquiciaId || s.franquiciaId === filterFranquiciaId).map(s => (
+                                    <option key={s.id} value={s.id} style={{ color: 'black' }}>{s.nombre}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <button
+                                className="btn"
+                                onClick={() => {
+                                    setSearchTerm('');
+                                    setFilterCliente('');
+                                    setFilterFranquiciaId('');
+                                    setFilterSucursalId('');
+                                    setFilterFamilia('');
+                                }}
+                                style={{ background: 'var(--bg-input)', border: '1px solid var(--glass-border)', fontSize: '0.75rem', fontWeight: '600', padding: '0.6rem 1rem' }}
+                            >
+                                Limpiar Filtros
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)' }}>
+                        <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '600' }}>
+                            Mostrando {filteredEquipos.length} registro(s) con los filtros actuales
+                        </div>
+                        <button
+                            className="btn btn-primary"
+                            onClick={exportToExcel}
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#10b981', color: 'white', padding: '0.5rem 1rem', fontSize: '0.875rem' }}
+                            disabled={filteredEquipos.length === 0}
+                        >
+                            <Download size={18} />
+                            Exportar a Excel
+                        </button>
                     </div>
                 </div>
 
@@ -166,7 +319,7 @@ export const EquiposPage: React.FC = () => {
                             return (
                                 <div key={equipo.id} className="glass-card animate-fade" style={{ display: 'flex', flexDirection: 'column', padding: '1.25rem', border: '1px solid rgba(255,255,255,0.08)' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                                        <div style={{ display: 'flex', gap: '0.875rem', alignItems: 'center' }}>
+                                        <div style={{ display: 'flex', gap: '0.875rem', alignItems: 'flex-start', minWidth: 0, flex: 1 }}>
                                             {/* Logo / Icon Container */}
                                             <div style={{
                                                 width: '50px', height: '50px',
@@ -187,15 +340,23 @@ export const EquiposPage: React.FC = () => {
                                                 })()}
                                             </div>
 
-                                            <div style={{ minWidth: 0 }}>
+                                            <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                                                {/* Nombre — siempre dentro de la tarjeta */}
+                                                <h3 style={{
+                                                    fontSize: '0.95rem',
+                                                    fontWeight: '700',
+                                                    color: 'var(--text-main)',
+                                                    overflowWrap: 'break-word',
+                                                    wordBreak: 'break-word',
+                                                    whiteSpace: 'normal',
+                                                    lineHeight: '1.35',
+                                                    margin: '0 0 0.3rem 0'
+                                                }}>{equipo.nombre}</h3>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                                    <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{equipo.nombre}</h3>
-                                                </div>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.1rem' }}>
                                                     <span style={{ fontSize: '0.6rem', fontWeight: '900', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{equipo.familia}</span>
                                                     {equipo.franquiciaId && (
                                                         <>
-                                                            <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--text-muted)' }}></span>
+                                                            <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--text-muted)', flexShrink: 0, display: 'inline-block' }}></span>
                                                             <span style={{ fontSize: '0.6rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
                                                                 {franquicias.find(f => f.id === equipo.franquiciaId)?.nombre || 'N/A'}
                                                             </span>
@@ -206,16 +367,33 @@ export const EquiposPage: React.FC = () => {
                                         </div>
                                         <button
                                             onClick={() => handleOpenModal(equipo)}
-                                            style={{ background: 'var(--bg-switch)', border: '1px solid var(--glass-border)', color: 'var(--text-muted)', padding: '0.5rem', borderRadius: '8px', cursor: 'pointer' }}
+                                            style={{ background: 'var(--bg-switch)', border: '1px solid var(--glass-border)', color: 'var(--text-muted)', padding: '0.5rem', borderRadius: '8px', cursor: 'pointer', flexShrink: 0, marginLeft: '0.5rem' }}
                                         >
                                             <Edit2 size={16} />
                                         </button>
                                     </div>
-                                    <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        <Store size={14} color="var(--text-muted)" />
-                                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                            En: <span style={{ color: 'var(--text-main)', fontWeight: '600' }}>{sucursal?.nombre || 'N/A'}</span>
-                                        </p>
+
+                                    {/* Todos los campos del catálogo */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: 'auto', paddingTop: '0.75rem', borderTop: '1px solid var(--glass-border)' }}>
+                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.4rem' }}>
+                                            <Store size={13} color="var(--text-muted)" style={{ flexShrink: 0, marginTop: '0.1rem' }} />
+                                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', wordBreak: 'break-word' }}>
+                                                Sucursal: <span style={{ color: 'var(--text-main)', fontWeight: '600' }}>{sucursal?.nombre || 'N/A'}</span>
+                                            </span>
+                                        </div>
+                                        {sucursal?.nomenclatura && (
+                                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.4rem', paddingLeft: '1.1rem' }}>
+                                                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                                    Nomenclatura: <span style={{ color: 'var(--text-main)', fontWeight: '600' }}>{sucursal.nomenclatura}</span>
+                                                </span>
+                                            </div>
+                                        )}
+                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.4rem', paddingLeft: '1.1rem' }}>
+                                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', wordBreak: 'break-word' }}>
+                                                Cliente: <span style={{ color: 'var(--text-main)', fontWeight: '600' }}>{clientes.find(c => c.id === equipo.clienteId)?.nombre || equipo.clienteId || 'N/A'}</span>
+                                            </span>
+                                        </div>
+
                                     </div>
                                 </div>
                             );
@@ -242,10 +420,11 @@ export const EquiposPage: React.FC = () => {
                         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                                 <div>
-                                    <label className="modal-label">Cliente *</label>
+                                    <label className="modal-label">Cliente (Contexto Activo)</label>
                                     <select
                                         value={clienteId} onChange={e => { setClienteId(e.target.value); setSucursalId(''); }} required
-                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
+                                        disabled={true}
+                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-switch)', color: 'var(--text-muted)', cursor: 'not-allowed' }}
                                     >
                                         <option value="" style={{ color: 'black' }}>Seleccione Cliente</option>
                                         {clientes.map(c => <option key={c.id} value={c.id} style={{ color: 'black' }}>{c.nombre}</option>)}

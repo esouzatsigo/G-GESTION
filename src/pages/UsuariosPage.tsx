@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Edit2, Search, Save, X, UserCheck, Shield } from 'lucide-react';
+import { Plus, Edit2, Search, Save, X, UserCheck, Shield, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { useNotification } from '../context/NotificationContext';
 import { db } from '../services/firebase';
 import { addDoc, collection, doc, updateDoc, getDocs } from 'firebase/firestore';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useAuth } from '../hooks/useAuth';
 import { tenantQuery } from '../services/tenantContext';
+import { logEntityChange } from '../services/dataService';
 import type { User, Sucursal, Cliente, UserRole, Franquicia } from '../types';
 
 export const UsuariosPage: React.FC = () => {
@@ -15,15 +17,27 @@ export const UsuariosPage: React.FC = () => {
     const [franquicias, setFranquicias] = useState<Franquicia[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [searchEmail, setSearchEmail] = useState('');
+    const [searchSucursal, setSearchSucursal] = useState('');
+    const [filterRol, setFilterRol] = useState('');
+    const [filterFranquicia, setFilterFranquicia] = useState('');
+    const [filterSucursalId, setFilterSucursalId] = useState('');
+    const [filterCliente, setFilterCliente] = useState('');
+    const [filterEspecialidad, setFilterEspecialidad] = useState('');
+    const [filterSupervisorId, setFilterSupervisorId] = useState('');
+    const [filterCoordinadorId, setFilterCoordinadorId] = useState('');
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const { showNotification } = useNotification();
 
     // Form State
     const [clienteId, setClienteId] = useState('');
+    const [franquiciaId, setFranquiciaId] = useState('');
     const [rol, setRol] = useState<UserRole>('Tecnico');
     const [nombre, setNombre] = useState('');
     const [email, setEmail] = useState('');
+    const [contrasena, setContrasena] = useState('');
     const [sucursalesPermitidas, setSucursalesPermitidas] = useState<string[]>([]);
     const [especialidad, setEspecialidad] = useState<User['especialidad']>();
     const [supervisorId, setSupervisorId] = useState('');
@@ -32,9 +46,9 @@ export const UsuariosPage: React.FC = () => {
     const roles: UserRole[] = ['Admin', 'Coordinador', 'Gerente', 'Supervisor', 'Tecnico', 'TecnicoExterno'];
     const especialidades: User['especialidad'][] = ['Aires', 'Coccion', 'Refrigeracion', 'Cocina', 'Restaurante', 'Local', 'Agua', 'Generadores'];
 
-    const { user: currentUser } = useAuth();
+    const { user: currentUser, activeClienteId } = useAuth();
 
-    const fetchData = async () => {
+    const fetchData = React.useCallback(async () => {
         if (!currentUser) return;
         setLoading(true);
         try {
@@ -54,35 +68,59 @@ export const UsuariosPage: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [currentUser, activeClienteId]);
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [fetchData]);
+
+    useEffect(() => {
+        if (isModalOpen && !editingUser) {
+            const availableCoordinators = usuarios.filter(u => u.rol === 'Coordinador');
+            if (availableCoordinators.length === 1 && !coordinadorId) {
+                setCoordinadorId(availableCoordinators[0].id);
+            }
+        }
+    }, [isModalOpen, editingUser, usuarios, coordinadorId]);
 
     useEscapeKey(() => setIsModalOpen(false), isModalOpen);
 
-    const handleOpenModal = (user?: User) => {
-        if (user) {
-            setEditingUser(user);
-            setClienteId(user.clienteId);
-            setRol(user.rol);
-            setNombre(user.nombre);
-            setEmail(user.email);
-            setSucursalesPermitidas(user.sucursalesPermitidas || []);
-            setEspecialidad(user.especialidad);
-            setSupervisorId(user.supervisorId || '');
-            setCoordinadorId(user.coordinadorId || '');
+    const handleOpenModal = (usuario?: User) => {
+        const effectiveClientId = (activeClienteId && activeClienteId !== 'ADMIN')
+            ? activeClienteId
+            : (currentUser?.clienteId && currentUser.clienteId !== 'ADMIN' ? currentUser.clienteId : '');
+
+        if (usuario) {
+            setEditingUser(usuario);
+            setNombre(usuario.nombre);
+            setEmail(usuario.email);
+            setContrasena(usuario.contrasena || '');
+            setRol(usuario.rol);
+            setClienteId(usuario.clienteId || '');
+            setFranquiciaId(usuario.franquiciaId || '');
+            setSucursalesPermitidas(usuario.sucursalesPermitidas || []);
+            setSupervisorId(usuario.supervisorId || '');
+            setCoordinadorId(usuario.coordinadorId || '');
+            setEspecialidad(usuario.especialidad);
         } else {
             setEditingUser(null);
-            setClienteId('');
-            setRol('Tecnico');
             setNombre('');
             setEmail('');
+            setContrasena('');
+            setRol('Tecnico'); // Changed from 'Consultor' to 'Tecnico' to match original default
+            setClienteId(effectiveClientId);
+            setFranquiciaId('');
             setSucursalesPermitidas([]);
-            setEspecialidad(undefined);
             setSupervisorId('');
-            setCoordinadorId('');
+            setEspecialidad(undefined);
+
+            // AUTO-PRESELECCIÓN DE COORDINADOR ÚNICO
+            const availableCoordinators = usuarios.filter(u => u.rol === 'Coordinador');
+            if (availableCoordinators.length === 1) {
+                setCoordinadorId(availableCoordinators[0].id);
+            } else {
+                setCoordinadorId('');
+            }
         }
         setIsModalOpen(true);
     };
@@ -105,8 +143,22 @@ export const UsuariosPage: React.FC = () => {
             showNotification("Ingrese un email válido.", "warning");
             return;
         }
+        if (!contrasena.trim()) {
+            showNotification("La contraseña es obligatoria.", "warning");
+            return;
+        }
         if (!clienteId) {
             showNotification("Seleccione un cliente para el usuario.", "warning");
+            return;
+        }
+        if (rol !== 'TecnicoExterno' && rol !== 'Supervisor' && !franquiciaId) {
+            showNotification("Seleccione una franquicia para el usuario.", "warning");
+            return;
+        }
+
+        // Validación específica para Técnicos
+        if (!sucursalesPermitidas || sucursalesPermitidas.length === 0) {
+            showNotification("Debe asignar al menos una sucursal al usuario.", "warning");
             return;
         }
 
@@ -116,29 +168,55 @@ export const UsuariosPage: React.FC = () => {
                 showNotification("Los técnicos externos deben tener una especialidad asignada.", "warning");
                 return;
             }
-            if (!sucursalesPermitidas || sucursalesPermitidas.length === 0) {
-                showNotification("Los técnicos deben tener al menos una sucursal asignada.", "warning");
-                return;
-            }
+        }
+
+        // Validación de Coordinador: Todos excepto el Coordinador deben tener uno (opcional para Supervisor)
+        if (rol !== 'Coordinador' && rol !== 'Supervisor' && !coordinadorId) {
+            showNotification("El Coordinador Asignado es obligatorio para este rol.", "warning");
+            return;
         }
 
         const data = {
             clienteId: clienteId,
+            franquiciaId: rol === 'TecnicoExterno' ? null : (franquiciaId || null),
             rol,
             nombre,
             email,
+            contrasena,
             sucursalesPermitidas: sucursalesPermitidas || [],
-            especialidad: especialidad || null,
-            supervisorId: (rol === 'Tecnico' || rol === 'TecnicoExterno') ? (supervisorId || null) : null,
-            coordinadorId: (rol === 'Tecnico' || rol === 'TecnicoExterno') ? (coordinadorId || null) : null
+            especialidad: rol === 'TecnicoExterno' ? (especialidad || null) : null,
+            supervisorId: (rol === 'Tecnico' || rol === 'TecnicoExterno' || rol === 'Gerente' || rol === 'Supervisor') ? (supervisorId || null) : null,
+            coordinadorId: rol !== 'Coordinador' ? (coordinadorId || null) : null
         };
 
         try {
             if (editingUser) {
                 await updateDoc(doc(db, 'usuarios', editingUser.id), data);
+                if (currentUser) {
+                    await logEntityChange({
+                        clienteId: data.clienteId,
+                        entityName: 'Usuario',
+                        entityId: editingUser.id,
+                        oldData: editingUser,
+                        newData: data,
+                        user: currentUser,
+                        fieldsToTrack: ['nombre', 'email', 'rol', 'clienteId']
+                    });
+                }
                 showNotification("Usuario actualizado correctamente.", "success");
             } else {
-                await addDoc(collection(db, 'usuarios'), data);
+                const docRef = await addDoc(collection(db, 'usuarios'), data);
+                if (currentUser) {
+                    await logEntityChange({
+                        clienteId: data.clienteId,
+                        entityName: 'Usuario',
+                        entityId: docRef.id,
+                        oldData: null,
+                        newData: data,
+                        user: currentUser,
+                        fieldsToTrack: []
+                    });
+                }
                 showNotification("Usuario creado correctamente.", "success");
             }
             setIsModalOpen(false);
@@ -147,6 +225,50 @@ export const UsuariosPage: React.FC = () => {
             console.error(error);
             showNotification("Error al procesar la solicitud del usuario.", "error");
         }
+    };
+
+    const filteredUsuarios = usuarios.filter(u => {
+        const matchNombre = (u.nombre || '').toLowerCase().includes(searchTerm.toLowerCase());
+        const matchEmail = (u.email || '').toLowerCase().includes(searchEmail.toLowerCase());
+        const matchRol = !filterRol || u.rol === filterRol;
+
+        const matchFranquicia = !filterFranquicia || u.sucursalesPermitidas?.some(sid => {
+            const suc = sucursales.find(s => s.id === sid);
+            return suc?.franquiciaId === filterFranquicia;
+        }) || (u.rol === 'Admin' || u.rol === 'Coordinador');
+
+        const matchSucursalId = !filterSucursalId || u.sucursalesPermitidas?.includes(filterSucursalId) || u.sucursalesPermitidas?.includes('TODAS');
+
+        const matchNombreSucursal = !searchSucursal || u.sucursalesPermitidas?.some(sid => {
+            const suc = sucursales.find(s => s.id === sid);
+            return (suc?.nombre || '').toLowerCase().includes(searchSucursal.toLowerCase());
+        });
+
+        const matchCliente = !filterCliente || u.clienteId === filterCliente;
+        const matchEspecialidad = !filterEspecialidad || u.especialidad === filterEspecialidad;
+        const matchSupervisor = !filterSupervisorId || u.supervisorId === filterSupervisorId;
+        const matchCoordinador = !filterCoordinadorId || u.coordinadorId === filterCoordinadorId;
+
+        return matchNombre && matchEmail && matchRol && matchFranquicia && matchSucursalId && matchNombreSucursal && matchCliente && matchEspecialidad && matchSupervisor && matchCoordinador;
+    });
+
+    const exportToExcel = () => {
+        const dataToExport = filteredUsuarios.map(u => ({
+            Nombre: u.nombre,
+            Email: u.email,
+            Contraseña: u.contrasena || '',
+            Rol: u.rol,
+            Franquicia: franquicias.find(f => f.id === u.franquiciaId)?.nombre || '',
+            Sucursales: u.sucursalesPermitidas?.includes('TODAS') ? 'TODAS' : u.sucursalesPermitidas?.map(sid => sucursales.find(s => s.id === sid)?.nombre).filter(Boolean).join(', ') || '',
+            Especialidad: u.especialidad || '',
+            Supervisor: usuarios.find(sup => sup.id === u.supervisorId)?.nombre || '',
+            Coordinador: usuarios.find(coord => coord.id === u.coordinadorId)?.nombre || ''
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Usuarios");
+        XLSX.writeFile(workbook, "catalogo_usuarios.xlsx");
     };
 
     return (
@@ -163,16 +285,152 @@ export const UsuariosPage: React.FC = () => {
                     </button>
                 </div>
 
-                <div className="glass-card" style={{ marginBottom: '2rem' }}>
-                    <div style={{ position: 'relative' }}>
-                        <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                        <input
-                            type="text"
-                            placeholder="Buscar por nombre o email..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            style={{ width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', outline: 'none' }}
-                        />
+                <div className="glass-card" style={{ marginBottom: '2rem', padding: '1.5rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                        {/* Nombre */}
+                        <div style={{ position: 'relative' }}>
+                            <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                            <input
+                                type="text"
+                                placeholder="Nombre..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                style={{ width: '100%', padding: '0.6rem 0.75rem 0.6rem 2.25rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem' }}
+                            />
+                        </div>
+
+                        {/* Empresa */}
+                        {(activeClienteId === 'ADMIN' || !activeClienteId) && (
+                            <select
+                                value={filterCliente}
+                                onChange={(e) => { setFilterCliente(e.target.value); setFilterFranquicia(''); setFilterSucursalId(''); }}
+                                style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem' }}
+                            >
+                                <option value="">Todas las Empresas</option>
+                                {clientes.map(c => <option key={c.id} value={c.id} style={{ color: 'black' }}>{c.nombre}</option>)}
+                            </select>
+                        )}
+
+                        {/* Email */}
+                        <div style={{ position: 'relative' }}>
+                            <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                            <input
+                                type="text"
+                                placeholder="Email..."
+                                value={searchEmail}
+                                onChange={(e) => setSearchEmail(e.target.value)}
+                                style={{ width: '100%', padding: '0.6rem 0.75rem 0.6rem 2.25rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem' }}
+                            />
+                        </div>
+
+                        {/* Rol */}
+                        <select
+                            value={filterRol}
+                            onChange={(e) => setFilterRol(e.target.value)}
+                            style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem' }}
+                        >
+                            <option value="">Todos los Roles</option>
+                            {roles.map(r => <option key={r} value={r} style={{ color: 'black' }}>{r}</option>)}
+                        </select>
+
+                        {/* Franquicia */}
+                        <select
+                            value={filterFranquicia}
+                            onChange={(e) => { setFilterFranquicia(e.target.value); setFilterSucursalId(''); }}
+                            style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem' }}
+                        >
+                            <option value="">Todas las Franquicias</option>
+                            {franquicias.filter(f => !filterCliente || f.clienteId === filterCliente).map(f => <option key={f.id} value={f.id} style={{ color: 'black' }}>{f.nombre}</option>)}
+                        </select>
+
+                        {/* Sucursal ID Selector */}
+                        <select
+                            value={filterSucursalId}
+                            onChange={(e) => setFilterSucursalId(e.target.value)}
+                            style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem' }}
+                        >
+                            <option value="">Todas las Sucursales</option>
+                            {sucursales.filter(s => !filterFranquicia || s.franquiciaId === filterFranquicia).map(s => (
+                                <option key={s.id} value={s.id} style={{ color: 'black' }}>{s.nombre}</option>
+                            ))}
+                        </select>
+
+                        {/* Nombre Sucursal Text */}
+                        <div style={{ position: 'relative' }}>
+                            <Search size={16} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                            <input
+                                type="text"
+                                placeholder="Nombre Sucursal..."
+                                value={searchSucursal}
+                                onChange={(e) => setSearchSucursal(e.target.value)}
+                                style={{ width: '100%', padding: '0.6rem 0.75rem 0.6rem 2.25rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem' }}
+                            />
+                        </div>
+
+                        {/* Especialidad */}
+                        <select
+                            value={filterEspecialidad}
+                            onChange={(e) => setFilterEspecialidad(e.target.value)}
+                            style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem' }}
+                        >
+                            <option value="">Todas las Especialidades</option>
+                            {especialidades.map(e => <option key={e!} value={e} style={{ color: 'black' }}>{e}</option>)}
+                        </select>
+
+                        {/* Supervisor */}
+                        <select
+                            value={filterSupervisorId}
+                            onChange={(e) => setFilterSupervisorId(e.target.value)}
+                            style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem' }}
+                        >
+                            <option value="">Todos los Supervisores</option>
+                            {usuarios.filter(u => u.rol === 'Supervisor').map(u => <option key={u.id} value={u.id} style={{ color: 'black' }}>{u.nombre}</option>)}
+                        </select>
+
+                        {/* Coordinador */}
+                        <select
+                            value={filterCoordinadorId}
+                            onChange={(e) => setFilterCoordinadorId(e.target.value)}
+                            style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem' }}
+                        >
+                            <option value="">Todos los Coordinadores</option>
+                            {usuarios.filter(u => u.rol === 'Coordinador').map(u => <option key={u.id} value={u.id} style={{ color: 'black' }}>{u.nombre}</option>)}
+                        </select>
+
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)' }}>
+                        <button
+                            className="btn"
+                            onClick={() => {
+                                setSearchTerm('');
+                                setSearchEmail('');
+                                setSearchSucursal('');
+                                setFilterRol('');
+                                setFilterFranquicia('');
+                                setFilterSucursalId('');
+                                setFilterCliente('');
+                                setFilterEspecialidad('');
+                                setFilterSupervisorId('');
+                                setFilterCoordinadorId('');
+                            }}
+                            style={{ background: 'var(--bg-input)', border: '1px solid var(--glass-border)', fontSize: '0.75rem', fontWeight: '600', padding: '0.6rem 1rem' }}
+                        >
+                            Limpiar Filtros
+                        </button>
+
+                        <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '600' }}>
+                            Mostrando {filteredUsuarios.length} registro(s) con los filtros actuales
+                        </div>
+                        <button
+                            className="btn btn-primary"
+                            onClick={exportToExcel}
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#10b981', color: 'white', padding: '0.5rem 1rem', fontSize: '0.875rem' }}
+                            disabled={filteredUsuarios.length === 0}
+                        >
+                            <Download size={18} />
+                            Exportar a Excel
+                        </button>
                     </div>
                 </div>
 
@@ -180,7 +438,7 @@ export const UsuariosPage: React.FC = () => {
                     <div style={{ textAlign: 'center', padding: '3rem' }}>Cargando usuarios...</div>
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
-                        {usuarios.filter(u => u.nombre.toLowerCase().includes(searchTerm.toLowerCase())).map(u => (
+                        {filteredUsuarios.map(u => (
                             <div key={u.id} className="glass-card animate-fade">
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
                                     <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
@@ -197,6 +455,31 @@ export const UsuariosPage: React.FC = () => {
                                     </button>
                                 </div>
                                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>{u.email}</p>
+                                <div style={{ marginBottom: '0.75rem' }}>
+                                    <p style={{ fontSize: '0.7rem', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Estructura Asignada</p>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                                        {u.sucursalesPermitidas?.includes('TODAS') ? (
+                                            <span style={{ fontSize: '0.65rem', padding: '0.2rem 0.5rem', background: 'rgba(37, 99, 235, 0.1)', color: 'var(--primary-light)', borderRadius: '4px', border: '1px solid rgba(37, 99, 235, 0.2)' }}>
+                                                Acceso a Todas las Sucursales
+                                            </span>
+                                        ) : (
+                                            u.sucursalesPermitidas?.slice(0, 3).map(sid => {
+                                                const s = sucursales.find(suc => suc.id === sid);
+                                                const f = franquicias.find(fran => fran.id === s?.franquiciaId);
+                                                return (
+                                                    <span key={sid} style={{ fontSize: '0.65rem', padding: '0.2rem 0.5rem', background: 'var(--bg-input)', color: 'var(--text-main)', borderRadius: '4px', border: '1px solid var(--glass-border)' }}>
+                                                        {f?.nombre ? `${f.nombre} - ` : ''}{s?.nombre || 'Desconocida'}
+                                                    </span>
+                                                );
+                                            })
+                                        )}
+                                        {u.sucursalesPermitidas && u.sucursalesPermitidas.length > 3 && !u.sucursalesPermitidas.includes('TODAS') && (
+                                            <span style={{ fontSize: '0.65rem', padding: '0.2rem 0.5rem', color: 'var(--text-muted)' }}>
+                                                +{u.sucursalesPermitidas.length - 3} más...
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                                     {u.especialidad && <span style={{ fontSize: '0.65rem', padding: '0.25rem 0.6rem', background: 'rgba(56, 189, 248, 0.1)', color: 'var(--accent)', borderRadius: '6px', fontWeight: 'bold' }}>{u.especialidad}</span>}
                                     {u.supervisorId && (
@@ -232,15 +515,23 @@ export const UsuariosPage: React.FC = () => {
                         </div>
 
                         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
                                 <div>
                                     <label className="modal-label">Nombre Completo</label>
                                     <input type="text" value={nombre} onChange={e => setNombre(e.target.value)} required
                                         style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }} />
                                 </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                                 <div>
-                                    <label className="modal-label">Email de Acceso</label>
+                                    <label className="modal-label">Usuario (Email de Acceso)</label>
                                     <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
+                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }} />
+                                </div>
+                                <div>
+                                    <label className="modal-label">Contraseña</label>
+                                    <input type="text" value={contrasena} onChange={e => setContrasena(e.target.value)} required
                                         style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }} />
                                 </div>
                             </div>
@@ -258,35 +549,53 @@ export const UsuariosPage: React.FC = () => {
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="modal-label">Cliente Principal</label>
+                                    <label className="modal-label">Cliente Principal (Contexto Activo)</label>
                                     <select value={clienteId} onChange={e => setClienteId(e.target.value)} required
-                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
+                                        disabled={true}
+                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-switch)', color: 'var(--text-muted)', cursor: 'not-allowed' }}
                                     >
                                         <option value="" style={{ color: 'black' }}>Seleccione Cliente</option>
                                         <option value="ADMIN" style={{ color: 'black' }}>ADMIN (Todo)</option>
                                         {clientes.map(c => <option key={c.id} value={c.id} style={{ color: 'black' }}>{c.nombre}</option>)}
                                     </select>
                                 </div>
+                                {rol !== 'TecnicoExterno' && (
+                                    <div>
+                                        <label className="modal-label">Franquicia {rol !== 'Supervisor' && <span style={{ color: '#ef4444' }}>*</span>}</label>
+                                        <select value={franquiciaId} onChange={e => {
+                                            setFranquiciaId(e.target.value);
+                                            // Reset sucursales if franchise changes to prevent cross-franchise assignments
+                                            setSucursalesPermitidas([]);
+                                        }} required={rol !== 'Supervisor'}
+                                            style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
+                                        >
+                                            <option value="" style={{ color: 'black' }}>Seleccione Franquicia...</option>
+                                            {franquicias.map(f => <option key={f.id} value={f.id} style={{ color: 'black' }}>{f.nombre}</option>)}
+                                        </select>
+                                    </div>
+                                )}
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
-                                <div>
-                                    <label className="modal-label">
-                                        Especialidad {rol === 'TecnicoExterno' && <span style={{ color: '#ef4444' }}>* (Obligatorio para Técnicos Externos)</span>}
-                                    </label>
-                                    <select value={especialidad || ''} onChange={e => setEspecialidad(e.target.value as any)}
-                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
-                                        required={rol === 'TecnicoExterno'}
-                                    >
-                                        <option value="" style={{ color: 'black' }}>{rol === 'TecnicoExterno' ? 'Seleccione Especialidad...' : 'Genérica / Sin Especialidad'}</option>
-                                        {especialidades.map(es => <option key={es} value={es} style={{ color: 'black' }}>{es}</option>)}
-                                    </select>
+                            {rol === 'TecnicoExterno' && (
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
+                                    <div>
+                                        <label className="modal-label">
+                                            Especialidad <span style={{ color: '#ef4444' }}>*</span>
+                                        </label>
+                                        <select value={especialidad || ''} onChange={e => setEspecialidad(e.target.value as any)}
+                                            style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
+                                            required
+                                        >
+                                            <option value="" style={{ color: 'black' }}>Seleccione Especialidad...</option>
+                                            {especialidades.map(es => <option key={es} value={es} style={{ color: 'black' }}>{es}</option>)}
+                                        </select>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
-                            {(rol === 'Tecnico' || rol === 'TecnicoExterno') && (
-                                <>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                            {rol !== 'Coordinador' && (
+                                <div style={{ display: 'grid', gridTemplateColumns: (rol === 'Tecnico' || rol === 'TecnicoExterno' || rol === 'Gerente' || rol === 'Supervisor') ? '1fr 1fr' : '1fr', gap: '1rem' }}>
+                                    {(rol === 'Tecnico' || rol === 'TecnicoExterno' || rol === 'Gerente' || rol === 'Supervisor') && (
                                         <div>
                                             <label className="modal-label">Supervisor Asignado</label>
                                             <select value={supervisorId} onChange={e => setSupervisorId(e.target.value)}
@@ -298,19 +607,20 @@ export const UsuariosPage: React.FC = () => {
                                                 ))}
                                             </select>
                                         </div>
-                                        <div>
-                                            <label className="modal-label">Coordinador Asignado</label>
-                                            <select value={coordinadorId} onChange={e => setCoordinadorId(e.target.value)}
-                                                style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
-                                            >
-                                                <option value="" style={{ color: 'black' }}>Sin Coordinador</option>
-                                                {usuarios.filter(u => u.rol === 'Coordinador').map(u => (
-                                                    <option key={u.id} value={u.id} style={{ color: 'black' }}>{u.nombre}</option>
-                                                ))}
-                                            </select>
-                                        </div>
+                                    )}
+                                    <div>
+                                        <label className="modal-label">Coordinador Asignado {rol !== 'Supervisor' && <span style={{ color: '#ef4444' }}>*</span>}</label>
+                                        <select value={coordinadorId} onChange={e => setCoordinadorId(e.target.value)}
+                                            style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
+                                            required={rol !== 'Supervisor'}
+                                        >
+                                            <option value="" style={{ color: 'black' }}>Seleccione Coordinador...</option>
+                                            {usuarios.filter(u => u.rol === 'Coordinador').map(u => (
+                                                <option key={u.id} value={u.id} style={{ color: 'black' }}>{u.nombre}</option>
+                                            ))}
+                                        </select>
                                     </div>
-                                </>
+                                </div>
                             )}
 
                             <div>
@@ -345,9 +655,10 @@ export const UsuariosPage: React.FC = () => {
                                     color: 'var(--text-main)'
                                 }}>
                                     {sucursales.filter(s => {
-                                        if (clienteId === 'ADMIN') return true;
-                                        if (!clienteId) return true;
-                                        return s.clienteId === clienteId;
+                                        // Filter by both client and selected franchise
+                                        const matchClient = (clienteId === 'ADMIN' || !clienteId || s.clienteId === clienteId);
+                                        const matchFranchise = !franquiciaId || s.franquiciaId === franquiciaId;
+                                        return matchClient && matchFranchise;
                                     }).map(s => (
                                         <label key={s.id} style={{
                                             display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.75rem',

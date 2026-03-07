@@ -6,9 +6,10 @@ import {
     where,
     getDocs,
     doc,
-    getDoc,
-    updateDoc
+    getDoc
 } from 'firebase/firestore';
+import { updateOTStatus, updateOTWithAudit } from '../services/dataService';
+import { useAuth } from '../hooks/useAuth';
 import { db } from '../services/firebase';
 import { tenantQuery } from '../services/tenantContext';
 import {
@@ -21,7 +22,6 @@ import {
 } from 'lucide-react';
 import { useNotification } from '../context/NotificationContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
-import { useAuth } from '../hooks/useAuth';
 import type { WorkOrder, User, Sucursal, Equipo, Franquicia } from '../types';
 
 // Carrusel Infinito para evidencia del Gerente
@@ -66,7 +66,7 @@ export const CoordinadorDashboard: React.FC = () => {
     const [asignando, setAsignando] = useState(false);
 
     const { showNotification } = useNotification();
-    const { user } = useAuth();
+    const { user, activeClienteId } = useAuth();
 
     // Asignación State
     const [selectedOT, setSelectedOT] = useState<WorkOrder | null>(null);
@@ -75,7 +75,7 @@ export const CoordinadorDashboard: React.FC = () => {
     const [fechaProgramada, setFechaProgramada] = useState('');
     const [horaProgramada, setHoraProgramada] = useState('');
 
-    const fetchData = async () => {
+    const fetchData = React.useCallback(async () => {
         if (!user) return;
         setLoading(true);
         try {
@@ -97,11 +97,11 @@ export const CoordinadorDashboard: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [user, activeClienteId]);
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [fetchData]);
 
     useEscapeKey(() => setSelectedOT(null), !!selectedOT);
 
@@ -176,16 +176,22 @@ export const CoordinadorDashboard: React.FC = () => {
                 }
             }
 
-            await updateDoc(doc(db, 'ordenesTrabajo', selectedOT.id), {
-                estatus: 'Asignada',
-                prioridad: prioridad,
-                tecnicoId,
-                fechas: {
-                    ...selectedOT.fechas,
-                    asignada: new Date().toISOString(),
-                    programada: `${fechaProgramada}T${horaProgramada}:00`
-                }
-            });
+            if (user) {
+                // Primero actualizar campos programados y técnico
+                await updateOTWithAudit(selectedOT.id, selectedOT, {
+                    prioridad: prioridad,
+                    tecnicoId,
+                    fechas: {
+                        ...selectedOT.fechas,
+                        programada: `${fechaProgramada}T${horaProgramada}:00`
+                    }
+                }, user, 'Asignación de Técnico y Horario');
+
+                // Luego cambiar estatus
+                await updateOTStatus(selectedOT.id, 'Asignada', user, {
+                    'fechas.asignada': new Date().toISOString()
+                });
+            }
             setSelectedOT(null);
             fetchData();
             showNotification("OT Asignada correctamente.", "success");

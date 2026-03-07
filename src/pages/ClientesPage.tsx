@@ -1,17 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Edit2, Search, Save, X } from 'lucide-react';
+import { Plus, Edit2, Search, Save, X, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { useNotification } from '../context/NotificationContext';
 import { getClientes, saveCliente } from '../services/dataService';
 import { useEscapeKey } from '../hooks/useEscapeKey';
+import { useAuth } from '../hooks/useAuth';
 import type { Cliente } from '../types';
 
 export const ClientesPage: React.FC = () => {
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
+    const [searchNombre, setSearchNombre] = useState('');
+    const [searchRazonSocial, setSearchRazonSocial] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
     const { showNotification } = useNotification();
+    const { user } = useAuth();
 
     // Form State
     const [nombre, setNombre] = useState('');
@@ -62,7 +66,9 @@ export const ClientesPage: React.FC = () => {
         }
 
         try {
-            await saveCliente({ nombre, razonSocial }, editingCliente?.id);
+            if (user) {
+                await saveCliente({ nombre, razonSocial }, user, editingCliente?.id);
+            }
             showNotification(editingCliente ? "Cliente actualizado" : "Cliente creado", "success");
             setIsModalOpen(false);
             fetchClientes();
@@ -73,9 +79,22 @@ export const ClientesPage: React.FC = () => {
     };
 
     const filteredClientes = clientes.filter(c =>
-        c.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.razonSocial.toLowerCase().includes(searchTerm.toLowerCase())
+        c.nombre.toLowerCase().includes(searchNombre.toLowerCase()) &&
+        c.razonSocial.toLowerCase().includes(searchRazonSocial.toLowerCase())
     );
+
+    const exportToExcel = () => {
+        const dataToExport = filteredClientes.map(c => ({
+            Nombre: c.nombre,
+            RazonSocial: c.razonSocial,
+            ID: c.id
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Clientes");
+        XLSX.writeFile(workbook, "catalogo_clientes.xlsx");
+    };
 
     return (
         <>
@@ -91,24 +110,54 @@ export const ClientesPage: React.FC = () => {
                     </button>
                 </div>
 
-                <div className="glass-card" style={{ marginBottom: '2rem' }}>
-                    <div style={{ position: 'relative' }}>
-                        <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                        <input
-                            type="text"
-                            placeholder="Buscar por nombre o razón social..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            style={{
-                                width: '100%',
-                                padding: '0.75rem 1rem 0.75rem 2.5rem',
-                                borderRadius: '12px',
-                                border: '1px solid var(--glass-border)',
-                                background: 'var(--bg-input)',
-                                color: 'var(--text-main)',
-                                outline: 'none'
+                <div className="glass-card" style={{ marginBottom: '1.5rem', padding: '1rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
+                        <div style={{ position: 'relative' }}>
+                            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                            <input
+                                type="text"
+                                placeholder="Buscar por nombre..."
+                                value={searchNombre}
+                                onChange={(e) => setSearchNombre(e.target.value)}
+                                style={{ width: '100%', padding: '0.6rem 0.75rem 0.6rem 2.25rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem' }}
+                            />
+                        </div>
+
+                        <div style={{ position: 'relative' }}>
+                            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                            <input
+                                type="text"
+                                placeholder="Buscar por razón social..."
+                                value={searchRazonSocial}
+                                onChange={(e) => setSearchRazonSocial(e.target.value)}
+                                style={{ width: '100%', padding: '0.6rem 0.75rem 0.6rem 2.25rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem' }}
+                            />
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)' }}>
+                        <button
+                            className="btn"
+                            onClick={() => {
+                                setSearchNombre('');
+                                setSearchRazonSocial('');
                             }}
-                        />
+                            style={{ background: 'var(--bg-input)', border: '1px solid var(--glass-border)', fontSize: '0.75rem', fontWeight: '600', padding: '0.6rem 1rem' }}
+                        >
+                            Limpiar Filtros
+                        </button>
+                        <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '600' }}>
+                            Mostrando {filteredClientes.length} registro(s) con los filtros actuales
+                        </div>
+                        <button
+                            className="btn btn-primary"
+                            onClick={exportToExcel}
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#10b981', color: 'white', padding: '0.5rem 1rem', fontSize: '0.875rem' }}
+                            disabled={filteredClientes.length === 0}
+                        >
+                            <Download size={18} />
+                            Exportar a Excel
+                        </button>
                     </div>
                 </div>
 
@@ -121,7 +170,7 @@ export const ClientesPage: React.FC = () => {
                                 <div>
                                     <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '0.25rem' }}>{cliente.nombre}</h3>
                                     <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{cliente.razonSocial}</p>
-                                    <p style={{ marginTop: '0.75rem', fontSize: '0.75rem', fontWeight: '700', color: 'var(--primary)' }}>ID: {cliente.id.substring(0, 6).toUpperCase()}</p>
+
                                 </div>
                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                                     <button

@@ -19,7 +19,8 @@ import {
     Sun,
     Moon,
     Plus,
-    Minus
+    Minus,
+    TrendingUp
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { auth } from '../services/firebase';
@@ -86,7 +87,7 @@ const NavItem: React.FC<NavItemProps> = ({ icon: Icon, label, active, onClick, p
 );
 
 export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { user, isAdmin, isCoordinador, isGerente, isGerenteBA, isSupervisor, isTecnico } = useAuth();
+    const { user, isTecnico, isAdminCliente, isSuperAdmin } = useAuth(); // Added isAdminCliente, isSuperAdmin
     const { hiddenIds, toggleVisibility } = usePanelPrefs(user?.id);
     const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
     const [theme, setTheme] = React.useState<'light' | 'dark'>(() => {
@@ -113,6 +114,18 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
         setIsSidebarOpen(false);
     };
 
+    const [simStep, setSimStep] = React.useState<string>(localStorage.getItem('qa_sim_step') || '');
+
+    React.useEffect(() => {
+        const handleSimUpdate = (e: any) => {
+            const msg = e.detail;
+            setSimStep(msg);
+            localStorage.setItem('qa_sim_step', msg);
+        };
+        window.addEventListener('qa-sim-update', handleSimUpdate);
+        return () => window.removeEventListener('qa-sim-update', handleSimUpdate);
+    }, []);
+
     React.useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape' && isSidebarOpen) {
@@ -125,6 +138,51 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
 
     return (
         <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)' }}>
+            {/* Simulation Overlay Banner */}
+            {simStep && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    background: 'rgba(37, 99, 235, 0.95)',
+                    color: 'white',
+                    padding: '0.5rem 1rem',
+                    zIndex: 20000,
+                    textAlign: 'center',
+                    fontWeight: '800',
+                    fontSize: '0.9rem',
+                    letterSpacing: '0.05em',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '1rem',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                    backdropFilter: 'blur(8px)'
+                }}>
+                    <TrendingUp size={18} className="animate-pulse" />
+                    <span>MODO QA SIMULACIÓN: {simStep.toUpperCase()}</span>
+                    <button
+                        onClick={() => { setSimStep(''); localStorage.removeItem('qa_sim_step'); }}
+                        style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '4px', padding: '2px 8px', cursor: 'pointer', fontSize: '0.7rem' }}
+                    >
+                        CERRAR
+                    </button>
+                    {/* Hidden Input for Agent to type step updates */}
+                    <input
+                        id="QA_SIM_CONTROLLER"
+                        type="text"
+                        style={{ position: 'absolute', opacity: 0, pointerEvents: 'none' }}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            if (val) {
+                                setSimStep(val);
+                                localStorage.setItem('qa_sim_step', val);
+                            }
+                        }}
+                    />
+                </div>
+            )}
             {/* Sidebar - Desktop & Tablet */}
             <aside style={{
                 width: '280px',
@@ -147,67 +205,95 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
                 </div>
 
                 <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1, overflowY: 'auto' }}>
-                    <NavItem icon={LayoutDashboard} label="Panel Operativo" active={isPathActive('/')} onClick={() => handleNavigation('/')} />
+                    <NavItem
+                        icon={LayoutDashboard}
+                        label="Panel Operativo"
+                        active={isPathActive('/')}
+                        onClick={() => handleNavigation('/')}
+                    />
 
-                    {(isAdmin || isCoordinador || isGerenteBA) && (
-                        <NavItem
-                            icon={ClipboardList} label="Ordenes de Trabajo" active={isPathActive('/ots')} onClick={() => handleNavigation('/ots')}
-                            panelId="OTS" isInPanel={!hiddenIds.includes("OTS")} onTogglePanel={!isTecnico ? toggleVisibility : undefined}
-                        />
-                    )}
-                    {(isSupervisor || isAdmin) && (
-                        <NavItem
-                            icon={ClipboardList} label="SUPERVISAR OTs CONCLUIDAS" active={isPathActive('/supervisar')} onClick={() => handleNavigation('/supervisar')}
-                            panelId="SUPER" isInPanel={!hiddenIds.includes("SUPER")} onTogglePanel={!isTecnico ? toggleVisibility : undefined}
-                        />
-                    )}
-
-                    {(isAdmin || isCoordinador || isGerenteBA || isSupervisor) && (
-                        <NavItem
-                            icon={Database} label="CONSULTA DE ORDENES" active={isPathActive('/kardex')} onClick={() => handleNavigation('/kardex')}
-                            panelId="KARDEX" isInPanel={!hiddenIds.includes("KARDEX")} onTogglePanel={!isTecnico ? toggleVisibility : undefined}
-                        />
-                    )}
-
-                    {(isAdmin || isCoordinador) && (
-                        <NavItem
-                            icon={Calendar} label="Mantenimientos Preventivos" active={isPathActive('/preventivos')} onClick={() => handleNavigation('/preventivos')}
-                            panelId="PREV" isInPanel={!hiddenIds.includes("PREV")} onTogglePanel={!isTecnico ? toggleVisibility : undefined}
-                        />
-                    )}
-
-                    {(isAdmin || isCoordinador) && (
-                        <NavItem
-                            icon={History} label="Bitácora de Auditoría" active={isPathActive('/bitacora')} onClick={() => handleNavigation('/bitacora')}
-                            panelId="BITACORA" isInPanel={!hiddenIds.includes("BITACORA")} onTogglePanel={!isTecnico ? toggleVisibility : undefined}
-                        />
-                    )}
-
-                    {(isGerente || isCoordinador || isAdmin) && (
-                        <NavItem
-                            icon={AlertCircle} label="Solicitar OT Correctiva" active={isPathActive('/solicitar-ot')} onClick={() => handleNavigation('/solicitar-ot')}
-                            panelId="SOLICITAR" isInPanel={!hiddenIds.includes("SOLICITAR")} onTogglePanel={!isTecnico ? toggleVisibility : undefined}
-                        />
-                    )}
-
-                    {isTecnico && (
-                        <NavItem icon={ClipboardList} label="Mis Servicios" active={isPathActive('/mis-servicios')} onClick={() => handleNavigation('/mis-servicios')} />
-                    )}
-
-                    {isAdmin && (
+                    {!isTecnico ? (
                         <>
-                            <div style={{ padding: '1rem 0.5rem 0.5rem', fontSize: '0.65rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Catálogos</div>
-                            <NavItem icon={Users} label="Clientes" active={isPathActive('/clientes')} onClick={() => handleNavigation('/clientes')} panelId="CLIENTES" isInPanel={!hiddenIds.includes("CLIENTES")} onTogglePanel={!isTecnico ? toggleVisibility : undefined} />
-                            <NavItem icon={Database} label="Franquicias" active={isPathActive('/franquicias')} onClick={() => handleNavigation('/franquicias')} panelId="FRANQUICIAS" isInPanel={!hiddenIds.includes("FRANQUICIAS")} onTogglePanel={!isTecnico ? toggleVisibility : undefined} />
-                            <NavItem icon={Store} label="Sucursales" active={isPathActive('/sucursales')} onClick={() => handleNavigation('/sucursales')} panelId="SUCURSALES" isInPanel={!hiddenIds.includes("SUCURSALES")} onTogglePanel={!isTecnico ? toggleVisibility : undefined} />
-                            <NavItem icon={HardDrive} label="Equipos" active={isPathActive('/equipos')} onClick={() => handleNavigation('/equipos')} panelId="EQUIPOS" isInPanel={!hiddenIds.includes("EQUIPOS")} onTogglePanel={!isTecnico ? toggleVisibility : undefined} />
-                            <NavItem icon={Users} label="Usuarios" active={isPathActive('/usuarios')} onClick={() => handleNavigation('/usuarios')} panelId="USERS" isInPanel={!hiddenIds.includes("USERS")} onTogglePanel={!isTecnico ? toggleVisibility : undefined} />
+                            {/* Operación */}
+                            <div style={{ padding: '1rem 0.5rem 0.5rem', fontSize: '0.65rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Operación</div>
+
+                            <NavItem
+                                icon={TrendingUp} label="Inteligencia de Negocio" active={isPathActive('/bi-dashboard')} onClick={() => handleNavigation('/bi-dashboard')}
+                                panelId="BI" isInPanel={!hiddenIds.includes("BI")} onTogglePanel={toggleVisibility}
+                            />
+
+                            <NavItem
+                                icon={ClipboardList} label="Ordenes de Trabajo" active={isPathActive('/ots')} onClick={() => handleNavigation('/ots')}
+                                panelId="OTS" isInPanel={!hiddenIds.includes("OTS")} onTogglePanel={toggleVisibility}
+                            />
+
+                            <NavItem
+                                icon={ClipboardList} label="Supervisar OTs" active={isPathActive('/supervisar')} onClick={() => handleNavigation('/supervisar')}
+                                panelId="SUPER" isInPanel={!hiddenIds.includes("SUPER")} onTogglePanel={toggleVisibility}
+                            />
+
+                            <NavItem
+                                icon={Database} label="Consulta (Kardex)" active={isPathActive('/kardex')} onClick={() => handleNavigation('/kardex')}
+                                panelId="KARDEX" isInPanel={!hiddenIds.includes("KARDEX")} onTogglePanel={toggleVisibility}
+                            />
+
+                            <NavItem
+                                icon={Calendar} label="Proyección Preventiva" active={isPathActive('/preventivos')} onClick={() => handleNavigation('/preventivos')}
+                                panelId="PREV" isInPanel={!hiddenIds.includes("PREV")} onTogglePanel={toggleVisibility}
+                            />
+
+                            {(isAdminCliente || isSuperAdmin) && (
+                                <NavItem
+                                    icon={History} label="Bitácora de Eventos" active={isPathActive('/bitacora')} onClick={() => handleNavigation('/bitacora')}
+                                    panelId="BITACORA" isInPanel={!hiddenIds.includes("BITACORA")} onTogglePanel={toggleVisibility}
+                                />
+                            )}
+
+                            <NavItem
+                                icon={AlertCircle} label="Solicitar OT Correctiva" active={isPathActive('/solicitar-ot')} onClick={() => handleNavigation('/solicitar-ot')}
+                                panelId="SOLICITAR" isInPanel={!hiddenIds.includes("SOLICITAR")} onTogglePanel={toggleVisibility}
+                            />
+
+                            {/* Catálogos */}
+                            <div style={{ padding: '1.5rem 0.5rem 0.5rem', fontSize: '0.65rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Catálogos</div>
+
+                            <NavItem
+                                icon={Users} label="Clientes" active={isPathActive('/clientes')} onClick={() => handleNavigation('/clientes')}
+                                panelId="CLIENTES" isInPanel={!hiddenIds.includes("CLIENTES")} onTogglePanel={toggleVisibility}
+                            />
+
+                            <NavItem
+                                icon={Database} label="Franquicias" active={isPathActive('/franquicias')} onClick={() => handleNavigation('/franquicias')}
+                                panelId="FRANQUICIAS" isInPanel={!hiddenIds.includes("FRANQUICIAS")} onTogglePanel={toggleVisibility}
+                            />
+
+                            <NavItem
+                                icon={Store} label="Sucursales" active={isPathActive('/sucursales')} onClick={() => handleNavigation('/sucursales')}
+                                panelId="SUCURSALES" isInPanel={!hiddenIds.includes("SUCURSALES")} onTogglePanel={toggleVisibility}
+                            />
+
+                            <NavItem
+                                icon={HardDrive} label="Equipos" active={isPathActive('/equipos')} onClick={() => handleNavigation('/equipos')}
+                                panelId="EQUIPOS" isInPanel={!hiddenIds.includes("EQUIPOS")} onTogglePanel={toggleVisibility}
+                            />
+
+                            <NavItem
+                                icon={Users} label="Usuarios y Técnicos" active={isPathActive('/usuarios')} onClick={() => handleNavigation('/usuarios')}
+                                panelId="USERS" isInPanel={!hiddenIds.includes("USERS")} onTogglePanel={toggleVisibility}
+                            />
+
+                            <div style={{ marginTop: 'auto' }}>
+                                <NavItem
+                                    icon={Settings} label="Configuración" active={isPathActive('/config')} onClick={() => handleNavigation('/config')}
+                                    panelId="CONFIG" isInPanel={!hiddenIds.includes("CONFIG")} onTogglePanel={toggleVisibility}
+                                />
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <NavItem icon={ClipboardList} label="Mis Servicios" active={isPathActive('/mis-servicios')} onClick={() => handleNavigation('/mis-servicios')} />
                         </>
                     )}
-
-                    <div style={{ marginTop: 'auto' }}>
-                        <NavItem icon={Settings} label="Configuración" active={isPathActive('/config')} onClick={() => handleNavigation('/config')} panelId="CONFIG" isInPanel={!hiddenIds.includes("CONFIG")} onTogglePanel={!isTecnico ? toggleVisibility : undefined} />
-                    </div>
                 </nav>
 
                 <div style={{ marginTop: 'auto', borderTop: '1px solid var(--glass-border)', paddingTop: '1.5rem' }}>

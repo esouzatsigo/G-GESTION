@@ -4,6 +4,7 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../services/firebase';
 import { Camera, CheckCircle2, ChevronLeft, AlertCircle, Loader2, RotateCcw } from 'lucide-react';
+import { updateOTStatus, updateOTWithAudit } from '../services/dataService';
 import type { WorkOrder, Equipo } from '../types';
 import { SignaturePad } from '../components/SignaturePad';
 import { CameraModal } from '../components/CameraModal';
@@ -98,10 +99,16 @@ export const EjecucionServicioPage: React.FC = () => {
             const path = `servicios/${field.replace('foto', '').toLowerCase()}`;
             const url = await handleUpload(file, path);
 
-            // Update Firestore immediately
-            await updateDoc(doc(db, 'ordenesTrabajo', ot.id), {
-                [field]: url
-            });
+            // Update Firestore immediately with audit
+            if (user) {
+                await updateOTWithAudit(ot.id, ot, {
+                    [field]: url
+                }, user, `Carga de Foto: ${field}`);
+            } else {
+                await updateDoc(doc(db, 'ordenesTrabajo', ot.id), {
+                    [field]: url
+                });
+            }
 
             // Update local state
             if (field === 'fotoAntes') setFotoAntesUrl(url);
@@ -161,16 +168,28 @@ export const EjecucionServicioPage: React.FC = () => {
             const urlFirmaTec = await handleUpload(dataURLtoBlob(firmaTecnico) as any, 'servicios/firmas/tecnico');
 
             const now = new Date();
-            await updateDoc(doc(db, 'ordenesTrabajo', ot.id), {
-                estatus: 'Concluida. Pendiente Firma Cliente',
-                'fechas.concluidaTecnico': now.toISOString(),
-                fotoAntes: fotoAntesUrl,
-                fotoDespues: fotoDespuesUrl,
-                fotoExtra: fotoExtraUrl,
-                firmaTecnico: urlFirmaTec,
-                descripcionServicio: descripcionTecnica,
-                repuestosUtilizados
-            });
+            if (user) {
+                await updateOTStatus(ot.id, 'Concluida. Pendiente Firma Cliente', user, {
+                    'fechas.concluidaTecnico': now.toISOString(),
+                    fotoAntes: fotoAntesUrl,
+                    fotoDespues: fotoDespuesUrl,
+                    fotoExtra: fotoExtraUrl,
+                    firmaTecnico: urlFirmaTec,
+                    descripcionServicio: descripcionTecnica,
+                    repuestosUtilizados
+                });
+            } else {
+                await updateDoc(doc(db, 'ordenesTrabajo', ot.id), {
+                    estatus: 'Concluida. Pendiente Firma Cliente',
+                    'fechas.concluidaTecnico': now.toISOString(),
+                    fotoAntes: fotoAntesUrl,
+                    fotoDespues: fotoDespuesUrl,
+                    fotoExtra: fotoExtraUrl,
+                    firmaTecnico: urlFirmaTec,
+                    descripcionServicio: descripcionTecnica,
+                    repuestosUtilizados
+                });
+            }
 
             // Update local state to show message and lock fields
             const updatedOT: WorkOrder = {
@@ -217,14 +236,15 @@ export const EjecucionServicioPage: React.FC = () => {
             const dateStr = now.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
             const timeStr = now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
 
-            await updateDoc(doc(db, 'ordenesTrabajo', ot.id), {
-                estatus: 'Concluida',
-                'fechas.concluida': now.toISOString(),
-                'fechas.concluidaFecha': dateStr,
-                'fechas.concluidaHora': timeStr,
-                firmaCliente: urlFirmaCli,
-                comentariosCliente: comentariosCliente
-            });
+            if (user) {
+                await updateOTStatus(ot.id, 'Concluida', user, {
+                    'fechas.concluida': now.toISOString(),
+                    'fechas.concluidaFecha': dateStr,
+                    'fechas.concluidaHora': timeStr,
+                    firmaCliente: urlFirmaCli,
+                    comentariosCliente: comentariosCliente
+                });
+            }
 
             // Update local state
             setOt(prev => prev ? {

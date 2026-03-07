@@ -15,6 +15,8 @@ interface AuthContextType {
     isGerenteSucursal: boolean;
     isSupervisor: boolean;
     isTecnico: boolean;
+    isAdminCliente: boolean;
+    isSuperAdmin: boolean;
     activeClienteId: string | null;
     setActiveClienteId: (id: string | null) => void;
     loginAsRole: (role: string) => void;
@@ -31,6 +33,8 @@ const AuthContext = createContext<AuthContextType>({
     isGerenteSucursal: false,
     isSupervisor: false,
     isTecnico: false,
+    isAdminCliente: false,
+    isSuperAdmin: false,
     activeClienteId: null,
     setActiveClienteId: () => { },
     loginAsRole: () => { },
@@ -161,7 +165,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    const isSuperAdminUser = user?.rol === 'Admin' && user?.clienteId === 'ADMIN';
+    const isSuperAdminUser = (user?.rol === 'Admin' && user?.clienteId === 'ADMIN') || user?.email === 'hhcelis@hgestion.com';
 
     // Mask user object if impersonating
     const activeUser = React.useMemo(() => {
@@ -183,7 +187,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isGerenteSucursal: user?.rol === 'Gerente' && !(user?.nombre?.toUpperCase().includes('BA') || user?.sucursalesPermitidas?.includes('TODAS') || (user?.sucursalesPermitidas?.length || 0) > 1),
         isSupervisor: user?.rol === 'Supervisor',
         isTecnico: user?.rol === 'Tecnico' || user?.rol === 'TecnicoExterno',
-        activeClienteId: isSuperAdminUser ? (activeClienteId || 'ADMIN') : null,
+        isAdminCliente: user?.rol === 'Admin' && user?.clienteId !== 'ADMIN',
+        isSuperAdmin: isSuperAdminUser,
+        activeClienteId: isSuperAdminUser ? (activeClienteId || 'ADMIN') : activeClienteId,
         setActiveClienteId,
         loginAsRole: setMockUser,
     };

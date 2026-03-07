@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Edit2, Search, Save, X, Navigation, MapPin, Map as MapIcon, FileSpreadsheet, Store } from 'lucide-react';
+import { Plus, Edit2, Search, Save, X, Navigation, MapPin, Map as MapIcon, FileSpreadsheet, Store, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { useNotification } from '../context/NotificationContext';
 import { ImportModal } from '../components/ImportModal';
-import { getSucursales, getClientes, getFranquicias } from '../services/dataService';
+import { getSucursales, getClientes, getFranquicias, logEntityChange } from '../services/dataService';
 import { db } from '../services/firebase';
 import { addDoc, collection, doc, updateDoc } from 'firebase/firestore';
 import { useEscapeKey } from '../hooks/useEscapeKey';
+import { useAuth } from '../hooks/useAuth';
 import type { Sucursal, Cliente, Franquicia } from '../types';
 import { MapPickerModal } from '../components/MapPickerModal';
 
@@ -15,10 +17,15 @@ export const SucursalesPage: React.FC = () => {
     const [franquicias, setFranquicias] = useState<Franquicia[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [searchNomenclatura, setSearchNomenclatura] = useState('');
+    const [searchDireccion, setSearchDireccion] = useState('');
+    const [filterCliente, setFilterCliente] = useState('');
+    const [filterFranquiciaId, setFilterFranquiciaId] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingSucursal, setEditingSucursal] = useState<Sucursal | null>(null);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const { showNotification } = useNotification();
+    const { user, activeClienteId, isSuperAdmin } = useAuth();
 
     // Form State
     const [clienteId, setClienteId] = useState('');
@@ -30,10 +37,19 @@ export const SucursalesPage: React.FC = () => {
     const [lng, setLng] = useState<string>('');
     const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
 
-    const fetchData = async () => {
+    const fetchData = React.useCallback(async () => {
         setLoading(true);
         try {
-            const [sData, cData, fData] = await Promise.all([getSucursales(), getClientes(), getFranquicias()]);
+            // Contexto de cliente para filtrar catálogos
+            const targetClienteId = (isSuperAdmin && activeClienteId && activeClienteId !== 'ADMIN')
+                ? activeClienteId
+                : (!isSuperAdmin ? user?.clienteId : undefined);
+
+            const [sData, cData, fData] = await Promise.all([
+                getSucursales(targetClienteId),
+                getClientes(),
+                getFranquicias(targetClienteId)
+            ]);
             setSucursales(sData);
             setClientes(cData);
             setFranquicias(fData);
@@ -42,17 +58,21 @@ export const SucursalesPage: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [user, activeClienteId, isSuperAdmin]);
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [fetchData]);
 
     useEscapeKey(() => setIsModalOpen(false), isModalOpen);
     useEscapeKey(() => setIsImportModalOpen(false), isImportModalOpen);
     useEscapeKey(() => setIsMapPickerOpen(false), isMapPickerOpen);
 
     const handleOpenModal = (sucursal?: Sucursal) => {
+        const effectiveClientId = (activeClienteId && activeClienteId !== 'ADMIN')
+            ? activeClienteId
+            : (user?.clienteId && user.clienteId !== 'ADMIN' ? user.clienteId : '');
+
         if (sucursal) {
             setEditingSucursal(sucursal);
             setClienteId(sucursal.clienteId);
@@ -64,7 +84,7 @@ export const SucursalesPage: React.FC = () => {
             setLng(sucursal.coordenadas.lng.toString());
         } else {
             setEditingSucursal(null);
-            setClienteId('');
+            setClienteId(effectiveClientId || '');
             setFranquiciaId('');
             setNombre('');
             setDireccion('');
@@ -127,9 +147,31 @@ export const SucursalesPage: React.FC = () => {
         try {
             if (editingSucursal) {
                 await updateDoc(doc(db, 'sucursales', editingSucursal.id), data);
+                if (user) {
+                    await logEntityChange({
+                        clienteId: data.clienteId,
+                        entityName: 'Sucursal',
+                        entityId: editingSucursal.id,
+                        oldData: editingSucursal,
+                        newData: data,
+                        user: user,
+                        fieldsToTrack: ['nombre', 'direccion', 'nomenclatura']
+                    });
+                }
                 showNotification("Sucursal actualizada correctamente.", "success");
             } else {
-                await addDoc(collection(db, 'sucursales'), data);
+                const docRef = await addDoc(collection(db, 'sucursales'), data);
+                if (user) {
+                    await logEntityChange({
+                        clienteId: data.clienteId,
+                        entityName: 'Sucursal',
+                        entityId: docRef.id,
+                        oldData: null,
+                        newData: data,
+                        user: user,
+                        fieldsToTrack: []
+                    });
+                }
                 showNotification("Sucursal creada correctamente.", "success");
             }
             setIsModalOpen(false);
@@ -141,10 +183,31 @@ export const SucursalesPage: React.FC = () => {
     };
 
     const filteredSucursales = sucursales.filter(s => {
-        const fName = franquicias.find(f => f.id === s.franquiciaId)?.nombre || '';
-        return s.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            fName.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchSearch = s.nombre.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchNomenclatura = !searchNomenclatura || (s.nomenclatura || '').toLowerCase().includes(searchNomenclatura.toLowerCase());
+        const matchDireccion = !searchDireccion || (s.direccion || '').toLowerCase().includes(searchDireccion.toLowerCase());
+        const matchCliente = !filterCliente || s.clienteId === filterCliente;
+        const matchFranquicia = !filterFranquiciaId || s.franquiciaId === filterFranquiciaId;
+
+        return matchSearch && matchNomenclatura && matchDireccion && matchCliente && matchFranquicia;
     });
+
+    const exportToExcel = () => {
+        const dataToExport = filteredSucursales.map(s => ({
+            Nombre: s.nombre,
+            Nomenclatura: s.nomenclatura || '',
+            Direccion: s.direccion || '',
+            Latitud: s.coordenadas?.lat || '',
+            Longitud: s.coordenadas?.lng || '',
+            Franquicia: franquicias.find(f => f.id === s.franquiciaId)?.nombre || '',
+            Cliente: clientes.find(c => c.id === s.clienteId)?.nombre || s.clienteId
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Sucursales");
+        XLSX.writeFile(workbook, "catalogo_sucursales.xlsx");
+    };
 
     return (
         <>
@@ -164,16 +227,100 @@ export const SucursalesPage: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="glass-card" style={{ marginBottom: '2rem' }}>
-                    <div style={{ position: 'relative' }}>
-                        <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                        <input
-                            type="text"
-                            placeholder="Buscar por nombre o franquicia..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            style={{ width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', outline: 'none' }}
-                        />
+                <div className="glass-card" style={{ marginBottom: '1.5rem', padding: '1rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
+
+                        <div style={{ position: 'relative' }}>
+                            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                            <input
+                                type="text"
+                                placeholder="Buscar por nombre..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                style={{ width: '100%', padding: '0.6rem 0.75rem 0.6rem 2.25rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem' }}
+                            />
+                        </div>
+
+                        <div style={{ position: 'relative' }}>
+                            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                            <input
+                                type="text"
+                                placeholder="Buscar por nomenclatura..."
+                                value={searchNomenclatura}
+                                onChange={(e) => setSearchNomenclatura(e.target.value)}
+                                style={{ width: '100%', padding: '0.6rem 0.75rem 0.6rem 2.25rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem' }}
+                            />
+                        </div>
+
+                        <div style={{ position: 'relative' }}>
+                            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                            <input
+                                type="text"
+                                placeholder="Buscar por dirección..."
+                                value={searchDireccion}
+                                onChange={(e) => setSearchDireccion(e.target.value)}
+                                style={{ width: '100%', padding: '0.6rem 0.75rem 0.6rem 2.25rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem' }}
+                            />
+                        </div>
+
+                        {(activeClienteId === 'ADMIN' || !activeClienteId) && (
+                            <div>
+                                <select
+                                    value={filterCliente}
+                                    onChange={(e) => { setFilterCliente(e.target.value); setFilterFranquiciaId(''); }}
+                                    style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem', appearance: 'none' }}
+                                >
+                                    <option value="" style={{ color: 'black' }}>Todas las Empresas</option>
+                                    {clientes.map(c => (
+                                        <option key={c.id} value={c.id} style={{ color: 'black' }}>{c.nombre}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+                        <div>
+                            <select
+                                value={filterFranquiciaId}
+                                onChange={(e) => setFilterFranquiciaId(e.target.value)}
+                                style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem', appearance: 'none' }}
+                            >
+                                <option value="" style={{ color: 'black' }}>Todas las Franquicias</option>
+                                {franquicias.filter(f => !filterCliente || f.clienteId === filterCliente).map(f => (
+                                    <option key={f.id} value={f.id} style={{ color: 'black' }}>{f.nombre}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div>
+                            <button
+                                className="btn"
+                                onClick={() => {
+                                    setSearchTerm('');
+                                    setSearchNomenclatura('');
+                                    setSearchDireccion('');
+                                    setFilterCliente('');
+                                    setFilterFranquiciaId('');
+                                }}
+                                style={{ background: 'var(--bg-input)', border: '1px solid var(--glass-border)', fontSize: '0.75rem', fontWeight: '600', padding: '0.6rem 1rem' }}
+                            >
+                                Limpiar Filtros
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)' }}>
+                        <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '600' }}>
+                            Mostrando {filteredSucursales.length} registro(s) con los filtros actuales
+                        </div>
+                        <button
+                            className="btn btn-primary"
+                            onClick={exportToExcel}
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: '#10b981', color: 'white', padding: '0.5rem 1rem', fontSize: '0.875rem' }}
+                            disabled={filteredSucursales.length === 0}
+                        >
+                            <Download size={18} />
+                            Exportar a Excel
+                        </button>
                     </div>
                 </div>
 
@@ -320,10 +467,11 @@ export const SucursalesPage: React.FC = () => {
                         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                                 <div>
-                                    <label className="modal-label">Cliente</label>
+                                    <label className="modal-label">Cliente (Contexto Activo)</label>
                                     <select
                                         value={clienteId} onChange={e => { setClienteId(e.target.value); setFranquiciaId(''); }} required
-                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
+                                        disabled={true}
+                                        style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-switch)', color: 'var(--text-muted)', cursor: 'not-allowed' }}
                                     >
                                         <option value="" style={{ color: 'black' }}>Seleccione Cliente</option>
                                         {clientes.map(c => <option key={c.id} value={c.id} style={{ color: 'black' }}>{c.nombre}</option>)}

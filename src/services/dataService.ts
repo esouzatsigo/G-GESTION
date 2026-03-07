@@ -24,6 +24,7 @@ export interface BitacoraEntry {
     campo: string;
     valorAnterior: any;
     valorNuevo: any;
+    isSuperAdminAction?: boolean;
 }
 
 export interface PreventivoPlanEntry {
@@ -57,12 +58,47 @@ export const getClientes = async () => {
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Cliente));
 };
 
-export const saveCliente = async (cliente: Omit<Cliente, 'id'>, id?: string) => {
+export const saveCliente = async (cliente: Omit<Cliente, 'id'>, user: User, id?: string) => {
     if (id) {
-        await updateDoc(doc(db, 'clientes', id), cliente);
+        const docRef = doc(db, 'clientes', id);
+        const oldSnap = await getDoc(docRef);
+        const oldData = oldSnap.data() as Cliente;
+
+        await updateDoc(docRef, cliente);
+
+        // Auditar cambios de campos relevantes
+        const fields = ['nombre', 'razonSocial'] as (keyof Cliente)[];
+        for (const field of fields) {
+            if (cliente[field as keyof Omit<Cliente, 'id'>] !== oldData[field]) {
+                await logBitacora({
+                    clienteId: 'ADMIN',
+                    otId: 'CATALOG_CLIENTE',
+                    otNumero: 0,
+                    fecha: new Date().toISOString(),
+                    usuarioId: user.id,
+                    usuarioNombre: user.nombre,
+                    accion: `Edición de Cliente: ${cliente.nombre}`,
+                    campo: field,
+                    valorAnterior: oldData[field] || 'Vacio',
+                    valorNuevo: cliente[field as keyof Omit<Cliente, 'id'>]
+                });
+            }
+        }
         return id;
     } else {
         const docRef = await addDoc(collection(db, 'clientes'), cliente);
+        await logBitacora({
+            clienteId: 'ADMIN',
+            otId: 'CATALOG_CLIENTE',
+            otNumero: 0,
+            fecha: new Date().toISOString(),
+            usuarioId: user.id,
+            usuarioNombre: user.nombre,
+            accion: `Creación de Cliente`,
+            campo: 'General',
+            valorAnterior: 'N/A',
+            valorNuevo: `Cliente: ${cliente.nombre} / ${cliente.razonSocial}`
+        });
         return docRef.id;
     }
 };
@@ -122,7 +158,7 @@ export const getCounterConfig = async (clienteId: string) => {
 };
 
 // --- Servicios de Ordenes de Trabajo (OT) ---
-export const createOT = async (ot: Omit<WorkOrder, 'id' | 'numero'>) => {
+export const createOT = async (ot: Omit<WorkOrder, 'id' | 'numero'>, user: User) => {
     const numero = await getNextOTNumber(ot.clienteId, ot.tipo);
     const docRef = await addDoc(collection(db, 'ordenesTrabajo'), {
         ...ot,
@@ -132,6 +168,21 @@ export const createOT = async (ot: Omit<WorkOrder, 'id' | 'numero'>) => {
             solicitada: new Date().toISOString()
         }
     });
+
+    // Auditoría de Creación de OT
+    await logBitacora({
+        clienteId: ot.clienteId,
+        otId: docRef.id,
+        otNumero: numero,
+        fecha: new Date().toISOString(),
+        usuarioId: user.id,
+        usuarioNombre: user.nombre,
+        accion: `Nueva OT ${ot.tipo}`,
+        campo: 'General',
+        valorAnterior: 'N/A',
+        valorNuevo: `OT Solicitada: ${ot.descripcionFalla.substring(0, 50)}...`
+    });
+
     return { id: docRef.id, numero };
 };
 
@@ -194,6 +245,19 @@ export const createMassivePreventiveOTsV2 = async (
     };
 
     const batchRef = await addDoc(collection(db, 'massiveBatchRecords'), batchRecord);
+
+    await logBitacora({
+        clienteId: sucursal.clienteId,
+        otId: 'BATCH_GENERATION',
+        otNumero: 0,
+        fecha: new Date().toISOString(),
+        usuarioId: user.id,
+        usuarioNombre: user.nombre,
+        accion: `Generación Masiva de OTs (${assignments.length} unidades)`,
+        campo: 'batch_generation',
+        valorAnterior: '',
+        valorNuevo: `Sucursal: ${sucursal.nombre}`
+    });
 
     return { otIds, batchRecordId: batchRef.id };
 };
@@ -494,18 +558,70 @@ export const getMassiveBatchChanges = async (batchRecordId: string): Promise<Mas
 };
 
 
-export const updateCounterConfig = async (clienteId: string, otNumber: number, preventiveOtNumber: number) => {
+export const updateCounterConfig = async (clienteId: string, otNumber: number, preventiveOtNumber: number, user: User) => {
     const docId = (!clienteId || clienteId === 'ADMIN') ? 'counters' : `counters_${clienteId}`;
     const counterRef = doc(db, 'config', docId);
+
+    const oldSnap = await getDoc(counterRef);
+    const oldData = oldSnap.exists() ? oldSnap.data() : { otNumber: 0, preventiveOtNumber: 0 };
+
     await updateDoc(counterRef, { otNumber, preventiveOtNumber });
+
+    // Auditar cambio de folios
+    if (oldData.otNumber !== otNumber) {
+        await logBitacora({
+            clienteId: clienteId || 'ADMIN',
+            otId: 'CONFIG_FOLIOS',
+            otNumero: 0,
+            fecha: new Date().toISOString(),
+            usuarioId: user.id,
+            usuarioNombre: user.nombre,
+            accion: 'Ajuste Manual de Folio (Correctivas)',
+            campo: 'otNumber',
+            valorAnterior: oldData.otNumber,
+            valorNuevo: otNumber
+        });
+    }
+    if (oldData.preventiveOtNumber !== preventiveOtNumber) {
+        await logBitacora({
+            clienteId: clienteId || 'ADMIN',
+            otId: 'CONFIG_FOLIOS',
+            otNumero: 0,
+            fecha: new Date().toISOString(),
+            usuarioId: user.id,
+            usuarioNombre: user.nombre,
+            accion: 'Ajuste Manual de Folio (Preventivas)',
+            campo: 'preventiveOtNumber',
+            valorAnterior: oldData.preventiveOtNumber,
+            valorNuevo: preventiveOtNumber
+        });
+    }
 };
 
-export const updateOTStatus = async (otId: string, status: string, additionalData: any = {}) => {
+export const updateOTStatus = async (otId: string, status: string, user: User, additionalData: any = {}) => {
+    const otRef = doc(db, 'ordenesTrabajo', otId);
+    const otSnap = await getDoc(otRef);
+    const otData = otSnap.data() as WorkOrder;
+
     const updateData: any = { estatus: status };
     const timestampField = `fechas.${status.toLowerCase().replace(/ /g, '')}`;
     updateData[timestampField] = new Date().toISOString();
 
-    await updateDoc(doc(db, 'ordenesTrabajo', otId), { ...updateData, ...additionalData });
+    await updateDoc(otRef, { ...updateData, ...additionalData });
+
+    // Auditoría de cambio de estado
+    await logBitacora({
+        clienteId: otData.clienteId,
+        otId: otId,
+        otNumero: otData.numero,
+        fecha: new Date().toISOString(),
+        usuarioId: user.id,
+        usuarioNombre: user.nombre,
+        accion: `Cambio de Estado`,
+        campo: 'estatus',
+        valorAnterior: otData.estatus,
+        valorNuevo: status
+    });
 };
 
 // --- Bitácora de Auditoría ---
@@ -577,6 +693,66 @@ export const updateOTWithAudit = async (
         await updateDoc(doc(db, 'ordenesTrabajo', otId), newData);
     }
 };
+/**
+ * Audita cambios en cualquier entidad (Catalogos o Procesos)
+ * Detecta automáticamente qué campos cambiaron.
+ */
+export const logEntityChange = async (
+    params: {
+        clienteId: string;
+        entityName: string;
+        entityId: string;
+        otNumero?: number;
+        oldData: any;
+        newData: any;
+        user: User;
+        fieldsToTrack: string[];
+        customAction?: string;
+    }
+) => {
+    const { clienteId, entityName, entityId, otNumero, oldData, newData, user, fieldsToTrack, customAction } = params;
+
+    if (!oldData) {
+        // Es creación
+        const isSuperAdminAction = user.rol === 'Admin' && user.clienteId === 'ADMIN';
+        await logBitacora({
+            clienteId,
+            otId: entityId,
+            otNumero: otNumero || 0,
+            fecha: new Date().toISOString(),
+            usuarioId: user.id,
+            usuarioNombre: user.nombre,
+            accion: customAction || `CREACIÓN DE ${entityName.toUpperCase()}`,
+            campo: 'General',
+            valorAnterior: 'N/A',
+            valorNuevo: `Registro creado exitosamente.`,
+            isSuperAdminAction
+        });
+        return;
+    }
+
+    // Es edición
+    const isSuperAdminAction = user.rol === 'Admin' && user.clienteId === 'ADMIN';
+
+    for (const field of fieldsToTrack) {
+        if (newData[field] !== undefined && newData[field] !== oldData[field]) {
+            await logBitacora({
+                clienteId,
+                otId: entityId,
+                otNumero: otNumero || 0,
+                fecha: new Date().toISOString(),
+                usuarioId: user.id,
+                usuarioNombre: user.nombre,
+                accion: customAction || `EDICIÓN DE ${entityName.toUpperCase()}`,
+                campo: field,
+                valorAnterior: oldData[field] || 'Vacio',
+                valorNuevo: newData[field],
+                isSuperAdminAction
+            });
+        }
+    }
+};
+
 // --- Servicios de Plan Preventivo 2026 ---
 export const getPlanPreventivo = async () => {
     const snapshot = await getDocs(collection(db, 'planPreventivo2026'));
@@ -653,7 +829,7 @@ export const getBitacoraPreventivos = async () => {
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BitacoraPreventivo));
 };
 
-export const importPreventivoPlan = async (newData: Omit<PreventivoPlanEntry, 'id'>[], clearExisting: boolean = true) => {
+export const importPreventivoPlan = async (newData: Omit<PreventivoPlanEntry, 'id'>[], user: User, clearExisting: boolean = true) => {
     const { writeBatch } = await import('firebase/firestore');
     const batch = writeBatch(db);
 
@@ -668,4 +844,17 @@ export const importPreventivoPlan = async (newData: Omit<PreventivoPlanEntry, 'i
     });
 
     await batch.commit();
+
+    await logBitacora({
+        clienteId: user.clienteId,
+        otId: 'IMPORT_PLAN',
+        otNumero: 0,
+        fecha: new Date().toISOString(),
+        usuarioId: user.id,
+        usuarioNombre: user.nombre,
+        accion: 'Importación de Plan Preventivo 2026',
+        campo: 'plan_preventivo',
+        valorAnterior: clearExisting ? 'Plan Anterior (Borrado)' : 'Plan Existente',
+        valorNuevo: `Importados ${newData.length} registros`
+    });
 };

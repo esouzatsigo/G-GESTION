@@ -10,6 +10,8 @@ export interface User {
     especialidad?: 'Aires' | 'Coccion' | 'Refrigeracion' | 'Cocina' | 'Restaurante' | 'Local' | 'Agua' | 'Generadores';
     supervisorId?: string;
     coordinadorId?: string;
+    franquiciaId?: string;
+    contrasena?: string; // Para accesar al sistema, el usuario será el email
 }
 
 export interface Cliente {

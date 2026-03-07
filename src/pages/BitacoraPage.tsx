@@ -1,26 +1,31 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, getDocs, orderBy, limit } from 'firebase/firestore';
-import { db } from '../services/firebase';
+import { getDocs, orderBy, limit } from 'firebase/firestore';
 import { tenantQuery } from '../services/tenantContext';
 import { History, Search, Calendar, User as UserIcon, AlertTriangle } from 'lucide-react';
 import type { BitacoraEntry } from '../services/dataService';
 import { useAuth } from '../hooks/useAuth';
 
 export const BitacoraPage: React.FC = () => {
-    const { user, isAdmin, isCoordinador } = useAuth();
+    const { user, isAdminCliente, isSuperAdmin } = useAuth();
     const [entries, setEntries] = useState<BitacoraEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
         const fetchData = async () => {
-            if (!isAdmin && !isCoordinador) return;
+            if (!isAdminCliente && !isSuperAdmin) return;
             setLoading(true);
             try {
-                // El usuario pidió orden descendente por número de OT
-                const q = tenantQuery('bitacora', user!, orderBy('otNumero', 'desc'), limit(100));
+                const q = tenantQuery('bitacora', user!, orderBy('fecha', 'desc'), limit(100));
                 const snap = await getDocs(q);
-                setEntries(snap.docs.map(d => ({ id: d.id, ...d.data() } as BitacoraEntry)));
+                let allEntries = snap.docs.map(d => ({ id: d.id, ...d.data() } as BitacoraEntry));
+
+                // REGLA: Los eventos del SUPERUSUARIO solo los ve el SUPERUSUARIO
+                if (!isSuperAdmin) {
+                    allEntries = allEntries.filter(e => !e.isSuperAdminAction);
+                }
+
+                setEntries(allEntries);
             } catch (e) {
                 console.error(e);
             } finally {
@@ -28,14 +33,14 @@ export const BitacoraPage: React.FC = () => {
             }
         };
         fetchData();
-    }, [isAdmin, isCoordinador]);
+    }, [isAdminCliente, isSuperAdmin, user]);
 
-    if (!isAdmin && !isCoordinador) {
+    if (!isAdminCliente && !isSuperAdmin) {
         return (
             <div style={{ textAlign: 'center', padding: '5rem 2rem' }}>
                 <AlertTriangle size={48} color="var(--priority-alta)" style={{ marginBottom: '1rem' }} />
                 <h2 style={{ fontSize: '1.5rem', fontWeight: '800' }}>ACCESO RESTRINGIDO</h2>
-                <p style={{ color: 'var(--text-muted)' }}>Solo el Coordinador y el Administrador pueden consultar la bitácora de eventos.</p>
+                <p style={{ color: 'var(--text-muted)' }}>Solo el Administrador Cliente puede consultar la bitácora de eventos.</p>
             </div>
         );
     }

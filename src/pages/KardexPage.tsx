@@ -55,9 +55,9 @@ export const KardexPage: React.FC = () => {
     const [editForm, setEditForm] = useState<Partial<WorkOrder>>({});
     const [bitacora, setBitacora] = useState<any[]>([]);
     const [searchParams, setSearchParams] = useSearchParams();
-    const { user, isAdmin, isCoordinador, isGerente, isTecnico, isSupervisor } = useAuth();
+    const { user, isAdmin, isCoordinador, isGerente, isTecnico, isSupervisor, activeClienteId } = useAuth();
 
-    const fetchData = async () => {
+    const fetchData = React.useCallback(async () => {
         if (!user) return;
         setLoading(true);
         try {
@@ -78,11 +78,11 @@ export const KardexPage: React.FC = () => {
             setFranquicias(franSnap.docs.map(d => ({ id: d.id, ...d.data() } as Franquicia)));
         } catch (e) { console.error(e); }
         finally { setLoading(false); }
-    };
+    }, [user, activeClienteId]);
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [fetchData]);
 
     useEscapeKey(() => { setSelectedOT(null); setSearchParams({}); }, !!selectedOT);
     useEscapeKey(() => setPrintingOT(null), !!printingOT);

@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { collection, getDocs, query } from 'firebase/firestore';
-import { db } from '../services/firebase';
-import { tenantQuery } from '../services/tenantContext';
 import type { WorkOrder, Sucursal, Franquicia, User } from '../types';
+import { tenantQuery } from '../services/tenantContext';
+import { getDocs } from 'firebase/firestore';
 import { Chart, Line, Bar, Doughnut } from 'react-chartjs-2';
 import {
     Chart as ChartJS,

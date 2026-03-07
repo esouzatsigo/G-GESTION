@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import type { User } from '../types';
 import { ShieldCheck, UserCheck, Settings, Wrench } from 'lucide-react';
 import { useNotification } from '../context/NotificationContext';
 
@@ -60,7 +61,8 @@ export const RoleSelectionPage: React.FC = () => {
             const { db } = await import('../services/firebase');
             const { doc, setDoc } = await import('firebase/firestore');
 
-            const cId = await saveCliente({ nombre: "BPT", razonSocial: "GRUPO BOSPATEX SAPI DE CV" });
+            const mockUser = { id: 'DEBUG_UI', nombre: 'Poblador Automático', rol: 'Admin', clienteId: 'ADMIN' } as User;
+            const cId = await saveCliente({ nombre: "BPT", razonSocial: "GRUPO BOSPATEX SAPI DE CV" }, mockUser);
             const sucs = [
                 { id: "BA", franquiciaId: "mock-boston", nombre: "Altabrisa", direccion: "Av. 7 451, Fraccionamiento Altabrisa, 97130 Mérida, YUC", coordenadas: { lat: 21.018751250251654, lng: -89.58276096432154 }, clienteId: cId },
                 { id: "BM", franquiciaId: "mock-boston", nombre: "Montejo", direccion: "Gran Plaza Montejo, Mérida", coordenadas: { lat: 21.028278889524636, lng: -89.62492593138924 }, clienteId: cId }

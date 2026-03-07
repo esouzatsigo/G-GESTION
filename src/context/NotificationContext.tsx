@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
 
@@ -24,8 +24,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         setNotifications(prev => [...prev, { id, type, message }]);
         setTimeout(() => {
             setNotifications(prev => prev.filter(n => n.id !== id));
-        }, 5000);
+        }, 10000);
     }, []);
+
+    // Expose for simulation agent
+    useEffect(() => {
+        (window as any).showSimulationMsg = showNotification;
+    }, [showNotification]);
 
     const removeNotification = (id: string) => {
         setNotifications(prev => prev.filter(n => n.id !== id));
