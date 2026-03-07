@@ -41,4 +41,6 @@ dist-ssr
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
+# Nuestro Tesoro - Solo Local (Dúo Dinámico)
+DOCUMENTACION/
+DIRECTIVAS_DUO_DINAMICO.md
