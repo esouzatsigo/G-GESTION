@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import type { WorkOrder, Cliente, Sucursal, Equipo, User, Franquicia } from '../types';
+import { downloadPDF } from './fileDownload';
 
 interface OTReportData {
     ot: WorkOrder;
@@ -31,44 +32,31 @@ export const generateGeneralOTReport = async (
     },
     reportTitle?: string
 ) => {
-    if (items.length === 0) return false;
+    if (items.length === 0) return { success: false };
 
-    // ======== IMAGE LOADER ========
+    // ======== IMAGE LOADER (Fetch directo — Firebase Storage URLs incluyen token de acceso) ========
     const loadImage = async (url: string): Promise<string> => {
         if (!url || typeof url !== 'string') return '';
         if (url.startsWith('data:')) return url;
 
-        const timeoutPromise = new Promise<string>((_, reject) =>
-            setTimeout(() => reject(new Error('Timeout')), 8000)
-        );
-
-        const fetchPromise = async (): Promise<string> => {
-            const proxies = [
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-                `https://corsproxy.io/?${encodeURIComponent(url)}`,
-                url
-            ];
-
-            for (const proxy of proxies) {
-                try {
-                    const response = await fetch(proxy);
-                    if (!response.ok) continue;
-                    const blob = await response.blob();
-                    return await new Promise<string>((resolve) => {
-                        const reader = new FileReader();
-                        reader.onloadend = () => resolve(reader.result as string);
-                        reader.onerror = () => resolve('');
-                        reader.readAsDataURL(blob);
-                    });
-                } catch (err) { continue; }
-            }
-            return '';
-        };
-
         try {
-            return await Promise.race([fetchPromise(), timeoutPromise]);
-        } catch (e) {
-            console.warn('[PDF General] Error:', url);
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 10000);
+
+            const response = await fetch(url, { signal: controller.signal });
+            clearTimeout(timeout);
+
+            if (!response.ok) return '';
+
+            const blob = await response.blob();
+            return await new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.onerror = () => resolve('');
+                reader.readAsDataURL(blob);
+            });
+        } catch (e: any) {
+            console.warn('[PDF General] Error al cargar imagen:', url, e.name === 'AbortError' ? 'Timeout' : e.message);
             return '';
         }
     };
@@ -291,7 +279,6 @@ export const generateGeneralOTReport = async (
 
     try {
         const fileName = `ReporteGeneral_${items.length}_OTs_${new Date().toISOString().slice(0, 10)}.pdf`;
-        doc.save(fileName);
-        return true;
-    } catch (err) { return false; }
+        return await downloadPDF(doc, fileName);
+    } catch (err) { return { success: false }; }
 };

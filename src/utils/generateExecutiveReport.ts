@@ -1,7 +1,8 @@
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { downloadPDF } from './fileDownload';
 
 interface InsightData {
     flujo: any;
@@ -11,7 +12,7 @@ interface InsightData {
     kpi: any;
 }
 
-export const generateExecutiveReport = (startDate: string, endDate: string, data: InsightData) => {
+export const generateExecutiveReport = async (startDate: string, endDate: string, data: InsightData) => {
     // Initialize PDF in landscape mode (16:9 feel)
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -164,5 +165,5 @@ export const generateExecutiveReport = (startDate: string, endDate: string, data
 
 
     // Save the PDF
-    doc.save(`Reporte_Ejecutivo_BI_${startDate}_a_${endDate}.pdf`);
+    return await downloadPDF(doc, `Reporte_Ejecutivo_BI_${startDate}_a_${endDate}.pdf`);
 };

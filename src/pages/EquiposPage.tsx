@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Edit2, Search, Save, X, HardDrive, FileSpreadsheet, Store, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { downloadExcel } from '../utils/fileDownload';
 import { useNotification } from '../context/NotificationContext';
 import { ImportModal } from '../components/ImportModal';
 import { getSucursales, getClientes, getFranquicias, logEntityChange } from '../services/dataService';
@@ -177,19 +178,24 @@ export const EquiposPage: React.FC = () => {
         return matchSearch && matchCliente && matchFranquicia && matchSucursal && matchFamilia;
     });
 
-    const exportToExcel = () => {
-        const dataToExport = filteredEquipos.map(e => ({
-            Nombre: e.nombre,
-            Familia: e.familia,
-            Sucursal: sucursales.find(s => s.id === e.sucursalId)?.nombre || '',
-            Franquicia: franquicias.find(f => f.id === e.franquiciaId)?.nombre || '',
-            Cliente: clientes.find(c => c.id === e.clienteId)?.nombre || e.clienteId
-        }));
+    const exportToExcel = async () => {
+        try {
+            const dataToExport = filteredEquipos.map(e => ({
+                Nombre: e.nombre,
+                Familia: e.familia,
+                Sucursal: sucursales.find(s => s.id === e.sucursalId)?.nombre || '',
+                Franquicia: franquicias.find(f => f.id === e.franquiciaId)?.nombre || '',
+                Cliente: clientes.find(c => c.id === e.clienteId)?.nombre || e.clienteId
+            }));
 
-        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Equipos");
-        XLSX.writeFile(workbook, "catalogo_equipos.xlsx");
+            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Equipos");
+            const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+            await downloadExcel(wbout, "catalogo_equipos.xlsx");
+        } catch (err) {
+            console.error('Error al exportar Equipos:', err);
+        }
     };
 
     return (

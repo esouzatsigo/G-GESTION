@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Edit2, Search, Save, X, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { downloadExcel } from '../utils/fileDownload';
 import { useNotification } from '../context/NotificationContext';
 import { getClientes, saveCliente } from '../services/dataService';
 import { useEscapeKey } from '../hooks/useEscapeKey';
@@ -83,17 +84,22 @@ export const ClientesPage: React.FC = () => {
         c.razonSocial.toLowerCase().includes(searchRazonSocial.toLowerCase())
     );
 
-    const exportToExcel = () => {
-        const dataToExport = filteredClientes.map(c => ({
-            Nombre: c.nombre,
-            RazonSocial: c.razonSocial,
-            ID: c.id
-        }));
+    const exportToExcel = async () => {
+        try {
+            const dataToExport = filteredClientes.map(c => ({
+                Nombre: c.nombre,
+                RazonSocial: c.razonSocial,
+                ID: c.id
+            }));
 
-        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Clientes");
-        XLSX.writeFile(workbook, "catalogo_clientes.xlsx");
+            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Clientes");
+            const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+            await downloadExcel(wbout, "catalogo_clientes.xlsx");
+        } catch (err) {
+            console.error('Error al exportar Clientes:', err);
+        }
     };
 
     return (

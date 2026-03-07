@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Plus, Edit2, Search, Save, X, Building2, Globe, Image as ImageIcon, ExternalLink, Loader2, Clipboard, Store, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { downloadExcel } from '../utils/fileDownload';
 import { useNotification } from '../context/NotificationContext';
 import { db, storage } from '../services/firebase';
 import { addDoc, collection, doc, updateDoc, getDocs } from 'firebase/firestore';
@@ -251,20 +252,25 @@ export const FranquiciasPage: React.FC = () => {
         return matchNombre && matchSitio && matchCliente;
     });
 
-    const exportToExcel = () => {
-        const dataToExport = filteredFranquicias.map(f => ({
-            Nombre: f.nombre,
-            SitioWeb: f.sitioWeb || '',
-            Cliente: clientes.find(c => c.id === f.clienteId)?.nombre || f.clienteId,
-            ColorBase: f.colorFondo || '',
-            NumeroSucursales: sucursales.filter(s => s.franquiciaId === f.id).length,
-            NumeroEquipos: equipos.filter(e => e.franquiciaId === f.id).length
-        }));
+    const exportToExcel = async () => {
+        try {
+            const dataToExport = filteredFranquicias.map(f => ({
+                Nombre: f.nombre,
+                SitioWeb: f.sitioWeb || '',
+                Cliente: clientes.find(c => c.id === f.clienteId)?.nombre || f.clienteId,
+                ColorBase: f.colorFondo || '',
+                NumeroSucursales: sucursales.filter(s => s.franquiciaId === f.id).length,
+                NumeroEquipos: equipos.filter(e => e.franquiciaId === f.id).length
+            }));
 
-        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Franquicias");
-        XLSX.writeFile(workbook, "catalogo_franquicias.xlsx");
+            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Franquicias");
+            const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+            await downloadExcel(wbout, "catalogo_franquicias.xlsx");
+        } catch (err) {
+            console.error('Error al exportar Franquicias:', err);
+        }
     };
 
     return (

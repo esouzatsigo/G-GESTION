@@ -6,6 +6,7 @@ import { db } from '../services/firebase';
 import { useNotification } from '../context/NotificationContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import { cleanObject } from '../utils/cleaners';
+import { downloadExcel } from '../utils/fileDownload';
 import type { Franquicia, Cliente, Sucursal } from '../types';
 
 interface ImportModalProps {
@@ -53,7 +54,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, type,
         }
     }, [isOpen]);
 
-    // Uses the native Windows "Save As" dialog — bypasses all browser naming issues
+    // Universal download — works on Chrome, Firefox, Safari, and mobile
     const downloadTemplate = async () => {
         const headers = type === 'sucursales'
             ? ['CLIENTE_ID', 'FRANQUICIA', 'NOMBRE_SUCURSAL', 'NOMENCLATURA', 'DIRECCION', 'LATITUD', 'LONGITUD']
@@ -64,27 +65,15 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, type,
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Plantilla');
         const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-        const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
         try {
-            // File System Access API — opens Windows native "Save As" dialog
-            const handle = await (window as any).showSaveFilePicker({
-                suggestedName: fileName,
-                types: [{
-                    description: 'Archivo Excel',
-                    accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] }
-                }]
-            });
-            const writable = await handle.createWritable();
-            await writable.write(blob);
-            await writable.close();
-            showNotification('Plantilla guardada exitosamente.', 'success');
-        } catch (err: any) {
-            // User cancelled the dialog — that's OK
-            if (err.name !== 'AbortError') {
-                console.error('Save failed:', err);
-                showNotification('No se pudo guardar. Intente de nuevo.', 'error');
+            const success = await downloadExcel(wbout, fileName);
+            if (success) {
+                showNotification('Plantilla descargada exitosamente.', 'success');
             }
+        } catch (err: any) {
+            console.error('Download failed:', err);
+            showNotification('No se pudo descargar la plantilla. Intente de nuevo.', 'error');
         }
     };
 

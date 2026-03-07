@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import type { WorkOrder, Cliente, Sucursal, Equipo, User, Franquicia } from '../types';
+import { downloadPDF } from './fileDownload';
 
 export const generateServiceReport = async (
     ot: WorkOrder,
@@ -9,7 +10,7 @@ export const generateServiceReport = async (
     tecnico?: User,
     franquicia?: Franquicia
 ) => {
-    // ======== IMAGE LOADER (Bulletproof proxy fetch avoiding ALL rogue downloads) ========
+    // ======== IMAGE LOADER (Fetch directo — Firebase Storage URLs incluyen token de acceso) ========
     const loadImage = async (url: string, isSignature: boolean = false): Promise<string> => {
         if (!url || typeof url !== 'string') return '';
 
@@ -18,46 +19,34 @@ export const generateServiceReport = async (
             return isSignature ? processSignature(url) : url;
         }
 
-        const timeoutPromise = new Promise<string>((_, reject) =>
-            setTimeout(() => reject(new Error('Timeout')), 8000)
-        );
-
-        const fetchPromise = async (): Promise<string> => {
-            // Proxies secuenciales para evitar fallos
-            const proxies = [
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-                `https://corsproxy.io/?${encodeURIComponent(url)}`,
-                url // intento directo final
-            ];
-
-            for (const proxy of proxies) {
-                try {
-                    const response = await fetch(proxy);
-                    if (!response.ok) continue;
-
-                    const blob = await response.blob();
-                    return await new Promise<string>((resolve) => {
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                            const result = reader.result as string;
-                            resolve(result);
-                        };
-                        reader.onerror = () => resolve('');
-                        reader.readAsDataURL(blob);
-                    });
-                } catch (err) {
-                    continue; // Intentar con el siguiente proxy
-                }
-            }
-            return '';
-        };
-
         try {
-            const base64 = await Promise.race([fetchPromise(), timeoutPromise]);
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 10000);
+
+            const response = await fetch(url, { signal: controller.signal });
+            clearTimeout(timeout);
+
+            if (!response.ok) {
+                console.warn('[PDF] Respuesta no OK para imagen:', url, response.status);
+                return '';
+            }
+
+            const blob = await response.blob();
+            const base64 = await new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.onerror = () => resolve('');
+                reader.readAsDataURL(blob);
+            });
+
             if (!base64) return '';
             return isSignature ? processSignature(base64) : base64;
-        } catch (e) {
-            console.warn('[PDF] Tiempo de espera agotado:', url);
+        } catch (e: any) {
+            if (e.name === 'AbortError') {
+                console.warn('[PDF] Timeout al cargar imagen:', url);
+            } else {
+                console.warn('[PDF] Error al cargar imagen:', url, e.message);
+            }
             return '';
         }
     };
@@ -265,10 +254,9 @@ export const generateServiceReport = async (
 
     try {
         const fileName = `Servicio_OT_${ot.numero}_${(sucursal.nombre || 'Sin_Nombre').replace(/[^a-z0-9]/gi, '_')}.pdf`;
-        doc.save(fileName);
-        return true;
+        return await downloadPDF(doc, fileName);
     } catch (err) {
         console.error("[PDF] Error al guardar:", err);
-        return false;
+        return { success: false };
     }
 };

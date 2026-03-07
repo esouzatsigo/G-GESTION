@@ -21,6 +21,7 @@ import { useAuth } from '../hooks/useAuth';
 import { BIDrillDownModal } from '../components/BIDrillDownModal';
 import { generateExecutiveReport } from '../utils/generateExecutiveReport';
 import { PrintableExecutiveReport } from '../components/PrintableExecutiveReport';
+import { useNotification } from '../context/NotificationContext';
 
 ChartJS.register(
     CategoryScale,
@@ -43,6 +44,7 @@ export const DashboardBIPage: React.FC = () => {
     const [tecnicos, setTecnicos] = useState<User[]>([]);
     const [loading, setLoading] = useState(true);
     const { user } = useAuth();
+    const { showNotification } = useNotification();
 
     // Smart filter bar: auto-hide on scroll down, reappear on scroll up
     const [filtersVisible, setFiltersVisible] = useState(true);
@@ -1275,7 +1277,16 @@ export const DashboardBIPage: React.FC = () => {
                     endDate={previewReport.endDate}
                     data={previewReport.data}
                     onClose={() => setPreviewReport(null)}
-                    onExportPdf={() => generateExecutiveReport(previewReport.startDate, previewReport.endDate, previewReport.data)}
+                    onExportPdf={async () => {
+                        const result = await generateExecutiveReport(previewReport.startDate, previewReport.endDate, previewReport.data);
+                        if (result?.success) {
+                            showNotification(
+                                'Reporte ejecutivo BI generado exitosamente.',
+                                'success',
+                                result.blobUrl ? { label: 'Abrir ahora', onClick: () => window.open(result.blobUrl, '_blank') } : undefined
+                            );
+                        }
+                    }}
                 />
             )}
         </>

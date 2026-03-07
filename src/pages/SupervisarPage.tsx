@@ -112,7 +112,14 @@ export const SupervisarPage: React.FC = () => {
         const tec = usuarios.find(u => u.id === ot.tecnicoId);
 
         if (cl && suc && eq) {
-            await generateServiceReport(ot, cl, suc, eq, tec);
+            const result = await generateServiceReport(ot, cl, suc, eq, tec);
+            if (result?.success) {
+                showNotification(
+                    `Reporte de servicio OT #${ot.numero} generado exitosamente.`,
+                    'success',
+                    result.blobUrl ? { label: 'Abrir ahora', onClick: () => window.open(result.blobUrl, '_blank') } : undefined
+                );
+            }
         }
         setGeneratingPdf(null);
     };

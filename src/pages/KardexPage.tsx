@@ -192,9 +192,16 @@ export const KardexPage: React.FC = () => {
         if (cl && suc && eq) {
             try {
                 const fran = franquicias.find(f => f.id === suc.franquiciaId);
-                const success = await generateServiceReport(ot, cl, suc, eq, tec, fran);
-                if (!success) {
-                    showNotification("Error al generar el PDF. Verifica la consola.", "error");
+                const result = await generateServiceReport(ot, cl, suc, eq, tec, fran);
+                if (result?.success) {
+                    const blobUrl = result.blobUrl;
+                    showNotification(
+                        `Su reporte de servicio OT #${ot.numero} ha sido generado exitosamente.`,
+                        'success',
+                        blobUrl ? { label: 'Abrir ahora', onClick: () => window.open(blobUrl, '_blank') } : undefined
+                    );
+                } else {
+                    showNotification("No se pudo generar el reporte. Por favor, intente de nuevo.", "error");
                 }
             } catch (err) {
                 console.error("PDF generation failed:", err);
@@ -249,9 +256,16 @@ export const KardexPage: React.FC = () => {
 
         setGeneratingPdf('general-all');
         try {
-            const success = await generateGeneralOTReport(items, user?.nombre || 'Usuario', currentFilters);
-            if (!success) showNotification('Error al generar el Reporte General.', 'error');
-            else showNotification(`Reporte General de ${items.length} OTs descargado.`, 'success');
+            const result = await generateGeneralOTReport(items, user?.nombre || 'Usuario', currentFilters);
+            if (result?.success) {
+                showNotification(
+                    `Reporte general de ${items.length} OTs generado exitosamente.`,
+                    'success',
+                    result.blobUrl ? { label: 'Abrir ahora', onClick: () => window.open(result.blobUrl, '_blank') } : undefined
+                );
+            } else {
+                showNotification('No se pudo generar el Reporte General.', 'error');
+            }
         } catch (err) {
             showNotification('Error: ' + (err instanceof Error ? err.message : String(err)), 'error');
         }

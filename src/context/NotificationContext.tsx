@@ -1,17 +1,23 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Info, X, ExternalLink } from 'lucide-react';
 
 type NotificationType = 'success' | 'error' | 'warning' | 'info';
+
+interface NotificationAction {
+    label: string;
+    onClick: () => void;
+}
 
 interface Notification {
     id: string;
     type: NotificationType;
     message: string;
+    action?: NotificationAction;
 }
 
 interface NotificationContextType {
-    showNotification: (message: string, type?: NotificationType) => void;
+    showNotification: (message: string, type?: NotificationType, action?: NotificationAction) => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -19,12 +25,12 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [notifications, setNotifications] = useState<Notification[]>([]);
 
-    const showNotification = useCallback((message: string, type: NotificationType = 'info') => {
+    const showNotification = useCallback((message: string, type: NotificationType = 'info', action?: NotificationAction) => {
         const id = Math.random().toString(36).substr(2, 9);
-        setNotifications(prev => [...prev, { id, type, message }]);
+        setNotifications(prev => [...prev, { id, type, message, action }]);
         setTimeout(() => {
             setNotifications(prev => prev.filter(n => n.id !== id));
-        }, 10000);
+        }, action ? 15000 : 10000); // More time if there's an action to click
     }, []);
 
     // Expose for simulation agent
@@ -67,8 +73,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '0.75rem',
-                                minWidth: '300px',
-                                maxWidth: '450px'
+                                minWidth: '320px',
+                                maxWidth: '520px'
                             }}
                         >
                             <div style={{
@@ -84,6 +90,32 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                             <div style={{ flex: 1, fontSize: '0.875rem', fontWeight: '500', color: 'var(--text-main)' }}>
                                 {n.message}
                             </div>
+                            {n.action && (
+                                <button
+                                    onClick={() => {
+                                        n.action!.onClick();
+                                        removeNotification(n.id);
+                                    }}
+                                    style={{
+                                        background: 'var(--primary)',
+                                        border: 'none',
+                                        color: 'white',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.35rem',
+                                        padding: '0.4rem 0.8rem',
+                                        borderRadius: '8px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: '700',
+                                        whiteSpace: 'nowrap',
+                                        transition: 'opacity 0.2s'
+                                    }}
+                                >
+                                    <ExternalLink size={13} />
+                                    {n.action.label}
+                                </button>
+                            )}
                             <button
                                 onClick={() => removeNotification(n.id)}
                                 style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex' }}
@@ -103,3 +135,4 @@ export const useNotification = () => {
     if (!context) throw new Error('useNotification must be used within a NotificationProvider');
     return context;
 };
+

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Edit2, Search, Save, X, UserCheck, Shield, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { downloadExcel } from '../utils/fileDownload';
 import { useNotification } from '../context/NotificationContext';
 import { db } from '../services/firebase';
 import { addDoc, collection, doc, updateDoc, getDocs } from 'firebase/firestore';
@@ -252,23 +253,28 @@ export const UsuariosPage: React.FC = () => {
         return matchNombre && matchEmail && matchRol && matchFranquicia && matchSucursalId && matchNombreSucursal && matchCliente && matchEspecialidad && matchSupervisor && matchCoordinador;
     });
 
-    const exportToExcel = () => {
-        const dataToExport = filteredUsuarios.map(u => ({
-            Nombre: u.nombre,
-            Email: u.email,
-            Contraseña: u.contrasena || '',
-            Rol: u.rol,
-            Franquicia: franquicias.find(f => f.id === u.franquiciaId)?.nombre || '',
-            Sucursales: u.sucursalesPermitidas?.includes('TODAS') ? 'TODAS' : u.sucursalesPermitidas?.map(sid => sucursales.find(s => s.id === sid)?.nombre).filter(Boolean).join(', ') || '',
-            Especialidad: u.especialidad || '',
-            Supervisor: usuarios.find(sup => sup.id === u.supervisorId)?.nombre || '',
-            Coordinador: usuarios.find(coord => coord.id === u.coordinadorId)?.nombre || ''
-        }));
+    const exportToExcel = async () => {
+        try {
+            const dataToExport = filteredUsuarios.map(u => ({
+                Nombre: u.nombre,
+                Email: u.email,
+                Contraseña: u.contrasena || '',
+                Rol: u.rol,
+                Franquicia: franquicias.find(f => f.id === u.franquiciaId)?.nombre || '',
+                Sucursales: u.sucursalesPermitidas?.includes('TODAS') ? 'TODAS' : u.sucursalesPermitidas?.map(sid => sucursales.find(s => s.id === sid)?.nombre).filter(Boolean).join(', ') || '',
+                Especialidad: u.especialidad || '',
+                Supervisor: usuarios.find(sup => sup.id === u.supervisorId)?.nombre || '',
+                Coordinador: usuarios.find(coord => coord.id === u.coordinadorId)?.nombre || ''
+            }));
 
-        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Usuarios");
-        XLSX.writeFile(workbook, "catalogo_usuarios.xlsx");
+            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Usuarios");
+            const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+            await downloadExcel(wbout, "catalogo_usuarios.xlsx");
+        } catch (err) {
+            console.error('Error al exportar Usuarios:', err);
+        }
     };
 
     return (

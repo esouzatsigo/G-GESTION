@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Edit2, Search, Save, X, Navigation, MapPin, Map as MapIcon, FileSpreadsheet, Store, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { downloadExcel } from '../utils/fileDownload';
 import { useNotification } from '../context/NotificationContext';
 import { ImportModal } from '../components/ImportModal';
 import { getSucursales, getClientes, getFranquicias, logEntityChange } from '../services/dataService';
@@ -192,21 +193,26 @@ export const SucursalesPage: React.FC = () => {
         return matchSearch && matchNomenclatura && matchDireccion && matchCliente && matchFranquicia;
     });
 
-    const exportToExcel = () => {
-        const dataToExport = filteredSucursales.map(s => ({
-            Nombre: s.nombre,
-            Nomenclatura: s.nomenclatura || '',
-            Direccion: s.direccion || '',
-            Latitud: s.coordenadas?.lat || '',
-            Longitud: s.coordenadas?.lng || '',
-            Franquicia: franquicias.find(f => f.id === s.franquiciaId)?.nombre || '',
-            Cliente: clientes.find(c => c.id === s.clienteId)?.nombre || s.clienteId
-        }));
+    const exportToExcel = async () => {
+        try {
+            const dataToExport = filteredSucursales.map(s => ({
+                Nombre: s.nombre,
+                Nomenclatura: s.nomenclatura || '',
+                Direccion: s.direccion || '',
+                Latitud: s.coordenadas?.lat || '',
+                Longitud: s.coordenadas?.lng || '',
+                Franquicia: franquicias.find(f => f.id === s.franquiciaId)?.nombre || '',
+                Cliente: clientes.find(c => c.id === s.clienteId)?.nombre || s.clienteId
+            }));
 
-        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Sucursales");
-        XLSX.writeFile(workbook, "catalogo_sucursales.xlsx");
+            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Sucursales");
+            const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+            await downloadExcel(wbout, "catalogo_sucursales.xlsx");
+        } catch (err) {
+            console.error('Error al exportar Sucursales:', err);
+        }
     };
 
     return (

@@ -16,7 +16,7 @@ interface PrintableExecutiveReportProps {
     endDate: string;
     data: InsightData;
     onClose: () => void;
-    onExportPdf: () => void;
+    onExportPdf: () => void | Promise<void>;
 }
 
 export const PrintableExecutiveReport: React.FC<PrintableExecutiveReportProps> = ({

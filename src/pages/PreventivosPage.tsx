@@ -52,7 +52,7 @@ import { useNotification } from '../context/NotificationContext';
 import { MassiveOTWizard } from '../components/MassiveOTWizard';
 import { MassiveOTDashboard } from '../components/MassiveOTDashboard';
 import { useAuth } from '../hooks/useAuth';
-import { saveAs } from 'file-saver';
+import { downloadCSV } from '../utils/fileDownload';
 
 // Chart.js imports
 import {
@@ -612,8 +612,7 @@ export const PreventivosPage: React.FC = () => {
         });
 
         const csvString = rows.map(r => r.join(",")).join("\n");
-        const blob = new Blob(["\ufeff", csvString], { type: 'text/csv;charset=utf-8;' });
-        saveAs(blob, "ICEMAS_Preventivos_2026.csv");
+        downloadCSV(csvString, "ICEMAS_Preventivos_2026.csv");
     };
 
     const handleUpdateEvent = async (e: any) => {
@@ -686,9 +685,8 @@ export const PreventivosPage: React.FC = () => {
     const downloadTemplate = () => {
         const headers = ["mes_0_a_11", "fechas", "franquiciaId", "sucursalId", "referencia_texto_pdf"];
         const example = ["2", "15-18", "ID_DE_FRANQUICIA", "ID_DE_SUCURSAL", "Nombre Corto PDF"];
-        const csvContent = "\ufeff" + [headers, example].map(r => r.join(",")).join("\n");
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        saveAs(blob, "Plantilla_Importacion_Preventivos.csv");
+        const csvContent = [headers, example].map(r => r.join(",")).join("\n");
+        downloadCSV(csvContent, "Plantilla_Importacion_Preventivos.csv");
     };
 
     const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -2,6 +2,7 @@ import React from 'react';
 import { Printer, X, FileText, Download } from 'lucide-react';
 import type { WorkOrder, Cliente, Sucursal, Equipo, User, Franquicia } from '../types';
 import { generateGeneralOTReport } from '../utils/generalOTReport';
+import { useNotification } from '../context/NotificationContext';
 
 interface OTReportItem {
     ot: WorkOrder;
@@ -30,12 +31,21 @@ interface PrintableGeneralReportProps {
 }
 
 export const PrintableGeneralReport: React.FC<PrintableGeneralReportProps> = ({ items, filters, onClose, generatorName = 'Usuario' }) => {
+    const { showNotification } = useNotification();
+
     const handlePrint = () => {
         window.print();
     };
 
     const handleExportPdf = async () => {
-        await generateGeneralOTReport(items, generatorName, filters);
+        const result = await generateGeneralOTReport(items, generatorName, filters);
+        if (result?.success) {
+            showNotification(
+                `Reporte de ${items.length} OTs generado exitosamente.`,
+                'success',
+                result.blobUrl ? { label: 'Abrir ahora', onClick: () => window.open(result.blobUrl, '_blank') } : undefined
+            );
+        }
     };
 
     return (
