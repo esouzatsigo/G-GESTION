@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>H-GESTIÓN | Constitución y Manual de Reglas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap"
+        rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --bg-main: #0a0c10;
+            --bg-card: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --primary: #3b82f6;
+            --accent: #10b981;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --priority-alta: #ef4444;
+            --status-iniciada: #8b5cf6;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 4rem;
+            padding: 3rem;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
+            border-radius: 32px;
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            letter-spacing: -0.05em;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .summary-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 0.75rem;
+            margin-bottom: 5rem;
+        }
+
+        .summary-table th {
+            text-align: left;
+            padding: 1rem 1.5rem;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+        }
+
+        .summary-table tr.glass-row {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            backdrop-filter: blur(5px);
+            transition: transform 0.2s ease, background 0.2s ease;
+        }
+
+        .summary-table tr.glass-row:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .summary-table td {
+            padding: 1.25rem 1.5rem;
+            border-top: 1px solid var(--glass-border);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .summary-table td:first-child {
+            border-left: 1px solid var(--glass-border);
+            border-radius: 16px 0 0 16px;
+            font-weight: 800;
+            color: var(--primary);
+            width: 80px;
+        }
+
+        .summary-table td:last-child {
+            border-right: 1px solid var(--glass-border);
+            border-radius: 0 16px 16px 0;
+            text-align: center;
+            font-weight: 700;
+            color: var(--accent);
+            width: 150px;
+        }
+
+        .category-name {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .manual-section {
+            margin-top: 6rem;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--glass-border);
+        }
+
+        .section-header h2 {
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+
+        .rule-card {
+            background: var(--bg-card);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .rule-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: var(--primary);
+        }
+
+        .rule-title {
+            font-size: 1.25rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .rule-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .rule-detail {
+            font-size: 0.9rem;
+        }
+
+        .detail-label {
+            display: block;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+        }
+
+        .rule-file {
+            font-family: 'Courier New', Courier, monospace;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 0.2rem 0.6rem;
+            border-radius: 6px;
+            color: var(--accent);
+            font-size: 0.8rem;
+        }
+
+        .quote-footer {
+            text-align: center;
+            margin-top: 8rem;
+            padding: 4rem;
+            color: var(--text-muted);
+            font-style: italic;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        .scroll-to-top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--primary);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.4);
+            border: none;
+            z-index: 100;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>CONSTITUCIÓN H-GESTIÓN</h1>
+        <p class="subtitle">Manual Maestro de 110 Reglas de Negocio (DDD v3.0)</p>
+    </header>
+
+    <table class="summary-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Categoría / Capítulos del Sistema</th>
+                <th>Rango Reglas</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="glass-row">
+                <td>I</td>
+                <td>
+                    <div class="category-name"><i data-lucide="shield"></i> El Pacto DDD (Meta-Reglas)</div>
+                </td>
+                <td>1-5</td>
+            </tr>
+            <tr class="glass-row">
+                <td>II</td>
+                <td>
+                    <div class="category-name"><i data-lucide="palette"></i> Estándar Premium UX</div>
+                </td>
+                <td>6-15</td>
+            </tr>
+            <tr class="glass-row">
+                <td>III</td>
+                <td>
+                    <div class="category-name"><i data-lucide="lock"></i> Seguridad y Autenticación</div>
+                </td>
+                <td>16-27</td>
+            </tr>
+            <tr class="glass-row">
+                <td>IV</td>
+                <td>
+                    <div class="category-name"><i data-lucide="users"></i> Gestión de Usuarios</div>
+                </td>
+                <td>28-35</td>
+            </tr>
+            <tr class="glass-row">
+                <td>V</td>
+                <td>
+                    <div class="category-name"><i data-lucide="database"></i> Catálogos Maestros</div>
+                </td>
+                <td>36-50</td>
+            </tr>
+            <tr class="glass-row">
+                <td>VI</td>
+                <td>
+                    <div class="category-name"><i data-lucide="upload-cloud"></i> Importación Masiva</div>
+                </td>
+                <td>51-56</td>
+            </tr>
+            <tr class="glass-row">
+                <td>VII</td>
+                <td>
+                    <div class="category-name"><i data-lucide="clipboard-list"></i> Ciclo de Vida de la OT</div>
+                </td>
+                <td>57-75</td>
+            </tr>
+            <tr class="glass-row">
+                <td>VIII</td>
+                <td>
+                    <div class="category-name"><i data-lucide="wrench"></i> Ejecución Técnica en Sitio</div>
+                </td>
+                <td>76-86</td>
+            </tr>
+            <tr class="glass-row">
+                <td>IX</td>
+                <td>
+                    <div class="category-name"><i data-lucide="search"></i> Supervisión y Auditoría</div>
+                </td>
+                <td>87-93</td>
+            </tr>
+            <tr class="glass-row">
+                <td>X</td>
+                <td>
+                    <div class="category-name"><i data-lucide="calendar"></i> Mantenimiento Preventivo</div>
+                </td>
+                <td>94-100</td>
+            </tr>
+            <tr class="glass-row" style="background: rgba(16, 185, 129, 0.08);">
+                <td>BONUS</td>
+                <td>
+                    <div class="category-name" style="color: var(--accent);"><i data-lucide="pie-chart"></i>
+                        Inteligencia de Negocio</div>
+                </td>
+                <td>101-110</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="manual-section">
+        <div class="section-header">
+            <i data-lucide="book-open" size="32" color="var(--primary)"></i>
+            <h2>DETALLE DE REGLAS (AUDITORÍA PROFUNDA)</h2>
+        </div>
+
+        <!-- REGLA 1 -->
+        <div class="rule-card">
+            <div class="rule-title"><span style="color:var(--primary)">#01</span> Rol del Socio Estratégico</div>
+            <div class="rule-content">
+                <div class="rule-detail">
+                    <span class="detail-label">DEFINICIÓN</span>
+                    La IA no es una herramienta de ejecución; es un Arquitecto Intelectual que debe cuestionar, proponer
+                    mejoras y elevar la calidad.
+                </div>
+                <div class="rule-detail">
+                    <span class="detail-label">POR QUÉ EXISTE</span>
+                    Héctor necesita un socio que piense más allá de la instrucción literal.
+                </div>
+                <div class="rule-detail">
+                    <span class="detail-label">ARCHIVO FUENTE</span>
+                    <span class="rule-file">DIRECTIVAS_DUO_DINAMICO.md</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- REGLA 11 -->
+        <div class="rule-card" style="border-left: 4px solid var(--accent);">
+            <div class="rule-title"><span style="color:var(--accent)">#11</span> Inteligencia de Logos (Análisis de
+                Píxeles)</div>
+            <div class="rule-content">
+                <div class="rule-detail">
+                    <span class="detail-label">DEFINICIÓN</span>
+                    Al subir un logo, el sistema analiza los píxeles dominantes para proponer automáticamente un color
+                    de fondo.
+                </div>
+                <div class="rule-detail">
+                    <span class="detail-label">IMPLEMENTACIÓN TÉCNICA</span>
+                    Uso de HTML5 Canvas para muestreo de píxeles y luminancia.
+                </div>
+                <div class="rule-detail">
+                    <span class="detail-label">ARCHIVO FUENTE</span>
+                    <span class="rule-file">FranquiciasPage.tsx:74-121</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- REGLA 58 -->
+        <div class="rule-card">
+            <div class="rule-title"><span style="color:var(--primary)">#58</span> Consecutivo Atómico (runTransaction)
+            </div>
+            <div class="rule-content">
+                <div class="rule-detail">
+                    <span class="detail-label">DEFINICIÓN</span>
+                    El folio de OT se obtiene mediante una transacción atómica de Firestore.
+                </div>
+                <div class="rule-detail">
+                    <span class="detail-label">POR QUÉ EXISTE</span>
+                    Imposibilidad de folios duplicados incluso con concurrencia.
+                </div>
+                <div class="rule-detail">
+                    <span class="detail-label">ARCHIVO FUENTE</span>
+                    <span class="rule-file">dataService.ts:95-111</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- REGLA 76 -->
+        <div class="rule-card">
+            <div class="rule-title"><span style="color:var(--primary)">#76</span> Auto-Guardado Anti-Crisis (1.5s)</div>
+            <div class="rule-content">
+                <div class="rule-detail">
+                    <span class="detail-label">DEFINICIÓN</span>
+                    Guardado automático a Firebase tras 1.5s de inactividad de tecleo.
+                </div>
+                <div class="rule-detail">
+                    <span class="detail-label">POR QUÉ EXISTE</span>
+                    Resiliencia ante pérdida de señal en campo.
+                </div>
+                <div class="rule-detail">
+                    <span class="detail-label">ARCHIVO FUENTE</span>
+                    <span class="rule-file">EjecucionServicioPage.tsx:62-77</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="quote-footer">
+        <p>"La Cruda Realidad y el Apego a la Veracidad es lo Único que nos Hace Libres."</p>
+        <p style="margin-top: 10px; font-weight: 800; color: var(--text-main);">- Héctor A. Celis L.</p>
+    </div>
+
+    <button class="scroll-to-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">
+        <i data-lucide="arrow-up"></i>
+    </button>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>

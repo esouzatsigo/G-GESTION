@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Mantenimientos 2026 - Grupo BPT</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 100%;
+            margin-left: auto;
+            margin-right: auto;
+            height: 40vh;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        .nav-link-active {
+            color: #d97706 !important;
+            border-bottom: 2px solid #d97706;
+        }
+    </style>
+</head>
+<body class="bg-stone-50 text-stone-800 antialiased selection:bg-amber-200 selection:text-amber-900">
+
+    <!-- Chosen Palette: Warm Neutrals with Amber and Emerald Accents -->
+    <!-- Application Structure Plan: Tab-based navigation SPA. Only one primary section (Resumen, Calendario, or Directorio) is visible at a time to reduce cognitive load. Navigation is handled via Vanilla JS. A new discrete export button has been added to the Directory section. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <header class="bg-white border-b border-stone-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl" aria-hidden="true">🏢</span>
+                <h1 class="text-xl font-bold text-stone-900 tracking-tight">Grupo BPT <span class="text-stone-400 font-normal">| 2026</span></h1>
+            </div>
+            <nav class="flex gap-4 sm:gap-8 h-full">
+                <button onclick="navegarA('resumen')" id="nav-resumen" class="nav-btn h-full px-1 text-sm font-bold text-stone-500 hover:text-amber-600 transition-all border-b-2 border-transparent">Resumen</button>
+                <button onclick="navegarA('calendario')" id="nav-calendario" class="nav-btn h-full px-1 text-sm font-bold text-stone-500 hover:text-amber-600 transition-all border-b-2 border-transparent">Calendario</button>
+                <button onclick="navegarA('directorio')" id="nav-directorio" class="nav-btn h-full px-1 text-sm font-bold text-stone-500 hover:text-amber-600 transition-all border-b-2 border-transparent">Directorio</button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- Sección de Resumen -->
+        <section id="sec-resumen" class="tab-content transition-opacity duration-300">
+            <div class="mb-8 max-w-3xl">
+                <h2 class="text-3xl font-bold text-stone-900 mb-2">Visión General Operativa</h2>
+                <p class="text-stone-600">Análisis estadístico de la carga de mantenimiento programada para el año 2026.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-stone-200">
+                    <h3 class="text-lg font-semibold text-stone-800 mb-4 text-center">Intervenciones por Mes</h3>
+                    <div class="chart-container">
+                        <canvas id="chartMeses"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-stone-200">
+                    <h3 class="text-lg font-semibold text-stone-800 mb-4 text-center">Carga por Franquicia</h3>
+                    <div class="chart-container">
+                        <canvas id="chartFranquicias"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+                <div class="bg-white rounded-xl p-4 border border-stone-200 text-center">
+                    <span class="text-2xl block mb-1">📅</span>
+                    <span class="text-xl font-bold text-stone-900" id="statTotalEventos">0</span>
+                    <p class="text-[10px] text-stone-500 uppercase font-bold tracking-widest mt-1">Total Eventos</p>
+                </div>
+                <div class="bg-white rounded-xl p-4 border border-stone-200 text-center">
+                    <span class="text-2xl block mb-1">📍</span>
+                    <span class="text-xl font-bold text-stone-900" id="statTotalSucursales">0</span>
+                    <p class="text-[10px] text-stone-500 uppercase font-bold tracking-widest mt-1">Sucursales</p>
+                </div>
+                <div class="bg-amber-50 rounded-xl p-4 border border-amber-200 text-center">
+                    <span class="text-2xl block mb-1">☕</span>
+                    <span class="text-xl font-bold text-amber-900" id="statTotalParroquia">0</span>
+                    <p class="text-[10px] text-amber-600 uppercase font-bold tracking-widest mt-1">La Parroquia</p>
+                </div>
+                <div class="bg-red-50 rounded-xl p-4 border border-red-200 text-center">
+                    <span class="text-2xl block mb-1">🍕</span>
+                    <span class="text-xl font-bold text-red-900" id="statTotalBostons">0</span>
+                    <p class="text-[10px] text-red-600 uppercase font-bold tracking-widest mt-1">Boston's</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sección de Calendario -->
+        <section id="sec-calendario" class="tab-content hidden transition-opacity duration-300">
+            <div class="mb-8 max-w-3xl">
+                <h2 class="text-3xl font-bold text-stone-900 mb-2">Explorador de Calendario</h2>
+                <p class="text-stone-600">Gestione y exporte la programación detallada de mantenimientos.</p>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
+                <div class="p-6 border-b border-stone-100 bg-stone-50/50 flex flex-col gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="flex flex-col">
+                            <label for="filterMes" class="text-xs font-bold text-stone-500 uppercase tracking-widest mb-1">Mes</label>
+                            <select id="filterMes" class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-amber-500 focus:border-amber-500 block w-full p-2.5 shadow-sm">
+                                <option value="todos">Todos los Meses</option>
+                            </select>
+                        </div>
+                        <div class="flex flex-col">
+                            <label for="filterSucursal" class="text-xs font-bold text-stone-500 uppercase tracking-widest mb-1">Sucursal</label>
+                            <select id="filterSucursal" class="bg-white border border-stone-300 text-stone-900 text-sm rounded-lg focus:ring-amber-500 focus:border-amber-500 block w-full p-2.5 shadow-sm">
+                                <option value="todas">Todas las Sucursales</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-col sm:flex-row items-center gap-3">
+                        <button id="btnExport" class="w-full sm:w-auto flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-emerald-200 transition-all transform active:scale-95">
+                            <span class="text-xl">📊</span>
+                            EXPORTAR CALENDARIO
+                        </button>
+                        <button id="btnReset" class="w-full sm:w-auto text-sm text-stone-500 hover:text-stone-800 font-semibold px-6 py-3 border border-stone-300 rounded-xl hover:bg-stone-100 transition-colors">
+                            Limpiar Filtros
+                        </button>
+                    </div>
+                </div>
+
+                <div class="p-0">
+                    <ul id="eventosList" class="divide-y divide-stone-100 max-h-[600px] overflow-y-auto">
+                    </ul>
+                    <div id="noResults" class="hidden p-16 text-center">
+                        <span class="text-5xl mb-4 block">🚫</span>
+                        <h3 class="text-lg font-bold text-stone-900">Sin mantenimientos</h3>
+                        <p class="text-stone-500 mt-1">No se encontraron eventos para los criterios seleccionados.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sección de Directorio -->
+        <section id="sec-directorio" class="tab-content hidden transition-opacity duration-300">
+            <div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div class="max-w-3xl">
+                    <h2 class="text-3xl font-bold text-stone-900 mb-2">Directorio de Sucursales</h2>
+                    <p class="text-stone-600">Ubicaciones geográficas y datos técnicos de las unidades de negocio.</p>
+                </div>
+                <button id="btnExportSucursales" class="text-xs font-bold text-stone-400 hover:text-emerald-600 flex items-center gap-1.5 px-3 py-2 border border-stone-200 hover:border-emerald-200 rounded-lg bg-white transition-all shadow-sm">
+                    <span>📥</span> DESCARGAR SUCURSALES (EXCEL)
+                </button>
+            </div>
+
+            <div id="sucursalesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-stone-900 text-stone-400 py-10 text-center text-sm border-t-4 border-amber-600 mt-12">
+        <div class="max-w-7xl mx-auto px-4">
+            <p class="font-bold text-stone-200 mb-2">GRUPO BPT - ICEMAS 2026</p>
+            <p>Panel de Control de Mantenimiento Preventivo</p>
+        </div>
+    </footer>
+
+    <script>
+        const basesDeDatos = {
+            sucursales: [
+                { id: 'b_altabrisa', nombre: "Boston's Pizza Altabrisa", franquicia: "Boston's Pizza", icono: "🍕", direccion: "Calle 7 #451 x 20 y 22 Fracc. Altabrisa, Mérida", lat: "21.0185", lng: "-89.5841" },
+                { id: 'b_granplaza', nombre: "Boston's Pizza Gran Plaza", franquicia: "Boston's Pizza", icono: "🍕", direccion: "Calle 50 #460 Gran Plaza, Mérida", lat: "21.0315", lng: "-89.6292" },
+                { id: 'b_pensiones', nombre: "Boston's Pizza Pensiones", franquicia: "Boston's Pizza", icono: "🍕", direccion: "Calle 7 #215 Residencial Pensiones, Mérida", lat: "21.0003", lng: "-89.6548" },
+                { id: 'b_caucel', nombre: "Boston's Pizza Caucel", franquicia: "Boston's Pizza", icono: "🍕", direccion: "Av. Cronista Deportivo s/n Fracc. Ciudad Caucel, Mérida", lat: "20.9995", lng: "-89.7021" },
+                { id: 'b_campeche', nombre: "Boston's Pizza Campeche", franquicia: "Boston's Pizza", icono: "🍕", direccion: "Av. Adolfo Ruiz Cortines #51 (Plaza Galerías), Campeche", lat: "19.8517", lng: "-90.5283" },
+                { id: 'p_citycenter', nombre: "La Parroquia City Center", franquicia: "La Parroquia", icono: "☕", direccion: "Calle 30 #185 (Plaza City Center), Mérida", lat: "21.0267", lng: "-89.5954" },
+                { id: 'p_caucel', nombre: "La Parroquia Caucel", franquicia: "La Parroquia", icono: "☕", direccion: "Periférico Poniente (Plaza Gran Santa Fe), Mérida", lat: "21.0012", lng: "-89.7045" },
+                { id: 'p_campeche', nombre: "La Parroquia Campeche", franquicia: "La Parroquia", icono: "☕", direccion: "Av. Resurgimiento x Calle 15 (Malecón), Campeche", lat: "19.8342", lng: "-90.5511" },
+                { id: 's_citycenter', nombre: "Sushi Club City Center", franquicia: "Sushi Club", icono: "🍣", direccion: "Calle 30 #185 (Plaza City Center), Mérida", lat: "21.0268", lng: "-89.5951" },
+                { id: 'c_comisariato', nombre: "Comisariato / Panadería", franquicia: "Corporativo BPT", icono: "🍞", direccion: "Calle 19 #95 Fracc. Industrial, Mérida", lat: "21.0089", lng: "-89.5642" },
+                { id: 'c_xcanatun', nombre: "Oficina Corporativa (MB Xcanatún)", franquicia: "Corporativo BPT", icono: "🏢", direccion: "Carr. Mérida-Progreso Km 12 (Xcanatún), Mérida", lat: "21.0924", lng: "-89.6278" },
+                { id: 'c_dzitya', nombre: "MB Dzityá", franquicia: "Corporativo BPT", icono: "🏢", direccion: "Tablaje Catastral 34421 (Carretera Dzityá), Mérida", lat: "21.0541", lng: "-89.6812" }
+            ],
+            meses: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
+            eventos: [
+                { mes: 0, fechas: '11 - 12', sucursalId: 'c_dzitya', txtPDF: 'MB Dzytia' },
+                { mes: 0, fechas: '20', sucursalId: 'b_campeche', txtPDF: 'Camp Bostons' },
+                { mes: 1, fechas: '3', sucursalId: 'b_granplaza', txtPDF: 'B Gran Plaza' },
+                { mes: 1, fechas: '5 - 6', sucursalId: 'p_citycenter', txtPDF: 'Parr. City' },
+                { mes: 1, fechas: '11 - 12', sucursalId: 'b_altabrisa', txtPDF: 'B Altabrisa' },
+                { mes: 1, fechas: '18 - 19', sucursalId: 'c_comisariato', txtPDF: 'Panaderia' },
+                { mes: 1, fechas: '18 - 19', sucursalId: 'p_campeche', txtPDF: 'Camp Parroquia' },
+                { mes: 2, fechas: '3', sucursalId: 'b_pensiones', txtPDF: 'B Pens' },
+                { mes: 2, fechas: '5 - 6', sucursalId: 'c_comisariato', txtPDF: 'Comisariato' },
+                { mes: 2, fechas: '11 - 12', sucursalId: 'b_caucel', txtPDF: 'B Caucel' },
+                { mes: 2, fechas: '18 - 19', sucursalId: 'p_caucel', txtPDF: 'Pam Caucal / Parr Caucel' },
+                { mes: 2, fechas: '23', sucursalId: 'c_xcanatun', txtPDF: 'MB Xcanatun' },
+                { mes: 3, fechas: '7', sucursalId: 's_citycenter', txtPDF: 'Camp Sushi' },
+                { mes: 3, fechas: '20', sucursalId: 'c_dzitya', txtPDF: 'MB Dzytia' },
+                { mes: 4, fechas: '5 - 6', sucursalId: 'b_granplaza', txtPDF: 'B Gran Plaza' },
+                { mes: 4, fechas: '14', sucursalId: 'b_altabrisa', txtPDF: 'B. Aitabrisa' },
+                { mes: 4, fechas: '21', sucursalId: 'b_campeche', txtPDF: 'Camp Bostons' },
+                { mes: 5, fechas: '2', sucursalId: 'b_pensiones', txtPDF: 'B Pens' },
+                { mes: 5, fechas: '8', sucursalId: 'c_comisariato', txtPDF: 'Comisariato' },
+                { mes: 5, fechas: '10', sucursalId: 'b_caucel', txtPDF: 'B Caucel' },
+                { mes: 5, fechas: '11 - 12', sucursalId: 'p_citycenter', txtPDF: 'P. City' },
+                { mes: 5, fechas: '17', sucursalId: 'p_caucel', txtPDF: 'Parr Caucel' },
+                { mes: 5, fechas: '18 - 19', sucursalId: 'c_comisariato', txtPDF: 'Panaderia' },
+                { mes: 5, fechas: '20', sucursalId: 'p_campeche', txtPDF: 'Camp Parroq' },
+                { mes: 5, fechas: '22', sucursalId: 'c_xcanatun', txtPDF: 'MB Xcanatun' },
+                { mes: 6, fechas: '7 - 13', sucursalId: 's_citycenter', txtPDF: 'Camp Sushi' },
+                { mes: 6, fechas: '7 - 13', sucursalId: 'c_dzitya', txtPDF: 'MB Dzytia' },
+                { mes: 6, fechas: '20', sucursalId: 'b_campeche', txtPDF: 'Camp Bostons' },
+                { mes: 7, fechas: '4', sucursalId: 'b_granplaza', txtPDF: 'B Gran Plaza' },
+                { mes: 7, fechas: '7 - 13', sucursalId: 'p_citycenter', txtPDF: 'Parr. City' },
+                { mes: 7, fechas: '7 - 13', sucursalId: 'b_altabrisa', txtPDF: 'B Altabrisa' },
+                { mes: 7, fechas: '17 - 18', sucursalId: 'c_comisariato', txtPDF: 'Panaderia' },
+                { mes: 7, fechas: '19', sucursalId: 'p_campeche', txtPDF: 'Camp Parroq' },
+                { mes: 7, fechas: '21', sucursalId: 'c_xcanatun', txtPDF: 'MB Xcanatun' },
+                { mes: 8, fechas: '1', sucursalId: 'b_pensiones', txtPDF: 'B Pens' },
+                { mes: 8, fechas: '7 - 13', sucursalId: 'c_comisariato', txtPDF: 'Comisariato' },
+                { mes: 8, fechas: '7 - 13', sucursalId: 'b_caucel', txtPDF: 'B Caucel' },
+                { mes: 8, fechas: '17 - 18', sucursalId: 'p_caucel', txtPDF: 'Parr. Caucel' },
+                { mes: 9, fechas: '7 - 13', sucursalId: 's_citycenter', txtPDF: 'Camp Sushi' },
+                { mes: 9, fechas: '7 - 13', sucursalId: 'c_dzitya', txtPDF: 'MB Dzytia' },
+                { mes: 9, fechas: '19', sucursalId: 'b_campeche', txtPDF: 'Camp Bostons' },
+                { mes: 10, fechas: '3', sucursalId: 'b_granplaza', txtPDF: 'B Gran Plaza' },
+                { mes: 10, fechas: '7 - 13', sucursalId: 'p_citycenter', txtPDF: 'Parr. City' },
+                { mes: 10, fechas: '7 - 13', sucursalId: 'b_altabrisa', txtPDF: 'B Altabrisa' },
+                { mes: 10, fechas: '17 - 18', sucursalId: 'c_comisariato', txtPDF: 'Panaderia' },
+                { mes: 11, fechas: '1', sucursalId: 'b_pensiones', txtPDF: 'B Peris' },
+                { mes: 11, fechas: '7 - 13', sucursalId: 'c_comisariato', txtPDF: 'Comisariato' },
+                { mes: 11, fechas: '7 - 13', sucursalId: 'b_caucel', txtPDF: 'B Caucel' },
+                { mes: 11, fechas: '17 - 18', sucursalId: 'p_caucel', txtPDF: 'Parr Caucel' },
+                { mes: 11, fechas: '19', sucursalId: 'p_campeche', txtPDF: 'Camp Parroq' },
+                { mes: 11, fechas: '21', sucursalId: 'c_xcanatun', txtPDF: 'MB Xcanatun' }
+            ]
+        };
+
+        const estadoApp = {
+            vistaActual: 'resumen',
+            filtroMes: 'todos',
+            filtroSucursal: 'todas'
+        };
+
+        let misGraficos = {};
+
+        function navegarA(id) {
+            estadoApp.vistaActual = id;
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            const seccion = document.getElementById(`sec-${id}`);
+            if(seccion) seccion.classList.remove('hidden');
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('nav-link-active'));
+            document.getElementById(`nav-${id}`).classList.add('nav-link-active');
+            if(id === 'resumen') Object.values(misGraficos).forEach(g => g.resize());
+        }
+
+        function inicializarUI() {
+            const selectMes = document.getElementById('filterMes');
+            basesDeDatos.meses.forEach((mes, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = mes;
+                selectMes.appendChild(option);
+            });
+
+            const selectSucursal = document.getElementById('filterSucursal');
+            const franquiciasGrupadas = {};
+            basesDeDatos.sucursales.forEach(s => {
+                if(!franquiciasGrupadas[s.franquicia]) franquiciasGrupadas[s.franquicia] = [];
+                franquiciasGrupadas[s.franquicia].push(s);
+            });
+
+            for(const [franquicia, sucs] of Object.entries(franquiciasGrupadas)) {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = franquicia;
+                sucs.forEach(s => {
+                    const option = document.createElement('option');
+                    option.value = s.id;
+                    option.textContent = s.nombre;
+                    optgroup.appendChild(option);
+                });
+                selectSucursal.appendChild(optgroup);
+            }
+
+            document.getElementById('statTotalEventos').textContent = basesDeDatos.eventos.length;
+            document.getElementById('statTotalSucursales').textContent = basesDeDatos.sucursales.length;
+            document.getElementById('statTotalBostons').textContent = basesDeDatos.eventos.filter(e => {
+                const s = basesDeDatos.sucursales.find(suc => suc.id === e.sucursalId);
+                return s && s.franquicia === "Boston's Pizza";
+            }).length;
+            document.getElementById('statTotalParroquia').textContent = basesDeDatos.eventos.filter(e => {
+                const s = basesDeDatos.sucursales.find(suc => suc.id === e.sucursalId);
+                return s && s.franquicia === "La Parroquia";
+            }).length;
+
+            selectMes.addEventListener('change', (e) => {
+                estadoApp.filtroMes = e.target.value;
+                actualizarListaEventos();
+            });
+
+            selectSucursal.addEventListener('change', (e) => {
+                estadoApp.filtroSucursal = e.target.value;
+                actualizarListaEventos();
+            });
+
+            document.getElementById('btnReset').addEventListener('click', () => {
+                selectMes.value = 'todos';
+                selectSucursal.value = 'todas';
+                estadoApp.filtroMes = 'todos';
+                estadoApp.filtroSucursal = 'todas';
+                actualizarListaEventos();
+            });
+
+            document.getElementById('btnExport').addEventListener('click', exportarAExcel);
+            document.getElementById('btnExportSucursales').addEventListener('click', exportarDirectorioAExcel);
+
+            renderizarDirectorio();
+            actualizarListaEventos();
+            inicializarGraficos();
+            navegarA('resumen');
+        }
+
+        function renderizarDirectorio() {
+            const grid = document.getElementById('sucursalesGrid');
+            grid.innerHTML = '';
+            basesDeDatos.sucursales.forEach(sucursal => {
+                const card = document.createElement('div');
+                card.className = "bg-white p-5 rounded-xl border border-stone-200 shadow-sm hover:shadow-lg hover:border-amber-400 transition-all cursor-pointer group flex flex-col h-full";
+                card.onclick = () => {
+                    document.getElementById('filterSucursal').value = sucursal.id;
+                    estadoApp.filtroSucursal = sucursal.id;
+                    document.getElementById('filterMes').value = 'todos';
+                    estadoApp.filtroMes = 'todos';
+                    actualizarListaEventos();
+                    navegarA('calendario');
+                };
+
+                let bgIconClass = sucursal.franquicia === "Boston's Pizza" ? "bg-red-50 text-red-600" :
+                                 sucursal.franquicia === "La Parroquia" ? "bg-amber-50 text-amber-700" :
+                                 sucursal.franquicia === "Sushi Club" ? "bg-stone-800 text-stone-100" : "bg-stone-100 text-stone-600";
+
+                card.innerHTML = `
+                    <div class="flex items-start gap-4 mb-4">
+                        <div class="w-12 h-12 rounded-lg flex items-center justify-center text-2xl shrink-0 ${bgIconClass}">
+                            ${sucursal.icono}
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-stone-900 group-hover:text-amber-700 transition-colors">${sucursal.nombre}</h4>
+                            <span class="text-[10px] font-black text-stone-400 uppercase tracking-widest">${sucursal.franquicia}</span>
+                        </div>
+                    </div>
+                    <div class="mt-auto pt-4 border-t border-stone-100 space-y-3">
+                        <p class="text-sm text-stone-600 leading-tight">📍 ${sucursal.direccion}</p>
+                        <div class="flex items-center justify-between text-[10px] font-mono bg-stone-50 p-2 rounded border border-stone-100 text-stone-400">
+                            <span>LAT: ${sucursal.lat}</span>
+                            <span>LNG: ${sucursal.lng}</span>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function actualizarListaEventos() {
+            const ul = document.getElementById('eventosList');
+            const noResults = document.getElementById('noResults');
+            ul.innerHTML = '';
+            const filtrados = basesDeDatos.eventos.filter(e => {
+                const matchMes = estadoApp.filtroMes === 'todos' || e.mes.toString() === estadoApp.filtroMes;
+                const matchSuc = estadoApp.filtroSucursal === 'todas' || e.sucursalId === estadoApp.filtroSucursal;
+                return matchMes && matchSuc;
+            });
+            if (filtrados.length === 0) {
+                ul.classList.add('hidden');
+                noResults.classList.remove('hidden');
+                return;
+            }
+            ul.classList.remove('hidden');
+            noResults.classList.add('hidden');
+            filtrados.forEach(evento => {
+                const sucursal = basesDeDatos.sucursales.find(s => s.id === evento.sucursalId);
+                const li = document.createElement('li');
+                li.className = "p-6 hover:bg-amber-50/30 transition-colors flex flex-col md:flex-row md:items-center gap-6 group";
+                li.innerHTML = `
+                    <div class="shrink-0 w-32 border-l-4 border-amber-500 pl-4">
+                        <p class="text-xs font-bold text-amber-600 uppercase tracking-widest">${basesDeDatos.meses[evento.mes]}</p>
+                        <p class="text-xl font-black text-stone-800">Día ${evento.fechas}</p>
+                    </div>
+                    <div class="grow flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-full bg-white border border-stone-200 flex items-center justify-center text-xl shadow-sm">
+                            ${sucursal ? sucursal.icono : '🏢'}
+                        </div>
+                        <div>
+                            <h4 class="text-lg font-bold text-stone-900">${sucursal ? sucursal.nombre : 'Sucursal'}</h4>
+                            <p class="text-sm text-stone-500 italic">Ref: ${evento.txtPDF}</p>
+                        </div>
+                    </div>
+                `;
+                ul.appendChild(li);
+            });
+        }
+
+        function exportarAExcel() {
+            const filtrados = basesDeDatos.eventos.filter(e => {
+                const matchMes = estadoApp.filtroMes === 'todos' || e.mes.toString() === estadoApp.filtroMes;
+                const matchSuc = estadoApp.filtroSucursal === 'todas' || e.sucursalId === estadoApp.filtroSucursal;
+                return matchMes && matchSuc;
+            });
+            if (filtrados.length === 0) return;
+            let csv = "Mes,Dias,Sucursal,Franquicia,Direccion,Latitud,Longitud,Ref_PDF\n";
+            filtrados.forEach(e => {
+                const suc = basesDeDatos.sucursales.find(s => s.id === e.sucursalId);
+                csv += [basesDeDatos.meses[e.mes], `"${e.fechas}"`, `"${suc?.nombre || ''}"`, `"${suc?.franquicia || ''}"`, `"${suc?.direccion || ''}"`, suc?.lat || '', suc?.lng || '', `"${e.txtPDF}"`].join(",") + "\n";
+            });
+            descargarCSV(csv, `BPT_Calendario_2026.csv`);
+        }
+
+        function exportarDirectorioAExcel() {
+            let csv = "ID,Nombre,Franquicia,Direccion,Latitud,Longitud\n";
+            basesDeDatos.sucursales.forEach(s => {
+                csv += [s.id, `"${s.nombre}"`, `"${s.franquicia}"`, `"${s.direccion}"`, s.lat, s.lng].join(",") + "\n";
+            });
+            descargarCSV(csv, `BPT_Directorio_Sucursales.csv`);
+        }
+
+        function descargarCSV(csv, filename) {
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function inicializarGraficos() {
+            const conteoPorMes = Array(12).fill(0);
+            basesDeDatos.eventos.forEach(e => conteoPorMes[e.mes]++);
+            misGraficos.meses = new Chart(document.getElementById('chartMeses'), {
+                type: 'bar',
+                data: {
+                    labels: basesDeDatos.meses.map(m => m.substring(0,3)),
+                    datasets: [{ data: conteoPorMes, backgroundColor: '#d97706', borderRadius: 6 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+            const franquiciaCounts = {};
+            basesDeDatos.eventos.forEach(e => {
+                const s = basesDeDatos.sucursales.find(suc => suc.id === e.sucursalId);
+                if(s) franquiciaCounts[s.franquicia] = (franquiciaCounts[s.franquicia] || 0) + 1;
+            });
+            misGraficos.franquicias = new Chart(document.getElementById('chartFranquicias'), {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(franquiciaCounts),
+                    datasets: [{ data: Object.values(franquiciaCounts), backgroundColor: ['#dc2626', '#d97706', '#1c1917', '#0d9488'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', inicializarUI);
+    </script>
+</body>
+</html>

@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>H-GESTIÓN | Inventario WOW de Diferenciadores</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap"
+        rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --bg: #0a0c10;
+            --card: rgba(255, 255, 255, 0.03);
+            --border: rgba(255, 255, 255, 0.08);
+            --pri: #3b82f6;
+            --acc: #10b981;
+            --gold: #f59e0b;
+            --txt: #f1f5f9;
+            --dim: #94a3b8;
+            --red: #ef4444;
+            --purple: #8b5cf6
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg);
+            color: var(--txt);
+            line-height: 1.6;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 4rem;
+            padding: 3rem;
+            background: linear-gradient(135deg, rgba(59, 130, 246, .1), rgba(245, 158, 11, .1));
+            border-radius: 32px;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(10px)
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            font-weight: 800;
+            letter-spacing: -.05em;
+            margin-bottom: .5rem;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent
+        }
+
+        .sub {
+            font-size: 1.15rem;
+            color: var(--dim);
+            font-weight: 500
+        }
+
+        .badge {
+            display: inline-block;
+            padding: .3rem .8rem;
+            border-radius: 20px;
+            font-size: .75rem;
+            font-weight: 800;
+            margin-top: 1rem
+        }
+
+        .badge-gold {
+            background: rgba(245, 158, 11, .15);
+            color: var(--gold);
+            border: 1px solid rgba(245, 158, 11, .3)
+        }
+
+        .badge-blue {
+            background: rgba(59, 130, 246, .15);
+            color: var(--pri);
+            border: 1px solid rgba(59, 130, 246, .3);
+            margin-left: .5rem
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            margin: 3rem 0
+        }
+
+        .stat {
+            text-align: center;
+            padding: 2rem;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px
+        }
+
+        .stat-num {
+            font-size: 3rem;
+            font-weight: 800;
+            line-height: 1
+        }
+
+        .stat-label {
+            font-size: .7rem;
+            text-transform: uppercase;
+            letter-spacing: .1em;
+            color: var(--dim);
+            margin-top: .5rem;
+            font-weight: 700
+        }
+
+        .stbl {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 .6rem;
+            margin-bottom: 4rem
+        }
+
+        .stbl th {
+            text-align: left;
+            padding: .8rem 1.2rem;
+            text-transform: uppercase;
+            font-size: .7rem;
+            letter-spacing: .1em;
+            color: var(--dim)
+        }
+
+        .gr {
+            background: var(--card);
+            border: 1px solid var(--border);
+            transition: transform .2s, background .2s
+        }
+
+        .gr:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, .05)
+        }
+
+        .gr td {
+            padding: 1rem 1.2rem;
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border)
+        }
+
+        .gr td:first-child {
+            border-left: 1px solid var(--border);
+            border-radius: 14px 0 0 14px;
+            font-weight: 800;
+            color: var(--pri);
+            width: 60px
+        }
+
+        .gr td:nth-child(3) {
+            text-align: center;
+            font-weight: 700;
+            color: var(--acc);
+            width: 80px
+        }
+
+        .gr td:last-child {
+            border-right: 1px solid var(--border);
+            border-radius: 0 14px 14px 0;
+            text-align: center;
+            font-weight: 700;
+            color: var(--gold);
+            width: 80px
+        }
+
+        .cn {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            font-weight: 700;
+            font-size: 1rem
+        }
+
+        .sec {
+            margin-top: 5rem
+        }
+
+        .sh {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border)
+        }
+
+        .sh h2 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            letter-spacing: -.02em
+        }
+
+        .fc {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 1.5rem;
+            margin-bottom: 1.25rem;
+            position: relative;
+            overflow: hidden
+        }
+
+        .fc::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: var(--pri)
+        }
+
+        .fc.exclusive::before {
+            background: linear-gradient(180deg, var(--gold), var(--pri))
+        }
+
+        .fc.exclusive {
+            border-color: rgba(245, 158, 11, .2)
+        }
+
+        .ft {
+            font-size: 1.1rem;
+            font-weight: 800;
+            margin-bottom: .75rem;
+            display: flex;
+            align-items: center;
+            gap: 8px
+        }
+
+        .ft .num {
+            color: var(--pri);
+            font-family: monospace;
+            font-size: .85rem
+        }
+
+        .fc.exclusive .ft .num {
+            color: var(--gold)
+        }
+
+        .star {
+            color: var(--gold);
+            font-size: .9rem
+        }
+
+        .fd {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem
+        }
+
+        .dl {
+            display: block;
+            text-transform: uppercase;
+            font-size: .65rem;
+            font-weight: 800;
+            letter-spacing: .05em;
+            color: var(--dim);
+            margin-bottom: .2rem
+        }
+
+        .dd {
+            font-size: .85rem;
+            line-height: 1.5
+        }
+
+        .rf {
+            font-family: 'Courier New', monospace;
+            background: rgba(0, 0, 0, .3);
+            padding: .15rem .5rem;
+            border-radius: 5px;
+            color: var(--acc);
+            font-size: .75rem
+        }
+
+        .quote {
+            text-align: center;
+            margin-top: 6rem;
+            padding: 3rem;
+            color: var(--dim);
+            font-style: italic;
+            border-top: 1px solid var(--border)
+        }
+
+        .top {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--pri);
+            color: #fff;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 10px 25px rgba(59, 130, 246, .4);
+            border: none;
+            z-index: 100
+        }
+
+        @media(max-width:768px) {
+            .stats {
+                grid-template-columns: 1fr
+            }
+
+            .fd {
+                grid-template-columns: 1fr
+            }
+
+            h1 {
+                font-size: 2rem
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>🏆 INVENTARIO WOW</h1>
+        <p class="sub">Diferenciadores que hacen de H-GESTIÓN la mejor plataforma CMMS del mercado</p>
+        <div>
+            <span class="badge badge-gold">⭐ 19 EXCLUSIVOS</span>
+            <span class="badge badge-blue">66 DIFERENCIADORES TOTALES</span>
+        </div>
+    </header>
+
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-num" style="color:var(--pri)">66</div>
+            <div class="stat-label">Diferenciadores Totales</div>
+        </div>
+        <div class="stat">
+            <div class="stat-num" style="color:var(--gold)">19</div>
+            <div class="stat-label">Exclusivos del Mercado ⭐</div>
+        </div>
+        <div class="stat">
+            <div class="stat-num" style="color:var(--acc)">12</div>
+            <div class="stat-label">Categorías de Valor</div>
+        </div>
+    </div>
+
+    <table class="stbl">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Categoría</th>
+                <th>Items</th>
+                <th>⭐</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="gr">
+                <td>I</td>
+                <td>
+                    <div class="cn"><i data-lucide="brain"></i> Inteligencia Operativa</div>
+                </td>
+                <td>3</td>
+                <td>2</td>
+            </tr>
+            <tr class="gr">
+                <td>II</td>
+                <td>
+                    <div class="cn"><i data-lucide="calendar"></i> Calendario Preventivo Inteligente</div>
+                </td>
+                <td>14</td>
+                <td>6</td>
+            </tr>
+            <tr class="gr">
+                <td>III</td>
+                <td>
+                    <div class="cn"><i data-lucide="wrench"></i> Flujo Operativo Completo</div>
+                </td>
+                <td>6</td>
+                <td>2</td>
+            </tr>
+            <tr class="gr">
+                <td>IV</td>
+                <td>
+                    <div class="cn"><i data-lucide="camera"></i> Captura de Evidencia Premium</div>
+                </td>
+                <td>3</td>
+                <td>1</td>
+            </tr>
+            <tr class="gr">
+                <td>V</td>
+                <td>
+                    <div class="cn"><i data-lucide="file-text"></i> Documentación y Reportes</div>
+                </td>
+                <td>2</td>
+                <td>1</td>
+            </tr>
+            <tr class="gr">
+                <td>VI</td>
+                <td>
+                    <div class="cn"><i data-lucide="database"></i> Gestión de Catálogos</div>
+                </td>
+                <td>6</td>
+                <td>3</td>
+            </tr>
+            <tr class="gr">
+                <td>VII</td>
+                <td>
+                    <div class="cn"><i data-lucide="users"></i> Usuarios y Roles</div>
+                </td>
+                <td>4</td>
+                <td>2</td>
+            </tr>
+            <tr class="gr">
+                <td>VIII</td>
+                <td>
+                    <div class="cn"><i data-lucide="palette"></i> Diseño y Experiencia UX</div>
+                </td>
+                <td>10</td>
+                <td>1</td>
+            </tr>
+            <tr class="gr">
+                <td>IX</td>
+                <td>
+                    <div class="cn"><i data-lucide="shield"></i> Integridad y Auditoría</div>
+                </td>
+                <td>6</td>
+                <td>1</td>
+            </tr>
+            <tr class="gr">
+                <td>X</td>
+                <td>
+                    <div class="cn"><i data-lucide="server"></i> Infraestructura Tecnológica</div>
+                </td>
+                <td>4</td>
+                <td>0</td>
+            </tr>
+            <tr class="gr">
+                <td>XI</td>
+                <td>
+                    <div class="cn"><i data-lucide="bar-chart-3"></i> Visualización de Datos</div>
+                </td>
+                <td>5</td>
+                <td>0</td>
+            </tr>
+            <tr class="gr" style="background:rgba(16,185,129,.06)">
+                <td>XII</td>
+                <td>
+                    <div class="cn" style="color:var(--acc)"><i data-lucide="globe"></i> Integraciones Externas</div>
+                </td>
+                <td>3</td>
+                <td>0</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- ═══ I. INTELIGENCIA OPERATIVA ═══ -->
+    <div class="sec">
+        <div class="sh"><i data-lucide="brain" size="28" color="var(--pri)"></i>
+            <h2>I. Inteligencia Operativa</h2>
+        </div>
+
+        <div class="fc exclusive">
+            <div class="ft"><span class="num">#01</span> Dashboard BI con Drill-Down Interactivo <span
+                    class="star">⭐</span></div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Gráficas clicables: al tocar cualquier barra, dona o
+                    línea, se abre un modal con las OTs exactas detrás del dato. Smart Insights con análisis automático
+                    y recomendaciones.</div>
+                <div class="dd"><span class="dl">Por qué es WOW</span>Ningún CMMS del mercado permite hacer clic en un
+                    gráfico y ver los registros individuales. Convierte estadísticas en investigación activa.</div>
+                <div class="dd"><span class="dl">Archivo fuente</span><span class="rf">DashboardBIPage.tsx +
+                        BIDrillDownModal.tsx</span></div>
+            </div>
+        </div>
+
+        <div class="fc exclusive">
+            <div class="ft"><span class="num">#02</span> Control de Concurrencia en Tiempo Real <span
+                    class="star">⭐</span></div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Detecta si un Gerente modificó una OT mientras el
+                    Coordinador la está asignando. Bloquea la acción, muestra la bitácora de cambios y refresca los
+                    datos.</div>
+                <div class="dd"><span class="dl">Por qué es WOW</span>Previene decisiones basadas en información
+                    desactualizada. Protección anti-colisión de nivel bancario.</div>
+                <div class="dd"><span class="dl">Archivo fuente</span><span
+                        class="rf">CoordinadorDashboard.tsx:116-173</span></div>
+            </div>
+        </div>
+
+        <div class="fc">
+            <div class="ft"><span class="num">#03</span> Generación Consecutiva Atómica de Folios</div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Números de folio usando transacciones atómicas de
+                    Firestore (runTransaction). Series separadas para Correctivos y Preventivos.</div>
+                <div class="dd"><span class="dl">Por qué es WOW</span>Garantiza folios únicos incluso con 10 usuarios
+                    simultáneos creando OTs.</div>
+                <div class="dd"><span class="dl">Archivo fuente</span><span class="rf">dataService.ts:94-111</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ II. CALENDARIO PREVENTIVO ═══ -->
+    <div class="sec">
+        <div class="sh"><i data-lucide="calendar" size="28" color="var(--pri)"></i>
+            <h2>II. Calendario Preventivo Inteligente</h2>
+        </div>
+
+        <div class="fc exclusive">
+            <div class="ft"><span class="num">#04</span> Calendario Multi-Vista (4 Modos) <span class="star">⭐</span>
+            </div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>4 vistas: Lista (tabla detallada), Semanal (barras
+                    horizontales continuas), Mensual (cuadrícula 7 columnas), Anual (12 meses en un golpe de vista).
+                </div>
+                <div class="dd"><span class="dl">Por qué es WOW</span>No existe un CMMS con 4 vistas nativas de
+                    calendario preventivo. Los caros ofrecen 2 como máximo.</div>
+            </div>
+        </div>
+
+        <div class="fc exclusive" style="border-color:rgba(245,158,11,.35)">
+            <div class="ft"><span class="num">#05</span> Despacho Visual por Drag & Drop <span class="star">⭐⭐</span>
+            </div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Arrastra un evento del calendario y suéltalo sobre un
+                    cajón de técnico → se abre el Wizard de Generación Masiva con ese técnico pre-seleccionado. Feedback
+                    visual completo: bordes verdes, sombras, texto animado "✨ Soltar aquí".</div>
+                <div class="dd"><span class="dl">Por qué es WOW</span>Convierte la planificación en un acto visual e
+                    intuitivo. De "llenar formularios" a "distribuir trabajo" en 2 segundos.</div>
+                <div class="dd"><span class="dl">Archivo fuente</span><span
+                        class="rf">PreventivosPage.tsx:182-547</span></div>
+            </div>
+        </div>
+
+        <div class="fc exclusive">
+            <div class="ft"><span class="num">#06</span> Panel de Gestión de Técnicos con Drag & Drop <span
+                    class="star">⭐</span></div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Tablero Kanban: cada técnico tiene un cajón con sus OTs.
+                    Arrastra OTs entre cajones para reasignar. Solo OTs en "Asignada" pueden moverse; las demás tienen
+                    candado 🔒.</div>
+                <div class="dd"><span class="dl">Archivo fuente</span><span
+                        class="rf">PreventivosPage.tsx:1750-1820</span></div>
+            </div>
+        </div>
+
+        <div class="fc exclusive">
+            <div class="ft"><span class="num">#07</span> Wizard de Generación Masiva (4 Pasos) <span
+                    class="star">⭐</span></div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Paso 1: Contexto. Paso 2: Selección por Familia con
+                    prioridad ▲▼. Paso 3: Auto-distribución Round-Robin multi-técnico/multi-día. Paso 4: Tabla resumen +
+                    confirmación.</div>
+                <div class="dd"><span class="dl">Archivo fuente</span><span class="rf">MassiveOTWizard.tsx (850
+                        líneas)</span></div>
+            </div>
+        </div>
+
+        <div class="fc exclusive">
+            <div class="ft"><span class="num">#08</span> Dashboard de Gestión Masiva (Post-Generación) <span
+                    class="star">⭐</span></div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Panel post-generación con detección de cambios
+                    individuales. Compara estado actual vs último batch. Modificación masiva de técnico/fecha con
+                    bitácora granular.</div>
+                <div class="dd"><span class="dl">Archivo fuente</span><span class="rf">MassiveOTDashboard.tsx</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="fc exclusive">
+            <div class="ft"><span class="num">#09</span> Auto-Distribución Inteligente Round-Robin <span
+                    class="star">⭐</span></div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Algoritmo que reparte equipos entre técnicos: externos
+                    reciben equipos de su especialidad; internos el resto en distribución equitativa. Redistribución
+                    manual con drag-and-drop.</div>
+                <div class="dd"><span class="dl">Archivo fuente</span><span
+                        class="rf">MassiveOTWizard.tsx:186-273</span></div>
+            </div>
+        </div>
+
+        <div class="fc">
+            <div class="ft"><span class="num">#10</span> Slider de Rango de Meses</div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Control deslizante dual para filtrar calendario por
+                    rango de meses con gradiente dinámico de progreso.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#11</span> Filtros Avanzados en Cascada</div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Franquicia → Sucursal → Familia → Equipo. Cada filtro
+                    reduce las opciones del siguiente.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#12</span> Conteo de Equipos en Eventos</div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Cada evento muestra "(X Eq)" — la cantidad de equipos
+                    registrados en esa sucursal, visible en las 4 vistas.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#13</span> Gráfico de Distribución Mensual Navegable</div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Gráfico de barras por mes con código de color por
+                    franquicia. Al hacer clic en una barra, salta a ese mes.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#14</span> Ordenamiento Bidireccional (Asc/Desc)</div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Control visual para invertir el orden de la lista de
+                    eventos por mes + día.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#15</span> Importación y Exportación CSV</div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Descarga plantilla CSV, importación con validación
+                    exhaustiva (integridad, duplicados, fechas), exportación completa del plan.</div>
+            </div>
+        </div>
+
+        <div class="fc exclusive">
+            <div class="ft"><span class="num">#16</span> Bitácora con Deshacer (Undo) <span class="star">⭐</span></div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Cada cambio en programación queda registrado: quién,
+                    cuándo, qué campo, valor anterior → nuevo. Botón Undo que revierte automáticamente.</div>
+                <div class="dd"><span class="dl">Archivo fuente</span><span class="rf">dataService.ts:598-620</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="fc">
+            <div class="ft"><span class="num">#17</span> Auto-Migración de Datos Iniciales</div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Si la base de datos está vacía, migra automáticamente
+                    los datos de referencia del plan 2026 sin intervención.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ III. FLUJO OPERATIVO ═══ -->
+    <div class="sec">
+        <div class="sh"><i data-lucide="wrench" size="28" color="var(--pri)"></i>
+            <h2>III. Flujo Operativo Completo</h2>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#18</span> Ciclo de Vida de OT en 7 Estatus</div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Pendiente → Asignada → Llegada a Sitio → Iniciada →
+                    Concluida. Pendiente Firma → Concluida → Finalizada. Cada transición validada y registrada.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#19</span> Solicitud de OT por Gerente de Sucursal</div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Formulario con selección inteligente de equipos
+                    filtrados por sucursal del gerente. Adjuntos, fotos y cámara nativa integrada.</div>
+            </div>
+        </div>
+
+        <div class="fc exclusive">
+            <div class="ft"><span class="num">#20</span> Panel de Coordinador con Carrusel de Evidencia <span
+                    class="star">⭐</span></div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Carrusel infinito de fotos del Gerente. Asignación de
+                    técnico, prioridad y fecha desde un solo modal. Bitácora de cambios integrada.</div>
+                <div class="dd"><span class="dl">Archivo fuente</span><span
+                        class="rf">CoordinadorDashboard.tsx:24-53</span></div>
+            </div>
+        </div>
+
+        <div class="fc exclusive">
+            <div class="ft"><span class="num">#21</span> Ejecución de Servicio Mobile-First <span class="star">⭐</span>
+            </div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Vista optimizada para campo con 3 fotografías
+                    (Antes/Después/Extra), firma digital, GPS de llegada y cronómetro en tiempo real de estancia en
+                    sitio.</div>
+                <div class="dd"><span class="dl">Archivo fuente</span><span class="rf">EjecucionServicioPage.tsx</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="fc">
+            <div class="ft"><span class="num">#22</span> Cierre en Dos Pasos (Técnico + Cliente)</div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Primer cierre: técnico con firma y evidencia. Segundo
+                    cierre: firma de conformidad del cliente. Cadena de responsabilidad documental.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#23</span> Supervisión y Finalización</div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Vista de Supervisor con búsqueda, generación de PDF
+                    obligatoria y validación de firma de cliente antes del cierre final.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ IV. CAPTURA DE EVIDENCIA ═══ -->
+    <div class="sec">
+        <div class="sh"><i data-lucide="camera" size="28" color="var(--pri)"></i>
+            <h2>IV. Captura de Evidencia Premium</h2>
+        </div>
+        <div class="fc exclusive">
+            <div class="ft"><span class="num">#24</span> Cámara Nativa con Viewfinder en Vivo <span
+                    class="star">⭐</span></div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Modal de cámara con video en tiempo real (no selector de
+                    archivos). Cambio frontal/trasera. Previsualización antes de confirmar. Funciona en móvil y desktop.
+                </div>
+                <div class="dd"><span class="dl">Archivo fuente</span><span class="rf">CameraModal.tsx (209
+                        líneas)</span></div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#25</span> Firma Digital en Pantalla</div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>SignaturePad para dibujar firma con dedo o mouse.
+                    Convierte a PNG. Botón "Borrar y Repetir".</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#26</span> Subida Inmediata de Fotos</div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Las fotos se suben a Firebase Storage en el momento de
+                    captura, no al guardar. Feedback visual inmediato con miniatura.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ V. DOCUMENTACIÓN ═══ -->
+    <div class="sec">
+        <div class="sh"><i data-lucide="file-text" size="28" color="var(--pri)"></i>
+            <h2>V. Documentación y Reportes</h2>
+        </div>
+        <div class="fc exclusive">
+            <div class="ft"><span class="num">#27</span> Reporte de Servicio PDF Profesional <span class="star">⭐</span>
+            </div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>PDF a página completa con logo, datos del cliente,
+                    sucursal, equipo, evidencia fotográfica, falla, trabajos, refacciones y firmas en tinta negra.</div>
+                <div class="dd"><span class="dl">Archivo fuente</span><span class="rf">PrintableServiceReport.tsx +
+                        serviceReport.ts</span></div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#28</span> Kardex Operativo con Timeline</div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Todas las OTs con filtros, modal de detalle con edición
+                    condicional según estatus, timeline visual del ciclo de vida y edición desde Kardex.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ VI. CATÁLOGOS ═══ -->
+    <div class="sec">
+        <div class="sh"><i data-lucide="database" size="28" color="var(--pri)"></i>
+            <h2>VI. Gestión de Catálogos</h2>
+        </div>
+        <div class="fc exclusive">
+            <div class="ft"><span class="num">#29</span> Catálogo de Franquicias con Identidad Visual <span
+                    class="star">⭐</span></div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Tarjetas premium con logo 120×120px sobre fondo
+                    inteligente. Conteo automático de sucursales y equipos. Enlace a sitio web oficial.</div>
+            </div>
+        </div>
+        <div class="fc exclusive" style="border-color:rgba(245,158,11,.35)">
+            <div class="ft"><span class="num">#30</span> Detección Inteligente de Color de Fondo <span
+                    class="star">⭐⭐</span></div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Analiza píxeles dominantes del logo con Canvas 2D.
+                    Calcula luminosidad (0.299R+0.587G+0.114B). Genera fondo complementario automáticamente.</div>
+                <div class="dd"><span class="dl">Archivo fuente</span><span class="rf">FranquiciasPage.tsx:74-121</span>
+                </div>
+            </div>
+        </div>
+        <div class="fc exclusive">
+            <div class="ft"><span class="num">#31</span> Pegar Logo desde Portapapeles (Ctrl+V) <span
+                    class="star">⭐</span></div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Ctrl+V en el modal de edición detecta imagen del
+                    clipboard, la procesa y aplica análisis inteligente de fondo automáticamente.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#32</span> Sucursales con Geocodificación</div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Coordenadas GPS, selector de ubicación en mapa integrado
+                    (MapPickerModal) y enlace directo a Google Maps.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#33</span> Equipos por Familia (8 Familias)</div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Aires 🌀, Cocción 🍳, Refrigeración ❄️, Cocina,
+                    Restaurante 🍽️, Local 🏪, Agua 🚰, Generadores ⚡. Íconos temáticos.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#34</span> Directorio de Sucursales con Conteo</div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Vista de directorio por franquicia con logos,
+                    direcciones, botón "VER MAPA" y conteo de equipos por sucursal.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ VII. USUARIOS ═══ -->
+    <div class="sec">
+        <div class="sh"><i data-lucide="users" size="28" color="var(--pri)"></i>
+            <h2>VII. Usuarios y Roles</h2>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#35</span> Sistema de 6 Roles Diferenciados</div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Admin, Coordinador, Gerente, Supervisor, Técnico
+                    Interno, Técnico Externo. Cada rol con permisos, vistas y flujos diferentes.</div>
+            </div>
+        </div>
+        <div class="fc exclusive">
+            <div class="ft"><span class="num">#36</span> Permisos Granulares por Sucursal <span class="star">⭐</span>
+            </div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Cada usuario tiene array de sucursales permitidas.
+                    Seleccionar Todas/Ninguna. Técnicos y gerentes solo ven datos de sus sucursales.</div>
+            </div>
+        </div>
+        <div class="fc exclusive">
+            <div class="ft"><span class="num">#37</span> Detección Automática de Tipo de Gerente <span
+                    class="star">⭐</span></div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Distingue Gerente BA (multi-sucursal) vs Gerente de
+                    Sucursal (uni-sucursal) automáticamente por cantidad de permisos.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#38</span> Selector de Rol para Desarrollo/Demo</div>
+            <div class="fd">
+                <div class="dd"><span class="dl">Qué hace</span>Barra de selección de rol para cambiar de perfil en
+                    pruebas. Cada rol muestra solo los módulos correspondientes.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ VIII. DISEÑO UX ═══ -->
+    <div class="sec">
+        <div class="sh"><i data-lucide="palette" size="28" color="var(--pri)"></i>
+            <h2>VIII. Diseño y Experiencia UX</h2>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#39</span> Interfaz Glassmorphism Premium</div>
+            <div class="fd">
+                <div class="dd">Fondos cristal esmerilado (backdrop-filter:blur), bordes traslúcidos rgba, sombras
+                    multi-capa para efecto 3D.</div>
+            </div>
+        </div>
+        <div class="fc exclusive">
+            <div class="ft"><span class="num">#40</span> Tema Oscuro / Claro con Transición Suave <span
+                    class="star">⭐</span></div>
+            <div class="fd">
+                <div class="dd">Toggle Sun/Moon en sidebar. Transición animada de todas las variables CSS. Ambos temas
+                    con glassmorphism.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#41</span> Atajos de Teclado</div>
+            <div class="fd">
+                <div class="dd">Escape cierra sidebar móvil. Navegación intuitiva con sidebar plegable.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#42</span> Animaciones y Micro-Interacciones</div>
+            <div class="fd">
+                <div class="dd">animate-fade, animate-scale-up, animate-spin, pulse. Transiciones hover, gradientes
+                    dinámicos en barras de progreso.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#43</span> Sidebar Responsivo con Auto-Colapso</div>
+            <div class="fd">
+                <div class="dd">Sidebar completo en desktop, plegable en móvil. Badge de notificaciones en campana.
+                    Cierre de sesión con confirmación.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#44</span> Notificaciones Toast (4 niveles)</div>
+            <div class="fd">
+                <div class="dd">Success, error, warning, info. Auto-dismiss. Apilables si se generan varias
+                    simultáneamente.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#45</span> Código de Colores por Franquicia</div>
+            <div class="fd">
+                <div class="dd">colorFondo consistente en calendario, legendas, tarjetas, gráficos y bordes.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#46</span> Íconos Temáticos por Franquicia</div>
+            <div class="fd">
+                <div class="dd">Pizza → Boston's, Coffee → Parroquia, Drumstick → MB/BPT, Fish → Sushi Roll.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#47</span> Iniciales de Franquicia en Leyendas</div>
+            <div class="fd">
+                <div class="dd">Barras con prefijo "[MB]", "[BP]" para identificación rápida sin leer nombre completo.
+                </div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#48</span> Indicador de Duración en Modal de Edición</div>
+            <div class="fd">
+                <div class="dd">Muestra en tiempo real cuántos días dura el evento. Se actualiza al cambiar fechas.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ IX. INTEGRIDAD ═══ -->
+    <div class="sec">
+        <div class="sh"><i data-lucide="shield" size="28" color="var(--pri)"></i>
+            <h2>IX. Integridad y Auditoría</h2>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#49</span> Bitácora de Auditoría Global</div>
+            <div class="fd">
+                <div class="dd">Registro cronológico de todas las acciones. Quién, qué, cuándo, anterior → nuevo.
+                    Filtrable.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#50</span> Bitácora Granular por OT</div>
+            <div class="fd">
+                <div class="dd">Cada OT con su propia timeline de cambios. Visible para Coordinadores y Supervisores.
+                </div>
+            </div>
+        </div>
+        <div class="fc exclusive">
+            <div class="ft"><span class="num">#51</span> Regla: Las OTs No Se Borran <span class="star">⭐</span></div>
+            <div class="fd">
+                <div class="dd">Diseño orientado a la trazabilidad total. Una OT nunca se elimina — solo se modifica o
+                    CANCELA.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#52</span> Validación de Fechas por Mes</div>
+            <div class="fd">
+                <div class="dd">Valida días válidos para cada mes (28/30/31). Detecta rangos invertidos.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#53</span> Detección de Duplicados en Importación</div>
+            <div class="fd">
+                <div class="dd">Detecta registros duplicados en CSV y valida integridad referencial contra catálogos.
+                </div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#54</span> Protección contra Drag & Drop Inválido</div>
+            <div class="fd">
+                <div class="dd">OTs bloqueadas no se arrastran. Eventos con OTs existentes no se pueden soltar. Mensajes
+                    claros de error.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ X. INFRAESTRUCTURA ═══ -->
+    <div class="sec">
+        <div class="sh"><i data-lucide="server" size="28" color="var(--pri)"></i>
+            <h2>X. Infraestructura Tecnológica</h2>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#55</span> Stack Moderno y Escalable</div>
+            <div class="fd">
+                <div class="dd">React 18 + TypeScript + Vite 7 + Firebase (Firestore/Storage/Auth) + Chart.js + Lucide +
+                    html2canvas + jsPDF.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#56</span> Arquitectura de Servicios Desacoplada</div>
+            <div class="fd">
+                <div class="dd">dataService.ts con 30+ funciones. Separación estricta negocio/UI. Tipos TypeScript
+                    estrictos.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#57</span> Rendimiento con useMemo</div>
+            <div class="fd">
+                <div class="dd">Cálculos pesados memorizados. Solo recalcula al cambiar dependencias reales. Evita
+                    re-renders.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#58</span> Carga Paralela con Promise.all</div>
+            <div class="fd">
+                <div class="dd">Todas las consultas iniciales en paralelo. Reduce significativamente el tiempo de carga.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ XI. VISUALIZACIÓN ═══ -->
+    <div class="sec">
+        <div class="sh"><i data-lucide="bar-chart-3" size="28" color="var(--pri)"></i>
+            <h2>XI. Visualización de Datos</h2>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#59</span> Gráfica Donut Correctivo vs Preventivo</div>
+            <div class="fd">
+                <div class="dd">Proporción visual con drill-down al clic en cada segmento.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#60</span> Barras por Estatus</div>
+            <div class="fd">
+                <div class="dd">Distribución con colores diferenciados y drill-down interactivo.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#61</span> Tendencia Temporal en Línea</div>
+            <div class="fd">
+                <div class="dd">Últimos meses con área sombreada bajo la curva.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#62</span> KPIs con Micro-Análisis</div>
+            <div class="fd">
+                <div class="dd">Tarjetas con ícono, valor, unidad y tendencia. Análisis tipo "12% más que el mes
+                    anterior".</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#63</span> Vista "Mis Servicios" para Técnico</div>
+            <div class="fd">
+                <div class="dd">OTs agrupadas por fecha. Toggle Detalles/Tablero. Botón Llegada con GPS. Barra de
+                    búsqueda.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ XII. INTEGRACIONES ═══ -->
+    <div class="sec">
+        <div class="sh"><i data-lucide="globe" size="28" color="var(--acc)"></i>
+            <h2>XII. Integraciones Externas</h2>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#64</span> Google Maps Integrado</div>
+            <div class="fd">
+                <div class="dd">Botón "VER MAPA" con coordenadas. Fallback inteligente por nombre+dirección si no hay
+                    GPS.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#65</span> Firebase Storage para Evidencia</div>
+            <div class="fd">
+                <div class="dd">Fotos, logos y firmas almacenadas con URLs seguras. Carpetas organizadas.</div>
+            </div>
+        </div>
+        <div class="fc">
+            <div class="ft"><span class="num">#66</span> Firebase Authentication</div>
+            <div class="fd">
+                <div class="dd">Autenticación integrada con sesión persistente y cierre seguro con signOut.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="quote">
+        <p style="font-size:1.5rem;margin-bottom:1rem">🏆</p>
+        <p>"La Cruda Realidad y el Apego a la Veracidad es lo Único que nos Hace Libres."</p>
+        <p style="margin-top:10px;font-weight:800;color:var(--txt)">— Héctor A. Celis L.</p>
+        <p style="margin-top:2rem;font-size:.75rem;color:var(--dim)">H-GESTIÓN by ICEMAS · Soluciones en Logística y
+            Transporte · Inventario v1.0 · Marzo 2026</p>
+    </div>
+
+    <button class="top" onclick="window.scrollTo({top:0,behavior:'smooth'})"><i data-lucide="arrow-up"></i></button>
+    <script>lucide.createIcons();</script>
+</body>
+
+</html>
