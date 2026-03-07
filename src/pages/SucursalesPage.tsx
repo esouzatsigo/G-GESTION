@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Edit2, Search, Save, X, Navigation, MapPin, Map as MapIcon, FileSpreadsheet, Store, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { downloadExcel } from '../utils/fileDownload';
+import { downloadExcel, fileTimestamp } from '../utils/fileDownload';
 import { useNotification } from '../context/NotificationContext';
 import { ImportModal } from '../components/ImportModal';
 import { getSucursales, getClientes, getFranquicias, logEntityChange } from '../services/dataService';
@@ -209,7 +209,7 @@ export const SucursalesPage: React.FC = () => {
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Sucursales");
             const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-            await downloadExcel(wbout, "catalogo_sucursales.xlsx");
+            await downloadExcel(wbout, `catalogo_sucursales_${fileTimestamp()}.xlsx`);
         } catch (err) {
             console.error('Error al exportar Sucursales:', err);
         }

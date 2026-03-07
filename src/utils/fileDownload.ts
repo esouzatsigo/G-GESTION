@@ -10,6 +10,15 @@
  * Reemplaza: doc.save(), XLSX.writeFile(), saveAs(), showSaveFilePicker()
  */
 
+/** Genera un timestamp compacto para nombres de archivo: 2026-03-07_10h55 */
+export function fileTimestamp(): string {
+    const now = new Date();
+    const date = now.toISOString().slice(0, 10); // 2026-03-07
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    return `${date}_${hh}h${mm}`;
+}
+
 export async function downloadFile(
     blob: Blob,
     fileName: string,

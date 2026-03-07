@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Usuarios BPT - H-GESTIÓN</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #38bdf8;
+            --secondary: #818cf8;
+            --accent: #f472b6;
+            --bg: #030712;
+            --card-bg: rgba(17, 24, 39, 0.7);
+            --text-main: #f9fafb;
+            --text-muted: #9ca3af;
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --gradient: linear-gradient(135deg, var(--primary), var(--secondary));
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg);
+            background-image:
+                radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 80% 80%, rgba(244, 114, 182, 0.1) 0%, transparent 40%);
+            color: var(--text-main);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 2rem;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 4rem;
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 900;
+            letter-spacing: -0.05em;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            font-weight: 400;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .report-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            animation: fadeIn 1s ease-out;
+        }
+
+        .info-pill {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.5rem 1.25rem;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--primary);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+            animation: fadeInUp 1s ease-out;
+        }
+
+        .user-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border-radius: 24px;
+            padding: 2rem;
+            border: 1px solid var(--glass-border);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .user-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            border-color: rgba(56, 189, 248, 0.4);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+        }
+
+        .user-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.03), transparent);
+            transform: rotate(45deg);
+            transition: 0.8s;
+            pointer-events: none;
+        }
+
+        .user-card:hover::before {
+            left: 100%;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .avatar {
+            width: 56px;
+            height: 56px;
+            border-radius: 18px;
+            background: var(--gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: white;
+            box-shadow: 0 8px 16px -4px rgba(56, 189, 248, 0.4);
+        }
+
+        .name-role {
+            flex: 1;
+        }
+
+        .name {
+            font-size: 1.25rem;
+            font-weight: 800;
+            margin-bottom: 0.25rem;
+            line-height: 1.2;
+        }
+
+        .role-tag {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 8px;
+            font-size: 0.65rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            background: rgba(129, 140, 248, 0.15);
+            color: var(--secondary);
+            border: 1px solid rgba(129, 140, 248, 0.2);
+        }
+
+        .role-tag.tecnico {
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--primary);
+            border-color: rgba(56, 189, 248, 0.2);
+        }
+
+        .role-tag.supervisor {
+            background: rgba(244, 114, 182, 0.15);
+            color: var(--accent);
+            border-color: rgba(244, 114, 182, 0.2);
+        }
+
+        .field {
+            margin-bottom: 1rem;
+        }
+
+        .label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
+            display: block;
+        }
+
+        .value {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--text-main);
+            word-break: break-all;
+        }
+
+        .copy-box {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: var(--primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        footer {
+            margin-top: 5rem;
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+
+            body {
+                padding: 1rem;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Reporte BPT Users</h1>
+            <div class="subtitle">MAX EDITION • H-GESTIÓN 2026</div>
+        </header>
+
+        <div class="report-info">
+            <div class="info-pill">Total Usuarios: 33</div>
+            <div class="info-pill">Fecha: 07 Marzo 2026</div>
+            <div class="info-pill">Cliente: BPT</div>
+        </div>
+
+        <div class="grid">
+            <!-- Gerente Caucel -->
+            <div class="user-card">
+                <div class="card-header">
+                    <div class="avatar">GC</div>
+                    <div class="name-role">
+                        <div class="name">Gerente Caucel</div>
+                        <div class="role-tag">Gerente</div>
+                    </div>
+                </div>
+                <div class="field">
+                    <span class="label">Correo / Contraseña</span>
+                    <div class="copy-box">gerente.caucel@hgestion.com</div>
+                </div>
+                <div class="field">
+                    <span class="label">Sucursal</span>
+                    <div class="value">Caucel</div>
+                </div>
+            </div>
+
+            <!-- Técnico Interno Comisariato -->
+            <div class="user-card">
+                <div class="card-header">
+                    <div class="avatar">TI</div>
+                    <div class="name-role">
+                        <div class="name">Técnico Interno Comisariato / Panadería</div>
+                        <div class="role-tag tecnico">Tecnico</div>
+                    </div>
+                </div>
+                <div class="field">
+                    <span class="label">Correo / Contraseña</span>
+                    <div class="copy-box">tecnico.comisariatopanadera@bpt.com</div>
+                </div>
+                <div class="field">
+                    <span class="label">Sucursal</span>
+                    <div class="value">Comisariato / Panadería</div>
+                </div>
+            </div>
+
+            <!-- Técnico Interno Caucel -->
+            <div class="user-card">
+                <div class="card-header">
+                    <div class="avatar">TI</div>
+                    <div class="name-role">
+                        <div class="name">Técnico Interno Caucel</div>
+                        <div class="role-tag tecnico">Tecnico</div>
+                    </div>
+                </div>
+                <div class="field">
+                    <span class="label">Correo / Contraseña</span>
+                    <div class="copy-box">tecnico.caucel@bpt.com</div>
+                </div>
+                <div class="field">
+                    <span class="label">Sucursal</span>
+                    <div class="value">Caucel</div>
+                </div>
+            </div>
+
+            <!-- Tecnico Interno Oficina Corporativa -->
+            <div class="user-card">
+                <div class="card-header">
+                    <div class="avatar">TI</div>
+                    <div class="name-role">
+                        <div class="name">Técnico Interno Oficina Corp (MB Xcanatún)</div>
+                        <div class="role-tag tecnico">Tecnico</div>
+                    </div>
+                </div>
+                <div class="field">
+                    <span class="label">Correo / Contraseña</span>
+                    <div class="copy-box">tecnico.oficinacorporativambxcanatn@bpt.com</div>
+                </div>
+                <div class="field">
+                    <span class="label">Sucursal</span>
+                    <div class="value">Oficina Corporativa (MB Xcanatún)</div>
+                </div>
+            </div>
+
+            <!-- Coordinador BPT -->
+            <div class="user-card">
+                <div class="card-header">
+                    <div class="avatar" style="background: var(--accent);">CB</div>
+                    <div class="name-role">
+                        <div class="name">Coordinador BPT</div>
+                        <div class="role-tag"
+                            style="background: rgba(244, 114, 182, 0.15); color: var(--accent); border-color: rgba(244, 114, 182, 0.2);">
+                            Coordinador</div>
+                    </div>
+                </div>
+                <div class="field">
+                    <span class="label">Correo / Contraseña</span>
+                    <div class="copy-box">Coord@BPTGorup.Com</div>
+                </div>
+                <div class="field">
+                    <span class="label">Sucursales</span>
+                    <div class="value" style="font-size: 0.8rem;">Caucel, Altabrisa, Montejo, Pensiones, Campeche, City
+                        Center, Gran Plaza, Comisariato, Dzityá, Xcanatún</div>
+                </div>
+            </div>
+
+            <!-- Gerente Pensiones -->
+            <div class="user-card">
+                <div class="card-header">
+                    <div class="avatar">GP</div>
+                    <div class="name-role">
+                        <div class="name">Gerente Pensiones</div>
+                        <div class="role-tag">Gerente</div>
+                    </div>
+                </div>
+                <div class="field">
+                    <span class="label">Correo / Contraseña</span>
+                    <div class="copy-box">gerente.pensiones@hgestion.com</div>
+                </div>
+                <div class="field">
+                    <span class="label">Sucursal</span>
+                    <div class="value">Pensiones</div>
+                </div>
+            </div>
+
+            <!-- Técnico Interno City Center -->
+            <div class="user-card">
+                <div class="card-header">
+                    <div class="avatar">TI</div>
+                    <div class="name-role">
+                        <div class="name">Técnico Interno City Center</div>
+                        <div class="role-tag tecnico">Tecnico</div>
+                    </div>
+                </div>
+                <div class="field">
+                    <span class="label">Correo / Contraseña</span>
+                    <div class="copy-box">tecnico.citycenter@bpt.com</div>
+                </div>
+                <div class="field">
+                    <span class="label">Sucursal</span>
+                    <div class="value">City Center</div>
+                </div>
+            </div>
+
+            <!-- GERENTE BA -->
+            <div class="user-card">
+                <div class="card-header">
+                    <div class="avatar">GB</div>
+                    <div class="name-role">
+                        <div class="name">GERENTE BA</div>
+                        <div class="role-tag">Gerente</div>
+                    </div>
+                </div>
+                <div class="field">
+                    <span class="label">Correo / Contraseña</span>
+                    <div class="copy-box">Gerente@BA.com</div>
+                </div>
+                <div class="field">
+                    <span class="label">Sucursal</span>
+                    <div class="value">Altabrisa</div>
+                </div>
+            </div>
+
+            <!-- SUPERVISOR BA -->
+            <div class="user-card">
+                <div class="card-header">
+                    <div class="avatar" style="background: var(--accent);">SB</div>
+                    <div class="name-role">
+                        <div class="name">SUPERVISOR BA</div>
+                        <div class="role-tag supervisor">Supervisor</div>
+                    </div>
+                </div>
+                <div class="field">
+                    <span class="label">Correo / Contraseña</span>
+                    <div class="copy-box">sup@ba.com</div>
+                </div>
+                <div class="field">
+                    <span class="label">Sucursal</span>
+                    <div class="value">Altabrisa</div>
+                </div>
+            </div>
+
+            <!-- Tecnico BA -->
+            <div class="user-card">
+                <div class="card-header">
+                    <div class="avatar">TB</div>
+                    <div class="name-role">
+                        <div class="name">Tecnico BA</div>
+                        <div class="role-tag tecnico">Tecnico</div>
+                    </div>
+                </div>
+                <div class="field">
+                    <span class="label">Correo / Contraseña</span>
+                    <div class="copy-box">tec@ba.com</div>
+                </div>
+                <div class="field">
+                    <span class="label">Sucursal</span>
+                    <div class="value">Altabrisa</div>
+                </div>
+            </div>
+
+            <!-- Supervisor General -->
+            <div class="user-card">
+                <div class="card-header">
+                    <div class="avatar" style="background: var(--accent);">SG</div>
+                    <div class="name-role">
+                        <div class="name">Supervisor General</div>
+                        <div class="role-tag supervisor">Supervisor</div>
+                    </div>
+                </div>
+                <div class="field">
+                    <span class="label">Correo / Contraseña</span>
+                    <div class="copy-box">Supervisor@t-sigo.com</div>
+                </div>
+                <div class="field">
+                    <span class="label">Sucursales</span>
+                    <div class="value" style="font-size: 0.8rem;">Todas las sucursales asignadas</div>
+                </div>
+            </div>
+
+        </div>
+
+        <footer>
+            <p>© 2026 H-GESTIÓN • Sistema de Gestión de Mantenimiento</p>
+            <p style="margin-top: 0.5rem; opacity: 0.5;">Generado por Antigravity MAX Report Engine</p>
+        </footer>
+    </div>
+</body>
+
+</html>

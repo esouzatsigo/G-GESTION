@@ -52,7 +52,7 @@ import { useNotification } from '../context/NotificationContext';
 import { MassiveOTWizard } from '../components/MassiveOTWizard';
 import { MassiveOTDashboard } from '../components/MassiveOTDashboard';
 import { useAuth } from '../hooks/useAuth';
-import { downloadCSV } from '../utils/fileDownload';
+import { downloadCSV, fileTimestamp } from '../utils/fileDownload';
 
 // Chart.js imports
 import {
@@ -612,7 +612,7 @@ export const PreventivosPage: React.FC = () => {
         });
 
         const csvString = rows.map(r => r.join(",")).join("\n");
-        downloadCSV(csvString, "ICEMAS_Preventivos_2026.csv");
+        downloadCSV(csvString, `ICEMAS_Preventivos_2026_${fileTimestamp()}.csv`);
     };
 
     const handleUpdateEvent = async (e: any) => {

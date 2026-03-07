@@ -2,7 +2,7 @@ import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { downloadPDF } from './fileDownload';
+import { downloadPDF, fileTimestamp } from './fileDownload';
 
 interface InsightData {
     flujo: any;
@@ -165,5 +165,5 @@ export const generateExecutiveReport = async (startDate: string, endDate: string
 
 
     // Save the PDF
-    return await downloadPDF(doc, `Reporte_Ejecutivo_BI_${startDate}_a_${endDate}.pdf`);
+    return await downloadPDF(doc, `Reporte_Ejecutivo_BI_${startDate}_a_${endDate}_${fileTimestamp()}.pdf`);
 };

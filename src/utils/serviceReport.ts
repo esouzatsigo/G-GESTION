@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import type { WorkOrder, Cliente, Sucursal, Equipo, User, Franquicia } from '../types';
-import { downloadPDF } from './fileDownload';
+import { downloadPDF, fileTimestamp } from './fileDownload';
 
 export const generateServiceReport = async (
     ot: WorkOrder,
@@ -253,7 +253,7 @@ export const generateServiceReport = async (
     doc.text(`Documento original de T-GESTION - Generado el ${new Date().toLocaleString()}`, pageWidth / 2, 272, { align: 'center' });
 
     try {
-        const fileName = `Servicio_OT_${ot.numero}_${(sucursal.nombre || 'Sin_Nombre').replace(/[^a-z0-9]/gi, '_')}.pdf`;
+        const fileName = `Servicio_OT_${ot.numero}_${(sucursal.nombre || 'Sin_Nombre').replace(/[^a-z0-9]/gi, '_')}_${fileTimestamp()}.pdf`;
         return await downloadPDF(doc, fileName);
     } catch (err) {
         console.error("[PDF] Error al guardar:", err);

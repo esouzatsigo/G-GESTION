@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import type { WorkOrder, Cliente, Sucursal, Equipo, User, Franquicia } from '../types';
-import { downloadPDF } from './fileDownload';
+import { downloadPDF, fileTimestamp } from './fileDownload';
 
 interface OTReportData {
     ot: WorkOrder;
@@ -278,7 +278,7 @@ export const generateGeneralOTReport = async (
     }
 
     try {
-        const fileName = `ReporteGeneral_${items.length}_OTs_${new Date().toISOString().slice(0, 10)}.pdf`;
+        const fileName = `ReporteGeneral_${items.length}_OTs_${fileTimestamp()}.pdf`;
         return await downloadPDF(doc, fileName);
     } catch (err) { return { success: false }; }
 };

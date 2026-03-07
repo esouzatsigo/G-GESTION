@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Edit2, Search, Save, X, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { downloadExcel } from '../utils/fileDownload';
+import { downloadExcel, fileTimestamp } from '../utils/fileDownload';
 import { useNotification } from '../context/NotificationContext';
 import { getClientes, saveCliente } from '../services/dataService';
 import { useEscapeKey } from '../hooks/useEscapeKey';
@@ -96,7 +96,7 @@ export const ClientesPage: React.FC = () => {
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Clientes");
             const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-            await downloadExcel(wbout, "catalogo_clientes.xlsx");
+            await downloadExcel(wbout, `catalogo_clientes_${fileTimestamp()}.xlsx`);
         } catch (err) {
             console.error('Error al exportar Clientes:', err);
         }
