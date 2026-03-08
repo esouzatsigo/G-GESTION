@@ -9,7 +9,7 @@ import { tenantQuery, tenantStoragePath } from '../services/tenantContext';
 import { useAuth } from '../hooks/useAuth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useEscapeKey } from '../hooks/useEscapeKey';
-import { logEntityChange } from '../services/dataService';
+import { logEntityChange, getClientes } from '../services/dataService';
 import type { Franquicia, Cliente, Sucursal, Equipo } from '../types';
 
 export const FranquiciasPage: React.FC = () => {
@@ -40,15 +40,19 @@ export const FranquiciasPage: React.FC = () => {
         if (!user) return;
         setLoading(true);
         try {
+            const targetClienteId = (user.rol === 'Admin' && activeClienteId && activeClienteId !== 'ADMIN')
+                ? activeClienteId
+                : (user.rol !== 'Admin' ? user.clienteId : undefined);
+
             const [fSnapshot, cSnapshot, sSnapshot, eSnapshot] = await Promise.all([
                 getDocs(tenantQuery('franquicias', user)),
-                getDocs(collection(db, 'clientes')),
+                getClientes(targetClienteId),
                 getDocs(tenantQuery('sucursales', user)),
                 getDocs(tenantQuery('equipos', user))
             ]);
 
             setFranquicias(fSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as Franquicia)));
-            setClientes(cSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as Cliente)));
+            setClientes(cSnapshot);
             setSucursales(sSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as Sucursal)));
             setEquipos(eSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as Equipo)));
         } catch (error) {

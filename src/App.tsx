@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { RoleSelectionPage } from './pages/RoleSelectionPage';
+import { RoleSelectionCorpoPage } from './pages/RoleSelectionCorpoPage';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { usePanelPrefs } from './hooks/usePanelPrefs';
 import { MainLayout } from './components/MainLayout';
@@ -37,7 +38,7 @@ import {
 } from 'lucide-react';
 
 const PanelOperativo = () => {
-  const { user, isTecnico } = useAuth();
+  const { user, isTecnico, isAdmin, isCoordinador, isGerente, isSuperAdmin } = useAuth();
   const { hiddenIds, toggleVisibility } = usePanelPrefs(user?.id);
   const navigate = useNavigate();
 
@@ -47,29 +48,69 @@ const PanelOperativo = () => {
   const availableButtons = useMemo(() => {
     const buttons = [];
 
-    if (!isTecnico) {
-      // PROCESOS
-      buttons.push({ id: 'BI', icon: TrendingUp, label: "INTELIGENCIA DE NEGOCIO", color: "79, 70, 229", path: '/bi-dashboard', desc: "KPIs analíticos y gráficos dinámicos del desempeño global." });
-      buttons.push({ id: 'OTS', icon: ClipboardList, label: "GESTIÓN DE OTs", color: "37, 99, 235", path: '/ots', desc: "Administrar, asignar y dar seguimiento a las órdenes de trabajo." });
-      buttons.push({ id: 'SUPER', icon: ClipboardList, label: "SUPERVISAR OTs", color: "14, 165, 233", path: '/supervisar', desc: "Autorización y cierre definitivo de OTs concluidas por el técnico." });
-      buttons.push({ id: 'KARDEX', icon: Database, label: "KARDEX (CONSULTA)", color: "99, 102, 241", path: '/kardex', desc: "Historial detallado y filtros avanzados de todas las órdenes." });
-      buttons.push({ id: 'SOLICITAR', icon: AlertCircle, label: "SOLICITAR OT", color: "220, 38, 38", path: '/solicitar-ot', desc: "Crear una nueva solicitud de mantenimiento correctivo." });
-      buttons.push({ id: 'PREV', icon: Calendar, label: "MANTENIMIENTOS PREVENTIVOS", color: "37, 99, 235", path: '/preventivos', desc: "Proyección a 90 días y generación de órdenes de trabajo preventivas." });
-      buttons.push({ id: 'BITACORA', icon: History, label: "BITÁCORA DE EVENTOS", color: "100, 116, 139", path: '/bitacora', desc: "Auditoría de cambios y registro de interacciones del sistema." });
+    if (isTecnico) {
+      buttons.push({ id: 'MIS', icon: Calendar, label: "MIS SERVICIOS", color: "16, 185, 129", path: '/mis-servicios', desc: "Ver y ejecutar los servicios programados." });
+      return buttons;
+    }
 
-      // CATALOGOS
+    // === REGLA 114: MATRIZ RBAC UNIVERSAL ===
+
+    // BI: Admin, Coordinador, SuperAdmin
+    if (isAdmin || isCoordinador || isSuperAdmin) {
+      buttons.push({ id: 'BI', icon: TrendingUp, label: "INTELIGENCIA DE NEGOCIO", color: "79, 70, 229", path: '/bi-dashboard', desc: "KPIs analíticos y gráficos dinámicos del desempeño global." });
+    }
+
+    // Gestión OTs: Admin, Coordinador, SuperAdmin
+    if (isAdmin || isCoordinador || isSuperAdmin) {
+      buttons.push({ id: 'OTS', icon: ClipboardList, label: "GESTIÓN DE OTs", color: "37, 99, 235", path: '/ots', desc: "Administrar, asignar y dar seguimiento a las órdenes de trabajo." });
+    }
+
+    // Supervisar: Admin, Coordinador, SuperAdmin
+    if (isAdmin || isCoordinador || isSuperAdmin) {
+      buttons.push({ id: 'SUPER', icon: ClipboardList, label: "SUPERVISAR OTs", color: "14, 165, 233", path: '/supervisar', desc: "Autorización y cierre definitivo de OTs concluidas por el técnico." });
+    }
+
+    // Kardex: Admin, Coordinador, Gerente, SuperAdmin
+    if (isAdmin || isCoordinador || isGerente || isSuperAdmin) {
+      buttons.push({ id: 'KARDEX', icon: Database, label: "KARDEX (CONSULTA)", color: "99, 102, 241", path: '/kardex', desc: "Historial detallado y filtros avanzados de todas las órdenes." });
+    }
+
+    // Solicitar OT: Admin, Coordinador, Gerente, SuperAdmin
+    if (isAdmin || isCoordinador || isGerente || isSuperAdmin) {
+      buttons.push({ id: 'SOLICITAR', icon: AlertCircle, label: "SOLICITAR OT", color: "220, 38, 38", path: '/solicitar-ot', desc: "Crear una nueva solicitud de mantenimiento correctivo." });
+    }
+
+    // Preventivos: Admin, Coordinador, SuperAdmin
+    if (isAdmin || isCoordinador || isSuperAdmin) {
+      buttons.push({ id: 'PREV', icon: Calendar, label: "MANTENIMIENTOS PREVENTIVOS", color: "37, 99, 235", path: '/preventivos', desc: "Proyección a 90 días y generación de órdenes de trabajo preventivas." });
+    }
+
+    // Bitácora: Admin, Coordinador, SuperAdmin
+    if (isAdmin || isCoordinador || isSuperAdmin) {
+      buttons.push({ id: 'BITACORA', icon: History, label: "BITÁCORA DE EVENTOS", color: "100, 116, 139", path: '/bitacora', desc: "Auditoría de cambios y registro de interacciones del sistema." });
+    }
+
+    // --- CATÁLOGOS ---
+    // Usuarios: Admin, Coordinador, SuperAdmin
+    if (isAdmin || isCoordinador || isSuperAdmin) {
       buttons.push({ id: 'USERS', icon: Users, label: "USUARIOS Y TECNICOS", color: "219, 39, 119", path: '/usuarios', desc: "Administrar el personal, supervisores y coordinadores." });
+    }
+
+    // Equipos: Admin, Coordinador, Gerente, SuperAdmin
+    if (isAdmin || isCoordinador || isGerente || isSuperAdmin) {
+      buttons.push({ id: 'EQUIPOS', icon: HardDrive, label: "EQUIPOS", color: "71, 85, 105", path: '/equipos', desc: "Inventario general de equipos y activos a mantener." });
+    }
+
+    // Sucursales, Clientes, Franquicias, Config: SOLO Admin / SuperAdmin
+    if (isAdmin || isSuperAdmin) {
+      buttons.push({ id: 'SUCURSALES', icon: Store, label: "SUCURSALES", color: "16, 185, 129", path: '/sucursales', desc: "Directorio de sucursales con validación y ubicación." });
       buttons.push({ id: 'CLIENTES', icon: Users, label: "CLIENTES", color: "147, 51, 234", path: '/clientes', desc: "Administración del catálogo de clientes corporativos." });
       buttons.push({ id: 'FRANQUICIAS', icon: Database, label: "FRANQUICIAS", color: "234, 88, 12", path: '/franquicias', desc: "Control y diseño de franquicias por cliente." });
-      buttons.push({ id: 'SUCURSALES', icon: Store, label: "SUCURSALES", color: "16, 185, 129", path: '/sucursales', desc: "Directorio de sucursales con validación y ubicación." });
-      buttons.push({ id: 'EQUIPOS', icon: HardDrive, label: "EQUIPOS", color: "71, 85, 105", path: '/equipos', desc: "Inventario general de equipos y activos a mantener." });
       buttons.push({ id: 'CONFIG', icon: Settings, label: "CONFIGURACIÓN", color: "100, 116, 139", path: '/config', desc: "Configuraciones globales como numeración de folios." });
-    } else {
-      // TÉCNICO
-      buttons.push({ id: 'MIS', icon: Calendar, label: "MIS SERVICIOS", color: "16, 185, 129", path: '/mis-servicios', desc: "Ver y ejecutar los servicios programados." });
     }
+
     return buttons;
-  }, [isTecnico]);
+  }, [isTecnico, isAdmin, isCoordinador, isGerente, isSuperAdmin]);
 
   useEffect(() => {
     const savedOrder = localStorage.getItem(`hgestion_btn_order_${user?.id}`);
@@ -234,8 +275,12 @@ function App() {
       <NotificationProvider>
         <Router>
           <Routes>
+            {/* Public/Selection Routes */}
             <Route path="/seleccion-rol" element={<RoleSelectionPage />} />
+            <Route path="/roles-corpo" element={<RoleSelectionCorpoPage />} />
             <Route path="/login" element={<LoginPage />} />
+
+            {/* Protected Routes */}
             <Route
               path="/*"
               element={
@@ -257,7 +302,7 @@ function App() {
                     <Route path="/bitacora" element={<BitacoraPage />} />
                     <Route path="/bi-dashboard" element={<DashboardBIPage />} />
                     <Route path="/config" element={<ConfigPage />} />
-                    <Route path="*" element={<Navigate to="/" />} />
+                    <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </AuthGuard>
               }

@@ -7,7 +7,6 @@ import {
     LogOut,
     Menu,
     X,
-    Bell,
     User as UserIcon,
     Store,
     HardDrive,
@@ -27,6 +26,7 @@ import { auth } from '../services/firebase';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { usePanelPrefs } from '../hooks/usePanelPrefs';
 import { AdminClientSelector } from './AdminClientSelector';
+import { NotificationsPanel } from './NotificationsPanel';
 
 interface NavItemProps {
     icon: React.ElementType;
@@ -87,7 +87,7 @@ const NavItem: React.FC<NavItemProps> = ({ icon: Icon, label, active, onClick, p
 );
 
 export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { user, isTecnico, isAdminCliente, isSuperAdmin } = useAuth(); // Added isAdminCliente, isSuperAdmin
+    const { user, isTecnico, isAdmin, isCoordinador, isGerente, isAdminCliente, isSuperAdmin, logout } = useAuth();
     const { hiddenIds, toggleVisibility } = usePanelPrefs(user?.id);
     const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
     const [theme, setTheme] = React.useState<'light' | 'dark'>(() => {
@@ -99,7 +99,10 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
     const navigate = useNavigate();
     const location = useLocation();
 
-    const handleLogout = () => auth.signOut();
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
+    };
     const isPathActive = (path: string) => location.pathname === path;
 
     const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
@@ -217,77 +220,103 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
                             {/* Operación */}
                             <div style={{ padding: '1rem 0.5rem 0.5rem', fontSize: '0.65rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Operación</div>
 
-                            <NavItem
-                                icon={TrendingUp} label="Inteligencia de Negocio" active={isPathActive('/bi-dashboard')} onClick={() => handleNavigation('/bi-dashboard')}
-                                panelId="BI" isInPanel={!hiddenIds.includes("BI")} onTogglePanel={toggleVisibility}
-                            />
+                            {(isAdmin || isCoordinador || isSuperAdmin) && (
+                                <NavItem
+                                    icon={TrendingUp} label="Inteligencia de Negocio" active={isPathActive('/bi-dashboard')} onClick={() => handleNavigation('/bi-dashboard')}
+                                    panelId="BI" isInPanel={!hiddenIds.includes("BI")} onTogglePanel={toggleVisibility}
+                                />
+                            )}
 
-                            <NavItem
-                                icon={ClipboardList} label="Ordenes de Trabajo" active={isPathActive('/ots')} onClick={() => handleNavigation('/ots')}
-                                panelId="OTS" isInPanel={!hiddenIds.includes("OTS")} onTogglePanel={toggleVisibility}
-                            />
+                            {(isAdmin || isCoordinador || isSuperAdmin) && (
+                                <NavItem
+                                    icon={ClipboardList} label="Ordenes de Trabajo" active={isPathActive('/ots')} onClick={() => handleNavigation('/ots')}
+                                    panelId="OTS" isInPanel={!hiddenIds.includes("OTS")} onTogglePanel={toggleVisibility}
+                                />
+                            )}
 
-                            <NavItem
-                                icon={ClipboardList} label="Supervisar OTs" active={isPathActive('/supervisar')} onClick={() => handleNavigation('/supervisar')}
-                                panelId="SUPER" isInPanel={!hiddenIds.includes("SUPER")} onTogglePanel={toggleVisibility}
-                            />
+                            {(isAdmin || isCoordinador || isSuperAdmin) && (
+                                <NavItem
+                                    icon={ClipboardList} label="Supervisar OTs" active={isPathActive('/supervisar')} onClick={() => handleNavigation('/supervisar')}
+                                    panelId="SUPER" isInPanel={!hiddenIds.includes("SUPER")} onTogglePanel={toggleVisibility}
+                                />
+                            )}
 
                             <NavItem
                                 icon={Database} label="Consulta (Kardex)" active={isPathActive('/kardex')} onClick={() => handleNavigation('/kardex')}
                                 panelId="KARDEX" isInPanel={!hiddenIds.includes("KARDEX")} onTogglePanel={toggleVisibility}
                             />
 
-                            <NavItem
-                                icon={Calendar} label="Proyección Preventiva" active={isPathActive('/preventivos')} onClick={() => handleNavigation('/preventivos')}
-                                panelId="PREV" isInPanel={!hiddenIds.includes("PREV")} onTogglePanel={toggleVisibility}
-                            />
+                            {(isAdmin || isCoordinador || isSuperAdmin) && (
+                                <NavItem
+                                    icon={Calendar} label="Proyección Preventiva" active={isPathActive('/preventivos')} onClick={() => handleNavigation('/preventivos')}
+                                    panelId="PREV" isInPanel={!hiddenIds.includes("PREV")} onTogglePanel={toggleVisibility}
+                                />
+                            )}
 
-                            {(isAdminCliente || isSuperAdmin) && (
+                            {(isAdmin || isAdminCliente || isCoordinador || isSuperAdmin) && (
                                 <NavItem
                                     icon={History} label="Bitácora de Eventos" active={isPathActive('/bitacora')} onClick={() => handleNavigation('/bitacora')}
                                     panelId="BITACORA" isInPanel={!hiddenIds.includes("BITACORA")} onTogglePanel={toggleVisibility}
                                 />
                             )}
 
-                            <NavItem
-                                icon={AlertCircle} label="Solicitar OT Correctiva" active={isPathActive('/solicitar-ot')} onClick={() => handleNavigation('/solicitar-ot')}
-                                panelId="SOLICITAR" isInPanel={!hiddenIds.includes("SOLICITAR")} onTogglePanel={toggleVisibility}
-                            />
+                            {(isAdmin || isGerente || isCoordinador || isSuperAdmin) && (
+                                <NavItem
+                                    icon={AlertCircle} label="Solicitar OT Correctiva" active={isPathActive('/solicitar-ot')} onClick={() => handleNavigation('/solicitar-ot')}
+                                    panelId="SOLICITAR" isInPanel={!hiddenIds.includes("SOLICITAR")} onTogglePanel={toggleVisibility}
+                                />
+                            )}
 
                             {/* Catálogos */}
-                            <div style={{ padding: '1.5rem 0.5rem 0.5rem', fontSize: '0.65rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Catálogos</div>
+                            {(isAdmin || isSuperAdmin || isCoordinador || isGerente) && (
+                                <>
+                                    <div style={{ padding: '1.5rem 0.5rem 0.5rem', fontSize: '0.65rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Catálogos</div>
 
-                            <NavItem
-                                icon={Users} label="Clientes" active={isPathActive('/clientes')} onClick={() => handleNavigation('/clientes')}
-                                panelId="CLIENTES" isInPanel={!hiddenIds.includes("CLIENTES")} onTogglePanel={toggleVisibility}
-                            />
+                                    {(isAdmin || isSuperAdmin) && (
+                                        <>
+                                            <NavItem
+                                                icon={Users} label="Clientes" active={isPathActive('/clientes')} onClick={() => handleNavigation('/clientes')}
+                                                panelId="CLIENTES" isInPanel={!hiddenIds.includes("CLIENTES")} onTogglePanel={toggleVisibility}
+                                            />
+                                            <NavItem
+                                                icon={Database} label="Franquicias" active={isPathActive('/franquicias')} onClick={() => handleNavigation('/franquicias')}
+                                                panelId="FRANQUICIAS" isInPanel={!hiddenIds.includes("FRANQUICIAS")} onTogglePanel={toggleVisibility}
+                                            />
+                                            <NavItem
+                                                icon={HardDrive} label="Familias" active={isPathActive('/familias')} onClick={() => handleNavigation('/familias')}
+                                                panelId="FAMILIAS" isInPanel={!hiddenIds.includes("FAMILIAS")} onTogglePanel={toggleVisibility}
+                                            />
+                                            <NavItem
+                                                icon={Store} label="Sucursales" active={isPathActive('/sucursales')} onClick={() => handleNavigation('/sucursales')}
+                                                panelId="SUCURSALES" isInPanel={!hiddenIds.includes("SUCURSALES")} onTogglePanel={toggleVisibility}
+                                            />
+                                        </>
+                                    )}
 
-                            <NavItem
-                                icon={Database} label="Franquicias" active={isPathActive('/franquicias')} onClick={() => handleNavigation('/franquicias')}
-                                panelId="FRANQUICIAS" isInPanel={!hiddenIds.includes("FRANQUICIAS")} onTogglePanel={toggleVisibility}
-                            />
+                                    {(isAdmin || isSuperAdmin || isCoordinador) && (
+                                        <>
+                                            <NavItem
+                                                icon={Users} label="Usuarios y Técnicos" active={isPathActive('/usuarios')} onClick={() => handleNavigation('/usuarios')}
+                                                panelId="USERS" isInPanel={!hiddenIds.includes("USERS")} onTogglePanel={toggleVisibility}
+                                            />
+                                        </>
+                                    )}
 
-                            <NavItem
-                                icon={Store} label="Sucursales" active={isPathActive('/sucursales')} onClick={() => handleNavigation('/sucursales')}
-                                panelId="SUCURSALES" isInPanel={!hiddenIds.includes("SUCURSALES")} onTogglePanel={toggleVisibility}
-                            />
+                                    <NavItem
+                                        icon={HardDrive} label="Equipos" active={isPathActive('/equipos')} onClick={() => handleNavigation('/equipos')}
+                                        panelId="EQUIPOS" isInPanel={!hiddenIds.includes("EQUIPOS")} onTogglePanel={toggleVisibility}
+                                    />
+                                </>
+                            )}
 
-                            <NavItem
-                                icon={HardDrive} label="Equipos" active={isPathActive('/equipos')} onClick={() => handleNavigation('/equipos')}
-                                panelId="EQUIPOS" isInPanel={!hiddenIds.includes("EQUIPOS")} onTogglePanel={toggleVisibility}
-                            />
-
-                            <NavItem
-                                icon={Users} label="Usuarios y Técnicos" active={isPathActive('/usuarios')} onClick={() => handleNavigation('/usuarios')}
-                                panelId="USERS" isInPanel={!hiddenIds.includes("USERS")} onTogglePanel={toggleVisibility}
-                            />
-
-                            <div style={{ marginTop: 'auto' }}>
-                                <NavItem
-                                    icon={Settings} label="Configuración" active={isPathActive('/config')} onClick={() => handleNavigation('/config')}
-                                    panelId="CONFIG" isInPanel={!hiddenIds.includes("CONFIG")} onTogglePanel={toggleVisibility}
-                                />
-                            </div>
+                            {(isAdmin || isSuperAdmin) && (
+                                <div style={{ marginTop: 'auto' }}>
+                                    <NavItem
+                                        icon={Settings} label="Configuración" active={isPathActive('/config')} onClick={() => handleNavigation('/config')}
+                                        panelId="CONFIG" isInPanel={!hiddenIds.includes("CONFIG")} onTogglePanel={toggleVisibility}
+                                    />
+                                </div>
+                            )}
                         </>
                     ) : (
                         <>
@@ -368,6 +397,22 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                        {user?.clienteNombre && (
+                            <div style={{
+                                fontSize: '0.85rem',
+                                fontWeight: '900',
+                                color: '#10b981',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.15em',
+                                marginBottom: '4px',
+                                opacity: 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                            }}>
+                                <Store size={14} /> {user.clienteNombre}
+                            </div>
+                        )}
                         <div style={{ fontSize: '0.9rem', fontWeight: '800', letterSpacing: '0.02em', color: 'var(--primary-light)' }}>
                             {user?.nombre?.toUpperCase()}
                         </div>
@@ -386,10 +431,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
                             {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
                         </button>
 
-                        <button style={{ position: 'relative', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                            <Bell size={20} />
-                            <div style={{ position: 'absolute', top: '-2px', right: '-2px', width: '8px', height: '8px', background: 'var(--priority-alta)', borderRadius: '50%' }}></div>
-                        </button>
+                        <NotificationsPanel />
                     </div>
                 </header>
 

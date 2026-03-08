@@ -141,7 +141,7 @@ export const MassiveOTWizard: React.FC<Props> = ({
         const init = async () => {
             setLoadingExisting(true);
             try {
-                const existing = await getExistingOTsForEvent(evento.id);
+                const existing = await getExistingOTsForEvent(evento.id, user);
                 setExistingEqIds(existing);
             } catch { /* silent */ }
             setLoadingExisting(false);

@@ -2,6 +2,7 @@ import { initializeApp } from "firebase/app";
 import { initializeFirestore, CACHE_SIZE_UNLIMITED } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { getStorage } from "firebase/storage";
+import { getMessaging, isSupported } from "firebase/messaging";
 
 // Configuración de Firebase (usar credenciales reales)
 const firebaseConfig = {
@@ -22,3 +23,11 @@ export const db = initializeFirestore(app, {
 
 export const auth = getAuth(app);
 export const storage = getStorage(app);
+
+// Firebase Cloud Messaging (Push Notifications)
+// Solo se inicializa si el navegador soporta notificaciones
+export const messagingPromise = isSupported().then(supported => {
+  if (supported) return getMessaging(app);
+  console.warn('FCM no soportado en este navegador');
+  return null;
+});

@@ -3,7 +3,6 @@ import {
     collection,
     query,
     getDocs,
-    orderBy,
     where
 } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -14,7 +13,7 @@ import type { WorkOrder, Cliente, User, Sucursal, Equipo, Franquicia } from '../
 import { generateServiceReport } from '../utils/serviceReport';
 import { generateGeneralOTReport } from '../utils/generalOTReport';
 import { useAuth } from '../hooks/useAuth';
-import { updateOTWithAudit } from '../services/dataService';
+import { updateOTWithAudit, getClientes } from '../services/dataService';
 import { PrintableServiceReport } from '../components/PrintableServiceReport';
 import { PrintableGeneralReport } from '../components/PrintableGeneralReport';
 import { useNotification } from '../context/NotificationContext';
@@ -61,17 +60,23 @@ export const KardexPage: React.FC = () => {
         if (!user) return;
         setLoading(true);
         try {
+            const targetClienteId = (user.rol === 'Admin' && activeClienteId && activeClienteId !== 'ADMIN')
+                ? activeClienteId
+                : (user.rol !== 'Admin' ? user.clienteId : undefined);
+
             const [otSnap, clSnap, sucSnap, eqSnap, userSnap, franSnap] = await Promise.all([
-                getDocs(tenantQuery('ordenesTrabajo', user, orderBy('numero', 'asc'))),
-                getDocs(collection(db, 'clientes')),
+                getDocs(tenantQuery('ordenesTrabajo', user)),
+                getClientes(targetClienteId),
                 getDocs(tenantQuery('sucursales', user)),
                 getDocs(tenantQuery('equipos', user)),
                 getDocs(tenantQuery('usuarios', user)),
                 getDocs(tenantQuery('franquicias', user))
             ]);
 
-            setOts(otSnap.docs.map(d => ({ id: d.id, ...d.data() } as WorkOrder)));
-            setClientes(clSnap.docs.map(d => ({ id: d.id, ...d.data() } as Cliente)));
+            let fetchedOts = otSnap.docs.map(d => ({ id: d.id, ...d.data() } as WorkOrder));
+            fetchedOts.sort((a, b) => a.numero - b.numero);
+            setOts(fetchedOts);
+            setClientes(clSnap);
             setSucursales(sucSnap.docs.map(d => ({ id: d.id, ...d.data() } as Sucursal)));
             setEquipos(eqSnap.docs.map(d => ({ id: d.id, ...d.data() } as Equipo)));
             setUsuarios(userSnap.docs.map(d => ({ id: d.id, ...d.data() } as User)));
@@ -387,6 +392,19 @@ export const KardexPage: React.FC = () => {
         return `${diffMins}m`;
     };
 
+    const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+        const R = 6371; // km
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const d = R * c;
+        if (d < 1) return `${(d * 1000).toFixed(0)} m`;
+        return `${d.toFixed(1)} km`;
+    };
+
     return (
         <>
             <div className="animate-fade">
@@ -660,7 +678,7 @@ export const KardexPage: React.FC = () => {
                             </div>
 
                             <form onSubmit={handleEditSave} style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+                                <div className="kardex-modal-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
                                     {/* Columna 1: Datos de Solicitud */}
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                                         <section>
@@ -690,14 +708,56 @@ export const KardexPage: React.FC = () => {
                                         </section>
 
                                         <section>
-                                            <label style={{ display: 'block', marginBottom: '1rem', fontSize: '1.55rem', fontWeight: '600', color: 'var(--primary-light)' }}>EVIDENCIA INICIAL</label>
-                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '0.5rem' }}>
+                                            <label style={{ display: 'block', marginBottom: '1.5rem', fontSize: '1.55rem', fontWeight: '600', color: 'var(--primary-light)' }}>EVIDENCIA INICIAL (KARDEX)</label>
+                                            <div style={{
+                                                display: 'grid',
+                                                gridTemplateColumns: `repeat(auto-fill, minmax(${(selectedOT.fotosGerente?.length || 0) <= 2 ? '200px' : '140px'}, 1fr))`,
+                                                gap: '0.75rem'
+                                            }}>
                                                 {selectedOT.fotosGerente?.map((url, i) => (
-                                                    <a key={i} href={url} target="_blank" rel="noreferrer" style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--glass-border)', aspectRatio: '1' }} title="Ver en pantalla completa">
-                                                        <img src={url} alt="Evidencia Gerente" style={{ width: '100%', height: '100%', objectFit: 'cover', imageOrientation: 'from-image' }} />
+                                                    <a key={i} href={url} target="_blank" rel="noreferrer" style={{
+                                                        borderRadius: '12px', overflow: 'hidden',
+                                                        border: '2px solid var(--glass-border)',
+                                                        display: 'block',
+                                                        minHeight: '360px',
+                                                        maxHeight: '500px',
+                                                        position: 'relative',
+                                                        transition: 'border-color 0.2s, transform 0.2s'
+                                                    }}
+                                                        title="Click para ver en pantalla completa"
+                                                        onMouseOver={e => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.transform = 'scale(1.02)'; }}
+                                                        onMouseOut={e => { e.currentTarget.style.borderColor = 'var(--glass-border)'; e.currentTarget.style.transform = 'scale(1)'; }}
+                                                    >
+                                                        <img
+                                                            src={url}
+                                                            alt={`Evidencia Gerente ${i + 1}`}
+                                                            style={{
+                                                                width: '100%', height: '100%',
+                                                                objectFit: 'contain',
+                                                                imageOrientation: 'from-image',
+                                                                background: 'rgba(0,0,0,0.3)'
+                                                            }}
+                                                            onError={e => {
+                                                                const target = e.target as HTMLImageElement;
+                                                                target.style.display = 'none';
+                                                                const parent = target.parentElement;
+                                                                if (parent) {
+                                                                    const msg = document.createElement('div');
+                                                                    msg.style.cssText = 'display:flex;align-items:center;justify-content:center;height:180px;color:var(--text-muted);font-size:0.75rem;text-align:center;padding:1rem;';
+                                                                    msg.textContent = '📷 Foto no disponible - Click para intentar abrir';
+                                                                    parent.appendChild(msg);
+                                                                }
+                                                            }}
+                                                        />
+                                                        <div style={{
+                                                            position: 'absolute', bottom: 0, left: 0, right: 0,
+                                                            background: 'linear-gradient(transparent, rgba(0,0,0,0.7))',
+                                                            padding: '0.5rem', textAlign: 'center',
+                                                            color: 'white', fontSize: '0.65rem', fontWeight: '700'
+                                                        }}>Foto {i + 1} de {selectedOT.fotosGerente?.length}</div>
                                                     </a>
                                                 ))}
-                                                {(!selectedOT.fotosGerente || selectedOT.fotosGerente.length === 0) && <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Sin fotos.</p>}
+                                                {(!selectedOT.fotosGerente || selectedOT.fotosGerente.length === 0) && <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Sin fotos de evidencia.</p>}
                                             </div>
                                         </section>
                                     </div>
@@ -731,7 +791,7 @@ export const KardexPage: React.FC = () => {
                                         </section>
 
                                         <section>
-                                            <label style={{ display: 'block', marginBottom: '1rem', fontSize: '1.55rem', fontWeight: '600', color: 'var(--accent)' }}>EVIDENCIA TÉCNICA</label>
+                                            <label style={{ display: 'block', marginBottom: '1.5rem', fontSize: '1.55rem', fontWeight: '600', color: 'var(--accent)' }}>EVIDENCIA TÉCNICA (EJECUCIÓN)</label>
                                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
                                                 {['fotoAntes', 'fotoDespues', 'fotoExtra'].map(key => {
                                                     const url = (selectedOT as any)[key];
@@ -802,11 +862,33 @@ export const KardexPage: React.FC = () => {
                                                 </div>
                                                 {selectedOT.fechas.llegada && <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                                     <span style={{ color: 'rgba(255,255,255,0.6)' }}>Llegada Sitio:</span>
-                                                    <span>{new Date(selectedOT.fechas.llegada).toLocaleString()}</span>
+                                                    <div style={{ textAlign: 'right' }}>
+                                                        <span>{new Date(selectedOT.fechas.llegada).toLocaleString()}</span>
+                                                        {selectedOT.coordsLlegada && sucursales.find(s => s.id === selectedOT.sucursalId)?.coordenadas && (
+                                                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                                                Deriva GPS: {calculateDistance(
+                                                                    selectedOT.coordsLlegada.lat, selectedOT.coordsLlegada.lng,
+                                                                    sucursales.find(s => s.id === selectedOT.sucursalId)!.coordenadas!.lat,
+                                                                    sucursales.find(s => s.id === selectedOT.sucursalId)!.coordenadas!.lng
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>}
                                                 {selectedOT.fechas.concluidaTecnico && <div style={{ display: 'flex', justifyContent: 'space-between', color: '#F59E0B', fontWeight: '700' }}>
                                                     <span>Concluida (Técnico):</span>
-                                                    <span>{new Date(selectedOT.fechas.concluidaTecnico).toLocaleString()}</span>
+                                                    <div style={{ textAlign: 'right' }}>
+                                                        <span>{new Date(selectedOT.fechas.concluidaTecnico).toLocaleString()}</span>
+                                                        {selectedOT.coordsFirmaTecnico && sucursales.find(s => s.id === selectedOT.sucursalId)?.coordenadas && (
+                                                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                                                Deriva GPS al Cierre: {calculateDistance(
+                                                                    selectedOT.coordsFirmaTecnico.lat, selectedOT.coordsFirmaTecnico.lng,
+                                                                    sucursales.find(s => s.id === selectedOT.sucursalId)!.coordenadas!.lat,
+                                                                    sucursales.find(s => s.id === selectedOT.sucursalId)!.coordenadas!.lng
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>}
                                                 {selectedOT.fechas.concluida && <div style={{ display: 'flex', justifyContent: 'space-between', color: '#10b981', fontWeight: '700' }}>
                                                     <span>Concluida (Final):</span>
@@ -950,7 +1032,19 @@ export const KardexPage: React.FC = () => {
                         />
                     )
                 }
-            </div >
+            </div>
+            <style>{`
+                /* Kardex Modal responsive */
+                @media (max-width: 768px) {
+                    .kardex-modal-grid { grid-template-columns: 1fr !important; }
+                    .kardex-modal-grid section img { max-height: 60vh; }
+                }
+                @media (orientation: landscape) and (max-height: 500px) {
+                    .kardex-modal-grid { grid-template-columns: 1fr 1fr !important; }
+                    .kardex-modal-grid section img { max-height: 40vh; }
+                }
+            `}</style>
+
         </>
     );
 };

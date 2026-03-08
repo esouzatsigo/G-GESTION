@@ -16,7 +16,7 @@ import {
 import type { WorkOrder, Cliente, User, Sucursal, Equipo } from '../types';
 import { generateServiceReport } from '../utils/serviceReport';
 import { useAuth } from '../hooks/useAuth';
-import { updateOTStatus } from '../services/dataService';
+import { updateOTStatus, getClientes } from '../services/dataService';
 import { useNotification } from '../context/NotificationContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 
@@ -44,16 +44,22 @@ export const SupervisarPage: React.FC = () => {
         if (!user) return;
         setLoading(true);
         try {
+            const targetClienteId = (user.rol === 'Admin' && activeClienteId && activeClienteId !== 'ADMIN')
+                ? activeClienteId
+                : (user.rol !== 'Admin' ? user.clienteId : undefined);
+
             const [otSnap, clSnap, sucSnap, eqSnap, userSnap] = await Promise.all([
-                getDocs(tenantQuery('ordenesTrabajo', user, where('estatus', '==', 'Concluida'), orderBy('numero', 'asc'))),
-                getDocs(collection(db, 'clientes')),
+                getDocs(tenantQuery('ordenesTrabajo', user, where('estatus', '==', 'Concluida'))),
+                getClientes(targetClienteId),
                 getDocs(tenantQuery('sucursales', user)),
                 getDocs(tenantQuery('equipos', user)),
                 getDocs(tenantQuery('usuarios', user))
             ]);
 
-            setOts(otSnap.docs.map(d => ({ id: d.id, ...d.data() } as WorkOrder)));
-            setClientes(clSnap.docs.map(d => ({ id: d.id, ...d.data() } as Cliente)));
+            let fetchedOts = otSnap.docs.map(d => ({ id: d.id, ...d.data() } as WorkOrder));
+            fetchedOts.sort((a, b) => a.numero - b.numero);
+            setOts(fetchedOts);
+            setClientes(clSnap);
             setSucursales(sucSnap.docs.map(d => ({ id: d.id, ...d.data() } as Sucursal)));
             setEquipos(eqSnap.docs.map(d => ({ id: d.id, ...d.data() } as Equipo)));
             setUsuarios(userSnap.docs.map(d => ({ id: d.id, ...d.data() } as User)));

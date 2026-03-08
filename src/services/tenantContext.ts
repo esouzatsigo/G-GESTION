@@ -51,7 +51,7 @@ export const tenantQuery = (
     // Super-admin: si tiene un cliente activo seleccionado en localStorage, filtrar por él.
     // Si no, o si es 'ADMIN', mostrar todo (acceso global).
     if (isSuperAdmin(user)) {
-        const activeId = typeof window !== 'undefined' ? localStorage.getItem('activeClienteId') : null;
+        const activeId = typeof window !== 'undefined' ? localStorage.getItem('hgestion_active_cliente') : null;
         if (activeId && activeId !== 'ADMIN') {
             return query(baseCollection, where('clienteId', '==', activeId), ...constraints);
         }

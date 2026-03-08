@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Cliente, Franquicia, Sucursal, Equipo, WorkOrder, User } from '../types';
+import { notificarNuevaOT, notificarTecnicoAsignacion, notificarAsignacionOT, notificarCambioOT } from './notificationService';
 
 export interface BitacoraEntry {
     id?: string;
@@ -53,7 +54,11 @@ export interface BitacoraPreventivo {
 }
 
 // --- Servicios de Clientes ---
-export const getClientes = async () => {
+export const getClientes = async (clienteId?: string) => {
+    if (clienteId && clienteId !== 'ADMIN') {
+        const docSnap = await getDoc(doc(db, 'clientes', clienteId));
+        return docSnap.exists() ? [{ id: docSnap.id, ...docSnap.data() } as Cliente] : [];
+    }
     const snapshot = await getDocs(collection(db, 'clientes'));
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Cliente));
 };
@@ -104,28 +109,40 @@ export const saveCliente = async (cliente: Omit<Cliente, 'id'>, user: User, id?:
 };
 
 // --- Servicios de Franquicias ---
-export const getFranquicias = async (clienteId?: string) => {
-    let q = collection(db, 'franquicias');
-    const constraints = [];
-    if (clienteId) constraints.push(where('clienteId', '==', clienteId));
-    const snapshot = await getDocs(query(q, ...constraints));
+export const getFranquicias = async (targetClienteId?: string | null) => {
+    let q = query(collection(db, 'franquicias'));
+    if (targetClienteId && targetClienteId !== 'ADMIN') {
+        q = query(q, where('clienteId', '==', targetClienteId));
+    }
+    const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Franquicia));
 };
 
 // --- Servicios de Sucursales ---
-export const getSucursales = async (clienteId?: string, franquiciaId?: string) => {
-    let q = collection(db, 'sucursales');
-    const constraints = [];
-    if (clienteId) constraints.push(where('clienteId', '==', clienteId));
-    if (franquiciaId) constraints.push(where('franquiciaId', '==', franquiciaId));
-    const snapshot = await getDocs(query(q, ...constraints));
+export const getSucursales = async (targetClienteId?: string | null, franquiciaId?: string | null) => {
+    let q = query(collection(db, 'sucursales'));
+    if (targetClienteId && targetClienteId !== 'ADMIN') {
+        q = query(q, where('clienteId', '==', targetClienteId));
+    }
+    if (franquiciaId) {
+        q = query(q, where('franquiciaId', '==', franquiciaId));
+    }
+    const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Sucursal));
 };
 
 // --- Servicios de Equipos ---
-export const getEquipos = async (sucursalId: string, familia?: string) => {
-    let q = query(collection(db, 'equipos'), where('sucursalId', '==', sucursalId));
-    if (familia) q = query(q, where('familia', '==', familia));
+export const getEquipos = async (sucursalId: string, familia?: string, targetClienteId?: string | null) => {
+    let q = query(collection(db, 'equipos'));
+    if (targetClienteId && targetClienteId !== 'ADMIN') {
+        q = query(q, where('clienteId', '==', targetClienteId));
+    }
+    if (sucursalId) {
+        q = query(q, where('sucursalId', '==', sucursalId));
+    }
+    if (familia) {
+        q = query(q, where('familia', '==', familia));
+    }
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Equipo));
 };
@@ -182,6 +199,42 @@ export const createOT = async (ot: Omit<WorkOrder, 'id' | 'numero'>, user: User)
         valorAnterior: 'N/A',
         valorNuevo: `OT Solicitada: ${ot.descripcionFalla.substring(0, 50)}...`
     });
+
+    // *** NOTIFICACIÓN: Avisar a los Coordinadores del cliente ***
+    try {
+        const coordQuery = query(
+            collection(db, 'usuarios'),
+            where('clienteId', '==', ot.clienteId),
+            where('rol', '==', 'Coordinador')
+        );
+        const coordSnap = await getDocs(coordQuery);
+        let sucDisplay = ot.sucursalId || 'Sin sucursal';
+        try {
+            const sucDoc = await getDoc(doc(db, 'sucursales', ot.sucursalId));
+            if (sucDoc.exists()) sucDisplay = sucDoc.data().nombre || sucDisplay;
+        } catch (_) { /* silenciar */ }
+        // Resolver nombre de equipo
+        let eqNombre = '';
+        let eqFamilia = '';
+        try {
+            if (ot.equipoId) {
+                const eqDoc = await getDoc(doc(db, 'equipos', ot.equipoId));
+                if (eqDoc.exists()) { eqNombre = eqDoc.data().nombre || ''; eqFamilia = eqDoc.data().familia || ''; }
+            }
+        } catch (_) { /* silenciar */ }
+        coordSnap.forEach(coordDoc => {
+            notificarNuevaOT(
+                coordDoc.id, ot.clienteId, numero, docRef.id,
+                sucDisplay, user.nombre, ot.descripcionFalla || 'Sin descripción',
+                (ot as any).justificacion || '',
+                (ot as any).fotosGerente || [],
+                eqNombre,
+                eqFamilia
+            ).catch(e => console.error('Notif error:', e));
+        });
+    } catch (e) {
+        console.error('Error enviando notificaciones de Nueva OT:', e);
+    }
 
     return { id: docRef.id, numero };
 };
@@ -323,8 +376,11 @@ export const getFullMassiveOTsForEvent = async (eventId: string) => {
 };
 
 /** Mantener compatibilidad con el código existente */
-export const getExistingOTsForEvent = async (eventId: string) => {
-    const q = query(collection(db, 'ordenesTrabajo'), where('preventivoPlanId', '==', eventId));
+export const getExistingOTsForEvent = async (eventId: string, user?: User) => {
+    let q = query(collection(db, 'ordenesTrabajo'), where('preventivoPlanId', '==', eventId));
+    if (user && user.rol !== 'Admin' && user.clienteId !== 'ADMIN') {
+        q = query(q, where('clienteId', '==', user.clienteId));
+    }
     const snap = await getDocs(q);
     return snap.docs.map(d => d.data().equipoId as string);
 };
@@ -633,8 +689,12 @@ export const addBitacoraEntry = async (entry: any) => {
     await addDoc(collection(db, 'bitacora'), entry);
 };
 
-export const getWorkOrders = async () => {
-    const snapshot = await getDocs(collection(db, 'ordenesTrabajo'));
+export const getWorkOrders = async (user?: User) => {
+    let q = query(collection(db, 'ordenesTrabajo'));
+    if (user && user.rol !== 'Admin' && user.clienteId !== 'ADMIN') {
+        q = query(q, where('clienteId', '==', user.clienteId));
+    }
+    const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WorkOrder));
 };
 
@@ -642,8 +702,12 @@ export const updateWorkOrder = async (id: string, data: Partial<WorkOrder>) => {
     await updateDoc(doc(db, 'ordenesTrabajo', id), { ...data, updatedAt: new Date().toISOString() });
 };
 
-export const getUsuarios = async () => {
-    const snapshot = await getDocs(collection(db, 'usuarios'));
+export const getUsuarios = async (user?: User) => {
+    let q = query(collection(db, 'usuarios'));
+    if (user && user.rol !== 'Admin' && user.clienteId !== 'ADMIN') {
+        q = query(q, where('clienteId', '==', user.clienteId));
+    }
+    const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
 };
 
@@ -691,6 +755,48 @@ export const updateOTWithAudit = async (
             });
         }
         await updateDoc(doc(db, 'ordenesTrabajo', otId), newData);
+
+        // *** NOTIFICACIONES según rol y tipo de cambio ***
+        try {
+            const clienteId = user.clienteId;
+            // Gerente modifica OT Pendiente → notificar Coordinadores
+            if (user.rol === 'Gerente' && oldData.estatus === 'Pendiente') {
+                const coordQ = query(collection(db, 'usuarios'), where('clienteId', '==', clienteId), where('rol', '==', 'Coordinador'));
+                const coordSnap = await getDocs(coordQ);
+                let sucDisplay = oldData.sucursalId || '';
+                try { const sd = await getDoc(doc(db, 'sucursales', oldData.sucursalId)); if (sd.exists()) sucDisplay = sd.data().nombre || sucDisplay; } catch (_) { }
+                for (const c of changes) {
+                    coordSnap.forEach(cd => {
+                        notificarCambioOT(cd.id, clienteId, oldData.numero, otId, c.field, String(c.old), String(c.new), user.nombre, sucDisplay).catch(console.error);
+                    });
+                }
+            }
+            // Asignación de técnico → notificar Técnico y Gerente solicitante
+            const tecnicoChange = changes.find(c => c.field === 'tecnicoId');
+            if (tecnicoChange && tecnicoChange.new) {
+                let sucDisplay = oldData.sucursalId || '';
+                try { const sd = await getDoc(doc(db, 'sucursales', oldData.sucursalId)); if (sd.exists()) sucDisplay = sd.data().nombre || sucDisplay; } catch (_) { }
+                const equipoNombre = (oldData as any).equipoNombre || 'Equipo';
+                const familia = (oldData as any).familia || '';
+                const prioridad = (newData as any).prioridad || (oldData as any).prioridad || 'Normal';
+                const fechaProg = (newData as any).fechas?.programada || (oldData as any).fechas?.programada || 'Por confirmar';
+                notificarTecnicoAsignacion(
+                    tecnicoChange.new, clienteId, oldData.numero, otId,
+                    sucDisplay, equipoNombre, familia,
+                    oldData.descripcionFalla || '', fechaProg, prioridad, user.nombre
+                ).catch(console.error);
+                if ((oldData as any).solicitanteId) {
+                    let tecNombre = 'Técnico';
+                    try { const td = await getDoc(doc(db, 'usuarios', tecnicoChange.new)); if (td.exists()) tecNombre = td.data().nombre || 'Técnico'; } catch (_) { }
+                    notificarAsignacionOT(
+                        (oldData as any).solicitanteId, clienteId, oldData.numero, otId,
+                        sucDisplay, tecNombre, fechaProg, user.nombre
+                    ).catch(console.error);
+                }
+            }
+        } catch (e) {
+            console.error('Error enviando notificaciones:', e);
+        }
     }
 };
 /**
@@ -754,8 +860,12 @@ export const logEntityChange = async (
 };
 
 // --- Servicios de Plan Preventivo 2026 ---
-export const getPlanPreventivo = async () => {
-    const snapshot = await getDocs(collection(db, 'planPreventivo2026'));
+export const getPlanPreventivo = async (user?: User) => {
+    let q = query(collection(db, 'planPreventivo2026'));
+    if (user && user.rol !== 'Admin' && user.clienteId !== 'ADMIN') {
+        q = query(q, where('clienteId', '==', user.clienteId));
+    }
+    const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PreventivoPlanEntry));
 };
 
@@ -834,7 +944,11 @@ export const importPreventivoPlan = async (newData: Omit<PreventivoPlanEntry, 'i
     const batch = writeBatch(db);
 
     if (clearExisting) {
-        const snapshot = await getDocs(collection(db, 'planPreventivo2026'));
+        let q = query(collection(db, 'planPreventivo2026'));
+        if (user && user.rol !== 'Admin' && user.clienteId !== 'ADMIN') {
+            q = query(q, where('clienteId', '==', user.clienteId));
+        }
+        const snapshot = await getDocs(q);
         snapshot.docs.forEach(d => batch.delete(d.ref));
     }
 

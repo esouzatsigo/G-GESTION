@@ -114,7 +114,7 @@ export const DashboardBIPage: React.FC = () => {
         };
 
         fetchData();
-    }, []);
+    }, [user]);
 
     // ----------------------------------------------------------------------
     // DERIVED STATE & FILTERING

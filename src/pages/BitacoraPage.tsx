@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getDocs, orderBy, limit } from 'firebase/firestore';
+import { getDocs, limit } from 'firebase/firestore';
 import { tenantQuery } from '../services/tenantContext';
 import { History, Search, Calendar, User as UserIcon, AlertTriangle } from 'lucide-react';
 import type { BitacoraEntry } from '../services/dataService';
@@ -16,9 +16,11 @@ export const BitacoraPage: React.FC = () => {
             if (!isAdminCliente && !isSuperAdmin) return;
             setLoading(true);
             try {
-                const q = tenantQuery('bitacora', user!, orderBy('fecha', 'desc'), limit(100));
+                const q = tenantQuery('bitacora', user!);
                 const snap = await getDocs(q);
                 let allEntries = snap.docs.map(d => ({ id: d.id, ...d.data() } as BitacoraEntry));
+                allEntries.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+                allEntries = allEntries.slice(0, 100);
 
                 // REGLA: Los eventos del SUPERUSUARIO solo los ve el SUPERUSUARIO
                 if (!isSuperAdmin) {

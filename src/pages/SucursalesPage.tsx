@@ -48,7 +48,7 @@ export const SucursalesPage: React.FC = () => {
 
             const [sData, cData, fData] = await Promise.all([
                 getSucursales(targetClienteId),
-                getClientes(),
+                getClientes(targetClienteId),
                 getFranquicias(targetClienteId)
             ]);
             setSucursales(sData);
@@ -368,7 +368,7 @@ export const SucursalesPage: React.FC = () => {
                                                         background: 'var(--primary)',
                                                         color: 'white',
                                                         borderRadius: '6px',
-                                                        textTransform: 'uppercase',
+                                                        textTransform: 'none',
                                                         letterSpacing: '0.05em'
                                                     }}>
                                                         {franquicias.find(f => f.id === sucursal.franquiciaId)?.nombre || 'N/A'}

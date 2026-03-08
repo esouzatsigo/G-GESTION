@@ -8,7 +8,7 @@ import { getDocs, query, where } from 'firebase/firestore';
 import { tenantQuery, tenantStoragePath } from '../services/tenantContext';
 import { CameraModal } from '../components/CameraModal';
 import { useNotification } from '../context/NotificationContext';
-import type { Equipo, WorkOrder } from '../types';
+import type { Equipo, WorkOrder, Sucursal } from '../types';
 
 export const SolicitarOTPage: React.FC = () => {
     const { user } = useAuth();
@@ -26,25 +26,48 @@ export const SolicitarOTPage: React.FC = () => {
     const [justificacion, setJustificacion] = useState('');
     const [tempFiles, setTempFiles] = useState<File[]>([]);
     const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+    const [selectedKardexPhotos, setSelectedKardexPhotos] = useState<string[]>([]);
+    const [sucursales, setSucursales] = useState<Sucursal[]>([]);
+    const [selectedSucursalId, setSelectedSucursalId] = useState('');
     const [isCameraOpen, setIsCameraOpen] = useState(false);
 
     const familias: Equipo['familia'][] = ['Aires', 'Coccion', 'Refrigeracion', 'Cocina', 'Restaurante', 'Local'];
 
+    // Cargar Sucursales Permitidas
     useEffect(() => {
-        if (familia && user?.sucursalesPermitidas[0]) {
+        if (!user) return;
+        const loadSucs = async () => {
+            const { getSucursales } = await import('../services/dataService');
+            const data = await getSucursales(user.clienteId);
+
+            // Si el usuario no es Admin/Coord de TODAS, filtrar por las que tiene permitidas
+            const permitidas = user.sucursalesPermitidas || [];
+            if (permitidas.includes('TODAS')) {
+                setSucursales(data);
+                if (data.length > 0) setSelectedSucursalId(data[0].id);
+            } else {
+                const filtered = data.filter(s => permitidas.includes(s.id));
+                setSucursales(filtered);
+                if (filtered.length > 0) setSelectedSucursalId(filtered[0].id);
+            }
+        };
+        loadSucs();
+    }, [user]);
+
+    // Cargar Equipos Filtrados
+    useEffect(() => {
+        if (familia && selectedSucursalId) {
             setLoading(true);
             const loadEq = async () => {
-                const q = query(
-                    tenantQuery('equipos', user),
-                    where('sucursalId', '==', user.sucursalesPermitidas[0]),
-                    where('familia', '==', familia)
-                );
-                const snap = await getDocs(q);
-                setEquipos(snap.docs.map(d => ({ id: d.id, ...d.data() } as Equipo)));
+                const { getEquipos } = await import('../services/dataService');
+                const data = await getEquipos(selectedSucursalId, familia, user?.clienteId);
+                setEquipos(data);
             }
             loadEq().finally(() => setLoading(false));
+        } else {
+            setEquipos([]);
         }
-    }, [familia, user]);
+    }, [familia, selectedSucursalId, user?.clienteId]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
@@ -81,8 +104,8 @@ export const SolicitarOTPage: React.FC = () => {
             showNotification("Debe incluir una justificación para el servicio.", "warning");
             return;
         }
-        if (tempFiles.length === 0) {
-            showNotification("Debe adjuntar al menos una fotografía de evidencia.", "warning");
+        if (tempFiles.length === 0 && selectedKardexPhotos.length === 0) {
+            showNotification("Debe adjuntar al menos una fotografía de evidencia (Cámara, Galería o Kardex).", "warning");
             return;
         }
 
@@ -108,11 +131,11 @@ export const SolicitarOTPage: React.FC = () => {
                 },
                 solicitanteId: user.id,
                 clienteId: user.clienteId,
-                sucursalId: user.sucursalesPermitidas?.[0] || 'SIN_SUCURSAL',
+                sucursalId: selectedSucursalId,
                 equipoId,
                 descripcionFalla,
                 justificacion,
-                fotosGerente: photoUrls
+                fotosGerente: [...selectedKardexPhotos, ...photoUrls]
             };
 
             const result = await createOT(newOT, user);
@@ -148,7 +171,19 @@ export const SolicitarOTPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                    <div>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '600' }}>Sucursal *</label>
+                        <select
+                            value={selectedSucursalId}
+                            onChange={e => { setSelectedSucursalId(e.target.value); setEquipoId(''); }}
+                            required
+                            style={{ width: '100%', padding: '0.875rem', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
+                        >
+                            <option value="">Seleccione Sucursal...</option>
+                            {sucursales.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+                        </select>
+                    </div>
                     <div>
                         <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '600' }}>Familia de Equipo *</label>
                         <select
@@ -193,7 +228,33 @@ export const SolicitarOTPage: React.FC = () => {
                 </div>
 
                 <div>
-                    <label style={{ display: 'block', marginBottom: '1rem', fontSize: '1.55rem', fontWeight: '600' }}>Evidencia Fotográfica * (Mínimo 1)</label>
+                    <label style={{ display: 'block', marginBottom: '1rem', fontSize: '1.55rem', fontWeight: '600' }}>KARDEX DEL EQUIPO (Sugeridas)</label>
+                    <div className="custom-scrollbar" style={{ display: 'flex', gap: '1rem', overflowX: 'auto', padding: '1rem 0', marginBottom: '1.5rem' }}>
+                        {[0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => {
+                            const url = `/kardex_demo/Sin título${i}.jpg`;
+                            const isSelected = selectedKardexPhotos.includes(url);
+                            return (
+                                <div
+                                    key={i}
+                                    onClick={() => {
+                                        if (isSelected) setSelectedKardexPhotos(prev => prev.filter(p => p !== url));
+                                        else setSelectedKardexPhotos(prev => [...prev, url]);
+                                    }}
+                                    style={{
+                                        minWidth: '140px', height: '140px', borderRadius: '12px', overflow: 'hidden',
+                                        border: isSelected ? '3px solid var(--accent)' : '1px solid var(--glass-border)',
+                                        cursor: 'pointer', position: 'relative', flexShrink: 0,
+                                        transition: 'transform 0.2s', transform: isSelected ? 'scale(1.05)' : 'scale(1)'
+                                    }}
+                                >
+                                    <img src={url} alt={`Kardex ${i}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    {isSelected && <div style={{ position: 'absolute', top: 5, right: 5, background: 'var(--accent)', color: 'white', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>✓</div>}
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <label style={{ display: 'block', marginBottom: '1.5rem', fontSize: '1.55rem', fontWeight: '600' }}>EVIDENCIA FRESCA (Nueva)</label>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
                         {previewUrls.map((url, i) => (
                             <div key={i} style={{ position: 'relative', aspectRatio: '1', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--glass-border)' }}>

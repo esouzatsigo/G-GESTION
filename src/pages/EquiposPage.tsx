@@ -51,7 +51,7 @@ export const EquiposPage: React.FC = () => {
             const [snapshot, sData, cData, fData] = await Promise.all([
                 getDocs(qEquipos),
                 getSucursales(targetClienteId),
-                getClientes(),
+                getClientes(targetClienteId),
                 getFranquicias(targetClienteId)
             ]);
 
@@ -397,6 +397,11 @@ export const EquiposPage: React.FC = () => {
                                         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.4rem', paddingLeft: '1.1rem' }}>
                                             <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', wordBreak: 'break-word' }}>
                                                 Cliente: <span style={{ color: 'var(--text-main)', fontWeight: '600' }}>{clientes.find(c => c.id === equipo.clienteId)?.nombre || equipo.clienteId || 'N/A'}</span>
+                                            </span>
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.4rem', paddingLeft: '1.1rem' }}>
+                                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                                ID: <span style={{ color: 'var(--text-main)', fontWeight: '600', fontSize: '0.65rem', fontFamily: 'monospace' }}>{equipo.id}</span>
                                             </span>
                                         </div>
 

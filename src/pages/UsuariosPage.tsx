@@ -8,7 +8,7 @@ import { addDoc, collection, doc, updateDoc, getDocs } from 'firebase/firestore'
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useAuth } from '../hooks/useAuth';
 import { tenantQuery } from '../services/tenantContext';
-import { logEntityChange } from '../services/dataService';
+import { logEntityChange, getClientes } from '../services/dataService';
 import type { User, Sucursal, Cliente, UserRole, Franquicia } from '../types';
 
 export const UsuariosPage: React.FC = () => {
@@ -53,16 +53,20 @@ export const UsuariosPage: React.FC = () => {
         if (!currentUser) return;
         setLoading(true);
         try {
+            const targetClienteId = (currentUser.rol === 'Admin' && activeClienteId && activeClienteId !== 'ADMIN')
+                ? activeClienteId
+                : (currentUser.rol !== 'Admin' ? currentUser.clienteId : undefined);
+
             const snapshot = await getDocs(tenantQuery('usuarios', currentUser));
             const uData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
             const [sData, cData, fData] = await Promise.all([
                 getDocs(tenantQuery('sucursales', currentUser)),
-                getDocs(collection(db, 'clientes')),
+                getClientes(targetClienteId),
                 getDocs(tenantQuery('franquicias', currentUser))
             ]);
             setUsuarios(uData);
             setSucursales(sData.docs.map(d => ({ id: d.id, ...d.data() } as Sucursal)));
-            setClientes(cData.docs.map(d => ({ id: d.id, ...d.data() } as Cliente)));
+            setClientes(cData);
             setFranquicias(fData.docs.map(d => ({ id: d.id, ...d.data() } as Franquicia)));
         } catch (error) {
             console.error(error);

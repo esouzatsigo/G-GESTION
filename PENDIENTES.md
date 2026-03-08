@@ -11,4 +11,4 @@
 7.- REGLA DE NEGOCIO: El CAtalogo de EMPRESAS, Usuarios, Sucursales y En Su Momento Plantillas Es SOLO PARA EL ADMINISTRADOR DEL SSITEMA.
 8.- En Algun MOmento En La Misma BD HAbra Registros de Diferentes EMPRESAS (Multi-Tenant). REGLA DE NEGOCIO: Que Los Clientes Solo Vean LO Que Se Genero por Los Usuarios de SU Empresa. Audita el Sitema para Verificar a Ciencia Certa que Si Llegara a Haber Otra Empresa (BPT) es LA Unica Empresa Actualmente. Cada Usuario De BPT Este TOTALMENTE AISLADA de La Demas. Revisa Todas LAs Tablas para Asegurarnos que Hay Forma EFECTIVA de ENCAPSULAR LA Información de Cada Empresa IMPECABLEMENTE.
 9.- Evidentemente El SUPER USUARIO Podra Ver La Informacion de Todas LAs Empresas. Hay Que Generar Un Apartado que Pueda Acceder el Cliente Donde Se Muestre El Plan Contratado. Cuantas Empresas... Evidentemente SOLO EL SUPER USUARIO Podra Registrar y Modificar Planes Contratados.
-11.- Poner el Los Preventivos el Número de Equipos de Cada Sucursal
+11.- ✅ Poner el Los Preventivos el Número de Equipos de Cada Sucursal

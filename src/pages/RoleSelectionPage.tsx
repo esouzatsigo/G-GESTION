@@ -2,12 +2,12 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import type { User } from '../types';
-import { ShieldCheck, UserCheck, Settings, Wrench } from 'lucide-react';
+import { ShieldCheck, UserCheck, Settings, Wrench, Star } from 'lucide-react';
 import { useNotification } from '../context/NotificationContext';
 
 export const RoleSelectionPage: React.FC = () => {
     const navigate = useNavigate();
-    const { loginAsRole } = useAuth();
+    const { loginAsRole, loginAsRoleCorpo } = useAuth();
     const { showNotification } = useNotification();
 
     const roles = [
@@ -52,6 +52,43 @@ export const RoleSelectionPage: React.FC = () => {
             icon: <ShieldCheck size={32} />,
             desc: 'Acceso total a catálogos y configuración de sistema.',
             color: '#ef4444'
+        },
+        // --- BOTONES EXCLUSIVOS DE SIMULACIÓN QA ---
+        {
+            id: 'QA_Gerente',
+            title: 'Gerente Boston\'s',
+            icon: <Star size={32} />,
+            desc: 'Gerente.Altabrisa@BP.com',
+            color: '#3b82f6',
+            email: 'Ger.Altabrisa@BP.com',
+            isQA: true
+        },
+        {
+            id: 'QA_Coordinador',
+            title: 'Coordinador BPT',
+            icon: <Star size={32} />,
+            desc: 'coord.bpt@t-sigo.com',
+            color: '#10b981',
+            email: 'coord.bpt@t-sigo.com',
+            isQA: true
+        },
+        {
+            id: 'QA_Tecnico',
+            title: 'Tec. Interno BA',
+            icon: <Star size={32} />,
+            desc: 'tecnico.altabrisa@hgestion.com',
+            color: '#F59E0B',
+            email: 'tecnico.altabrisa@hgestion.com',
+            isQA: true
+        },
+        {
+            id: 'QA_Especialista',
+            title: 'Esp. Cocción',
+            icon: <Star size={32} />,
+            desc: 'esp.coccion@t-sigo.com',
+            color: '#ef4444',
+            email: 'esp.coccion@t-sigo.com',
+            isQA: true
         }
     ];
 
@@ -90,25 +127,23 @@ export const RoleSelectionPage: React.FC = () => {
         }
     };
 
-    const handleSelect = (role: string) => {
-        if (role === 'Admin') {
-            // Automation bypass for tests if needed (optional)
-            if (new URLSearchParams(window.location.search).get('auto') === 'true') {
-                loginAsRole('Admin');
-                navigate('/');
-                return;
-            }
-            const password = window.prompt('Ingrese la contraseña de administrador (hint: hhcelis):');
-            if (password === 'hhcelis') {
-                loginAsRole('Admin');
-                navigate('/');
-            } else if (password !== null) {
-                showNotification('Contraseña incorrecta', 'error');
-            }
+    const handleSelect = async (roleObj: any) => {
+        const role = roleObj.id;
+        if (roleObj.isQA) {
+            loginAsRoleCorpo(role);
         } else {
             loginAsRole(role);
-            navigate('/');
         }
+
+        // Regla 113: delay + replace para sincronía atómica
+        setTimeout(() => {
+            navigate('/', { replace: true });
+        }, 100);
+    };
+
+    const handleReset = () => {
+        localStorage.clear();
+        window.location.reload();
     };
 
     return (
@@ -147,7 +182,7 @@ export const RoleSelectionPage: React.FC = () => {
                     {roles.map((role) => (
                         <button
                             key={role.id}
-                            onClick={() => handleSelect(role.id)}
+                            onClick={() => handleSelect(role)}
                             className="glass-card"
                             style={{
                                 display: 'flex',
@@ -192,13 +227,19 @@ export const RoleSelectionPage: React.FC = () => {
                     ))}
                 </div>
 
-                <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+                <div style={{ marginTop: '2rem', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <button
                         id="debug-populate-users"
                         onClick={handlePopulate}
                         style={{ opacity: 0.1, background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}
                     >
                         .
+                    </button>
+                    <button
+                        onClick={handleReset}
+                        style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.4)', textDecoration: 'underline', cursor: 'pointer', fontSize: '0.8rem' }}
+                    >
+                        Resetear Sesión Local (Si tienes problemas para entrar)
                     </button>
                 </div>
 

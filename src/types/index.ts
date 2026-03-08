@@ -11,7 +11,9 @@ export interface User {
     supervisorId?: string;
     coordinadorId?: string;
     franquiciaId?: string;
-    contrasena?: string; // Para accesar al sistema, el usuario será el email
+    contrasena?: string;
+    clienteNombre?: string;
+    isImpersonating?: boolean;
 }
 
 export interface Cliente {
@@ -107,6 +109,10 @@ export interface WorkOrder {
 
     // Cierre
     firmaTecnico?: string; // URL de imagen base64 o Storage
+    coordsFirmaTecnico?: {
+        lat: number;
+        lng: number;
+    };
     firmaCliente?: string;
     comentariosCliente?: string;
     repuestosUtilizados?: string;

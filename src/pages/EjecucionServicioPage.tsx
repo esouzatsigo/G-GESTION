@@ -165,6 +165,21 @@ export const EjecucionServicioPage: React.FC = () => {
 
         setSubmitting(true);
         try {
+            let userCoords: { lat: number, lng: number } | undefined;
+            if (navigator.geolocation) {
+                try {
+                    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000, maximumAge: 0 });
+                    });
+                    userCoords = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+                } catch (e) {
+                    console.warn("No se pudo obtener ubicación al firmar", e);
+                }
+            }
+
             const urlFirmaTec = await handleUpload(dataURLtoBlob(firmaTecnico) as any, 'servicios/firmas/tecnico');
 
             const now = new Date();
@@ -175,6 +190,7 @@ export const EjecucionServicioPage: React.FC = () => {
                     fotoDespues: fotoDespuesUrl,
                     fotoExtra: fotoExtraUrl,
                     firmaTecnico: urlFirmaTec,
+                    coordsFirmaTecnico: userCoords || null, // Guardar coords
                     descripcionServicio: descripcionTecnica,
                     repuestosUtilizados
                 });
@@ -186,6 +202,7 @@ export const EjecucionServicioPage: React.FC = () => {
                     fotoDespues: fotoDespuesUrl,
                     fotoExtra: fotoExtraUrl,
                     firmaTecnico: urlFirmaTec,
+                    coordsFirmaTecnico: userCoords || null, // Guardar coords
                     descripcionServicio: descripcionTecnica,
                     repuestosUtilizados
                 });
@@ -201,7 +218,8 @@ export const EjecucionServicioPage: React.FC = () => {
                 repuestosUtilizados: repuestosUtilizados,
                 fotoAntes: fotoAntesUrl || ot.fotoAntes,
                 fotoDespues: fotoDespuesUrl || ot.fotoDespues,
-                fotoExtra: fotoExtraUrl || ot.fotoExtra
+                fotoExtra: fotoExtraUrl || ot.fotoExtra,
+                coordsFirmaTecnico: userCoords || ot.coordsFirmaTecnico
             };
             setOt(updatedOT);
             setFirmaTecnico(urlFirmaTec); // Sync signature state too
@@ -430,6 +448,17 @@ export const EjecucionServicioPage: React.FC = () => {
 
                 <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                     <h3 style={{ fontSize: '1.75rem', fontWeight: '700', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem', color: 'var(--primary)' }}>BLOQUE 1: CIERRE TÉCNICO</h3>
+
+                    {ot.estatus !== 'Concluida. Pendiente Firma Cliente' && ot.estatus !== 'Concluida' && ot.estatus !== 'Finalizada' && (
+                        <div style={{ padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.3)', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                            <AlertCircle size={32} color="#ef4444" />
+                            <p style={{ fontSize: '1.2rem', color: '#ffb3b3', fontWeight: '600', lineHeight: '1.4' }}>
+                                ¡ADVERTENCIA! Al firmar y concluir tu labor, <strong style={{ color: 'white' }}>SE BLOQUEARÁN TODOS TUS REGISTROS</strong>. No podrás modificar fotos ni reportes.
+                                Además, tu tiempo de productividad y tu <strong style={{ color: 'white' }}>UBICACIÓN GPS ACTUAL</strong> quedarán sellados en la bitácora en este preciso instante.
+                                Asegúrate de haber finalizado el 100% de tus labores antes de avanzar.
+                            </p>
+                        </div>
+                    )}
 
                     <SignaturePad id="firma-tecnico" label="Firma del Técnico" onSave={setFirmaTecnico} required disabled={isLocked} initialImage={firmaTecnico || undefined} />
 

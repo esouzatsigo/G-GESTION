@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { X, RotateCcw, Check, SwitchCamera, Loader2 } from 'lucide-react';
+import { X, RotateCcw, Check, SwitchCamera, Loader2, Upload } from 'lucide-react';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 
 interface CameraModalProps {
@@ -102,6 +102,20 @@ export const CameraModal: React.FC<CameraModalProps> = ({ onCapture, onClose, ti
         setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
     };
 
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const dataUrl = event.target?.result as string;
+                if (dataUrl) {
+                    setCapturedImage(dataUrl);
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     return (
         <div style={{
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -189,6 +203,20 @@ export const CameraModal: React.FC<CameraModalProps> = ({ onCapture, onClose, ti
                             >
                                 <SwitchCamera size={26} />
                             </button>
+
+                            <label
+                                style={{
+                                    background: 'rgba(59,130,246,0.3)', border: '2px solid rgba(59,130,246,0.8)', color: 'white',
+                                    width: '56px', height: '56px', borderRadius: '50%',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    backdropFilter: 'blur(5px)', boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                                    cursor: 'pointer', marginLeft: '-15px'
+                                }}
+                                title="Subir archivo"
+                            >
+                                <Upload size={24} />
+                                <input type="file" accept="image/*" hidden onChange={handleFileUpload} />
+                            </label>
 
                             <button
                                 onClick={takePhoto}

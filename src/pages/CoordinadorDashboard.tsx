@@ -18,7 +18,8 @@ import {
     ChevronLeft,
     ChevronRight,
     X,
-    History
+    History,
+    AlertCircle
 } from 'lucide-react';
 import { useNotification } from '../context/NotificationContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
@@ -75,6 +76,10 @@ export const CoordinadorDashboard: React.FC = () => {
     const [fechaProgramada, setFechaProgramada] = useState('');
     const [horaProgramada, setHoraProgramada] = useState('');
 
+    // Flexibilidad de Norma
+    const [flexibilidadRequiereJustif, setFlexibilidadRequiereJustif] = useState(false);
+    const [justificacionFlexibilidad, setJustificacionFlexibilidad] = useState('');
+
     const fetchData = React.useCallback(async () => {
         if (!user) return;
         setLoading(true);
@@ -87,7 +92,10 @@ export const CoordinadorDashboard: React.FC = () => {
                 getDocs(tenantQuery('equipos', user))
             ]);
 
-            setOts(otSnap.docs.map(d => ({ id: d.id, ...d.data() } as WorkOrder)));
+            const fetchedOts = otSnap.docs.map(d => ({ id: d.id, ...d.data() } as WorkOrder));
+            // Ordenar cronológicamente (más antigua primero)
+            fetchedOts.sort((a, b) => new Date(a.fechas.solicitada).getTime() - new Date(b.fechas.solicitada).getTime());
+            setOts(fetchedOts);
             setTecnicos(userSnap.docs.map(d => ({ id: d.id, ...d.data() } as User)));
             setSucursales(sucSnap.docs.map(d => ({ id: d.id, ...d.data() } as Sucursal)));
             setFranquicias(fSnap.docs.map(d => ({ id: d.id, ...d.data() } as Franquicia)));
@@ -150,12 +158,16 @@ export const CoordinadorDashboard: React.FC = () => {
             const eqFam = normalize(equipo?.familia);
 
             if (tecSpec && tecSpec !== eqFam) {
-                showNotification(
-                    `❌ Regla de Negocio: ${tec?.nombre} tiene especialidad en ${tec?.especialidad}. NO puede atender este equipo de familia ${equipo?.familia}.`,
-                    "error"
-                );
-                setAsignando(false);
-                return;
+                if (!flexibilidadRequiereJustif) {
+                    setAsignando(false);
+                    setFlexibilidadRequiereJustif(true);
+                    return;
+                }
+                if (flexibilidadRequiereJustif && justificacionFlexibilidad.trim().length < 5) {
+                    showNotification("Debe ingresar una justificación válida para flexibilizar la norma.", "warning");
+                    setAsignando(false);
+                    return;
+                }
             }
 
             // CONTROL DE CONCURRENCIA: Verificar que la OT no haya cambiado mientras el Coordinador la revisaba
@@ -177,6 +189,11 @@ export const CoordinadorDashboard: React.FC = () => {
             }
 
             if (user) {
+                // Si hubo flexibilidad, lo registramos en audito especial
+                const auditMensaje = flexibilidadRequiereJustif
+                    ? `Asignación por Flexibilidad: ${justificacionFlexibilidad} (Técnico: ${tec?.nombre} [${tec?.especialidad}], Familia Equipo: ${equipo?.familia})`
+                    : 'Asignación de Técnico y Horario';
+
                 // Primero actualizar campos programados y técnico
                 await updateOTWithAudit(selectedOT.id, selectedOT, {
                     prioridad: prioridad,
@@ -185,7 +202,7 @@ export const CoordinadorDashboard: React.FC = () => {
                         ...selectedOT.fechas,
                         programada: `${fechaProgramada}T${horaProgramada}:00`
                     }
-                }, user, 'Asignación de Técnico y Horario');
+                }, user, auditMensaje);
 
                 // Luego cambiar estatus
                 await updateOTStatus(selectedOT.id, 'Asignada', user, {
@@ -193,6 +210,8 @@ export const CoordinadorDashboard: React.FC = () => {
                 });
             }
             setSelectedOT(null);
+            setFlexibilidadRequiereJustif(false);
+            setJustificacionFlexibilidad('');
             fetchData();
             showNotification("OT Asignada correctamente.", "success");
         } catch (error) {
@@ -201,6 +220,12 @@ export const CoordinadorDashboard: React.FC = () => {
             setAsignando(false);
         }
     };
+
+    // Reset flex modal when changing tech
+    useEffect(() => {
+        setFlexibilidadRequiereJustif(false);
+        setJustificacionFlexibilidad('');
+    }, [tecnicoId]);
 
     return (
         <div className="animate-fade">
@@ -232,9 +257,40 @@ export const CoordinadorDashboard: React.FC = () => {
                                     >
                                         {ot.tipo === 'Preventivo' ? `P-${ot.numero}` : `OT #${ot.numero}`}
                                     </button>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                                        <Clock size={12} />
-                                        {new Date(ot.fechas.solicitada).toLocaleDateString()}
+                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.2rem' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                                            <Clock size={12} />
+                                            {new Date(ot.fechas.solicitada).toLocaleDateString()}
+                                        </div>
+                                        {(() => {
+                                            const start = new Date(ot.fechas.solicitada);
+                                            const now = new Date();
+                                            const diffMs = now.getTime() - start.getTime();
+                                            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                                            const diffDays = Math.floor(diffHours / 24);
+                                            const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+                                            let timeStr = "";
+                                            if (diffDays > 0) timeStr = `${diffDays}d ${diffHours % 24}h`;
+                                            else if (diffHours > 0) timeStr = `${diffHours}h ${diffMins}m`;
+                                            else timeStr = `${diffMins}m`;
+
+                                            const color = diffHours > 48 ? '#ef4444' : diffHours > 24 ? '#f59e0b' : '#10b981';
+
+                                            return (
+                                                <div style={{
+                                                    fontSize: '0.7rem',
+                                                    fontWeight: '900',
+                                                    color: color,
+                                                    background: `${color}15`,
+                                                    padding: '2px 8px',
+                                                    borderRadius: '6px',
+                                                    border: `1px solid ${color}30`
+                                                }}>
+                                                    ⏱ {timeStr}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 </div>
 
@@ -301,24 +357,44 @@ export const CoordinadorDashboard: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Bitacora */}
+                            {/* Bitácora completa de la OT */}
                             <div style={{ marginTop: '2rem', borderTop: '1px solid var(--glass-border)', paddingTop: '1.5rem' }}>
-                                <h3 style={{ fontSize: '0.8rem', fontWeight: '800', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <History size={16} /> BITÁCORA DE CAMBIOS
+                                <h3 style={{ fontSize: '0.8rem', fontWeight: '800', color: 'var(--accent)', textTransform: 'uppercase', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', letterSpacing: '0.1em' }}>
+                                    <History size={16} /> HISTORIAL COMPLETO DE LA OT ({bitacora.length})
                                 </h3>
                                 {bitacora.length === 0 ? (
                                     <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Sin movimientos registrados.</p>
                                 ) : (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '150px', overflowY: 'auto', paddingRight: '0.5rem' }}>
-                                        {bitacora.map((b: any, index: number) => (
-                                            <div key={index} style={{ background: 'rgba(255,255,255,0.02)', padding: '0.75rem 1rem', borderRadius: '8px', fontSize: '0.8rem', borderLeft: '2px solid var(--primary)' }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                                                    <span style={{ fontWeight: '700', color: 'var(--text-main)' }}>{b.accion}</span>
-                                                    <span style={{ color: 'var(--text-muted)' }}>{new Date(b.fecha).toLocaleString()}</span>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '280px', overflowY: 'auto', paddingRight: '0.5rem' }}>
+                                        {bitacora.map((b: any, index: number) => {
+                                            const isCreacion = b.accion?.includes('Nueva OT');
+                                            const isAsignacion = b.accion?.includes('Asignación');
+                                            const borderColor = isCreacion ? '#10b981' : isAsignacion ? '#6366f1' : 'var(--primary)';
+                                            return (
+                                                <div key={index} style={{
+                                                    background: 'rgba(255,255,255,0.02)',
+                                                    padding: '0.65rem 0.85rem',
+                                                    borderRadius: '8px',
+                                                    fontSize: '0.75rem',
+                                                    borderLeft: `3px solid ${borderColor}`,
+                                                    transition: 'background 0.2s'
+                                                }}
+                                                    onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                                                    onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
+                                                >
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
+                                                        <span style={{ fontWeight: '700', color: borderColor }}>{b.accion}</span>
+                                                        <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>{new Date(b.fecha).toLocaleString()}</span>
+                                                    </div>
+                                                    {b.campo && b.campo !== 'General' && (
+                                                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                                            <strong>{b.campo}:</strong> {String(b.valorAnterior).substring(0, 30)} → {String(b.valorNuevo).substring(0, 30)}
+                                                        </div>
+                                                    )}
+                                                    <div style={{ color: 'var(--text-muted)', fontSize: '0.65rem', marginTop: '2px' }}>👤 {b.usuarioNombre}</div>
                                                 </div>
-                                                <div style={{ color: 'var(--text-muted)' }}>Por: {b.usuarioNombre}</div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>
@@ -383,6 +459,26 @@ export const CoordinadorDashboard: React.FC = () => {
                                         </div>
                                     </div>
                                 </div>
+
+                                {flexibilidadRequiereJustif && (
+                                    <div className="animate-fade" style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '1.5rem', borderRadius: '16px', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', color: '#fca5a5' }}>
+                                            <AlertCircle size={20} />
+                                            <span style={{ fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.85rem' }}>JUSTIFICACIÓN PARA FLEXIBILIZAR NORMA</span>
+                                        </div>
+                                        <p style={{ fontSize: '0.85rem', color: 'var(--text-main)', marginBottom: '1rem', lineHeight: '1.5' }}>
+                                            Has seleccionado un técnico cuya especialidad no coincide con la del equipo. Por regla, debes capturar el motivo de esta excepción antes de asignar.
+                                        </p>
+                                        <input
+                                            type="text"
+                                            value={justificacionFlexibilidad}
+                                            onChange={e => setJustificacionFlexibilidad(e.target.value)}
+                                            placeholder="Ingresa la justificación operativa (emergencia, falta de personal, etc)..."
+                                            style={{ width: '100%', padding: '1rem', borderRadius: '12px', background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(239, 68, 68, 0.5)', color: 'white' }}
+                                            autoFocus
+                                        />
+                                    </div>
+                                )}
 
                                 <button type="submit" disabled={asignando} className="btn btn-primary" style={{ marginTop: '1.5rem', padding: '1.4rem', fontSize: '1.1rem', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '0.1em', boxShadow: '0 10px 30px rgba(37, 99, 235, 0.3)', opacity: asignando ? 0.7 : 1 }}>
                                     {asignando ? 'Verificando y Asignando...' : 'Finalizar Asignación'}

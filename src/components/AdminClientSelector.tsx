@@ -52,7 +52,8 @@ export const AdminClientSelector: React.FC = () => {
                     if (val === 'ADMIN') {
                         setActiveClienteId(null);
                     } else {
-                        setActiveClienteId(val);
+                        const cliente = clientes.find(c => c.id === val);
+                        setActiveClienteId(val, cliente?.nombre);
                     }
                 }}
                 disabled={loading}

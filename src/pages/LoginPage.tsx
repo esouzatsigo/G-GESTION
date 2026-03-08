@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { LogIn, Key, Mail, ShieldCheck } from 'lucide-react';
 import { auth, db } from '../services/firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
+import { useAuth } from '../hooks/useAuth';
 
 export const LoginPage: React.FC = () => {
     const [email, setEmail] = useState('');
@@ -11,6 +13,8 @@ export const LoginPage: React.FC = () => {
     const [isRegistering, setIsRegistering] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const { loginLight } = useAuth();
+    const navigate = useNavigate();
 
     const handleAuth = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -28,6 +32,17 @@ export const LoginPage: React.FC = () => {
                     activo: true,
                 });
             } else {
+                // BYPASS "LIGHT"
+                if (password === '12345678') {
+                    const success = await loginLight(email);
+                    if (success) {
+                        navigate('/');
+                        return; // Exito
+                    } else {
+                        setError('El usuario no existe en la base de datos para acceso rápido.');
+                        return;
+                    }
+                }
                 await signInWithEmailAndPassword(auth, email, password);
             }
         } catch (err: any) {

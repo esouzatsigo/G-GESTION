@@ -68,7 +68,12 @@ export const BIDrillDownModal: React.FC<BIDrillDownModalProps> = ({
                             <FileText size={18} />
                         </div>
                         <div>
-                            <h2 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--text-main)', letterSpacing: '-0.01em' }}>{title}</h2>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.1rem' }}>
+                                <h2 style={{ fontSize: '1.1rem', fontWeight: '900', color: 'var(--text-main)', letterSpacing: '-0.01em' }}>{title}</h2>
+                                <span style={{ fontSize: '0.65rem', padding: '0.2rem 0.5rem', background: 'var(--bg-switch)', color: 'var(--primary-light)', borderRadius: '6px', border: '1px solid var(--glass-border)', fontWeight: '800', display: 'flex', alignItems: 'center' }}>
+                                    {orders.length} OT{orders.length !== 1 ? 's' : ''}
+                                </span>
+                            </div>
                             {subtitle && <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.05rem' }}>{subtitle}</p>}
                         </div>
                     </div>

@@ -7,6 +7,9 @@ import { useNotification } from '../context/NotificationContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import { cleanObject } from '../utils/cleaners';
 import { downloadExcel } from '../utils/fileDownload';
+import { useAuth } from '../hooks/useAuth';
+import { tenantQuery } from '../services/tenantContext';
+import { getClientes } from '../services/dataService';
 import type { Franquicia, Cliente, Sucursal } from '../types';
 
 interface ImportModalProps {
@@ -27,17 +30,24 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, type,
     }>({ clientes: [], franquicias: [], sucursales: [] });
     const { showNotification } = useNotification();
 
+    const { user, activeClienteId } = useAuth();
+
     useEscapeKey(onClose, isOpen);
 
     const fetchCatalogs = async () => {
         try {
+            const targetClienteId = (user?.rol === 'Admin' && activeClienteId && activeClienteId !== 'ADMIN')
+                ? activeClienteId
+                : (user?.rol !== 'Admin' ? user?.clienteId : undefined);
+
             const [cSnap, fSnap, sSnap] = await Promise.all([
-                getDocs(collection(db, 'clientes')),
-                getDocs(collection(db, 'franquicias')),
-                getDocs(collection(db, 'sucursales'))
+                getClientes(targetClienteId),
+                // Important: getDocs with tenantQuery needs a valid user object. If not, fallback to regular collection
+                user ? getDocs(tenantQuery('franquicias', user)) : getDocs(collection(db, 'franquicias')),
+                user ? getDocs(tenantQuery('sucursales', user)) : getDocs(collection(db, 'sucursales'))
             ]);
             setCatalogs({
-                clientes: cSnap.docs.map(d => ({ id: d.id, ...d.data() } as Cliente)),
+                clientes: cSnap,
                 franquicias: fSnap.docs.map(d => ({ id: d.id, ...d.data() } as Franquicia)),
                 sucursales: sSnap.docs.map(d => ({ id: d.id, ...d.data() } as Sucursal))
             });
