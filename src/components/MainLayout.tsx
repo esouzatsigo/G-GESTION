@@ -22,7 +22,6 @@ import {
     TrendingUp
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { auth } from '../services/firebase';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { usePanelPrefs } from '../hooks/usePanelPrefs';
 import { AdminClientSelector } from './AdminClientSelector';
