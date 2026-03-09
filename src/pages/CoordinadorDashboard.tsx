@@ -86,7 +86,7 @@ export const CoordinadorDashboard: React.FC = () => {
         try {
             const [otSnap, userSnap, sucSnap, fSnap, eqSnap] = await Promise.all([
                 getDocs(tenantQuery('ordenesTrabajo', user, where('estatus', '==', 'Pendiente'))),
-                getDocs(tenantQuery('usuarios', user, where('rol', 'in', ['Tecnico', 'TecnicoExterno']))),
+                getDocs(tenantQuery('usuarios', user, where('rol', 'in', ['Tecnico', 'TecnicoExterno', 'ROL_TECNICO', 'ROL_TECNICO_EXTERNO']))),
                 getDocs(tenantQuery('sucursales', user)),
                 getDocs(tenantQuery('franquicias', user)),
                 getDocs(tenantQuery('equipos', user))
@@ -436,9 +436,15 @@ export const CoordinadorDashboard: React.FC = () => {
                                         style={{ width: '100%', padding: '1.25rem', borderRadius: '16px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.4)', color: 'var(--text-main)', fontSize: '1rem', fontWeight: '700' }}
                                     >
                                         <option value="" style={{ color: 'black' }}>Seleccione Técnico...</option>
-                                        {tecnicos.map(t => (
-                                            <option key={t.id} value={t.id} style={{ color: 'black' }}>{t.nombre} ({t.rol}) {t.especialidad ? `• ${t.especialidad}` : ''}</option>
-                                        ))}
+                                        {tecnicos
+                                            .filter(t => {
+                                                // REGLA INQUEBRANTABLE: Solo técnicos asignados a la sucursal de la OT
+                                                const permisos = t.sucursalesPermitidas || [];
+                                                return permisos.includes('TODAS') || permisos.includes(selectedOT.sucursalId);
+                                            })
+                                            .map(t => (
+                                                <option key={t.id} value={t.id} style={{ color: 'black' }}>{t.nombre} ({t.rol}) {t.especialidad ? `• ${t.especialidad}` : ''}</option>
+                                            ))}
                                     </select>
                                 </div>
 

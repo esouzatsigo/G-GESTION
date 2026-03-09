@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
+import { trackedUpdateDoc } from '../services/firestoreHelpers';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../services/firebase';
 import { Camera, CheckCircle2, ChevronLeft, AlertCircle, Loader2, RotateCcw } from 'lucide-react';
@@ -72,7 +73,7 @@ export const EjecucionServicioPage: React.FC = () => {
         const timer = setTimeout(async () => {
             if (descripcionTecnica !== ot.descripcionServicio || repuestosUtilizados !== ot.repuestosUtilizados) {
                 try {
-                    await updateDoc(doc(db, 'ordenesTrabajo', ot.id), {
+                    await trackedUpdateDoc(doc(db, 'ordenesTrabajo', ot.id), {
                         descripcionServicio: descripcionTecnica,
                         repuestosUtilizados: repuestosUtilizados
                     });
@@ -105,7 +106,7 @@ export const EjecucionServicioPage: React.FC = () => {
                     [field]: url
                 }, user, `Carga de Foto: ${field}`);
             } else {
-                await updateDoc(doc(db, 'ordenesTrabajo', ot.id), {
+                await trackedUpdateDoc(doc(db, 'ordenesTrabajo', ot.id), {
                     [field]: url
                 });
             }
@@ -122,6 +123,16 @@ export const EjecucionServicioPage: React.FC = () => {
                 setTimeout(() => {
                     descripcionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     descripcionRef.current?.focus();
+                }, 400);
+            }
+
+            // Focus flow: after FOTO DESPUES, scroll to firma tecnico
+            if (field === 'fotoDespues') {
+                setTimeout(() => {
+                    const firmaTecEl = document.getElementById('firma-tecnico');
+                    if (firmaTecEl) {
+                        firmaTecEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
                 }, 400);
             }
         } catch (error) {
@@ -195,7 +206,7 @@ export const EjecucionServicioPage: React.FC = () => {
                     repuestosUtilizados
                 });
             } else {
-                await updateDoc(doc(db, 'ordenesTrabajo', ot.id), {
+                await trackedUpdateDoc(doc(db, 'ordenesTrabajo', ot.id), {
                     estatus: 'Concluida. Pendiente Firma Cliente',
                     'fechas.concluidaTecnico': now.toISOString(),
                     fotoAntes: fotoAntesUrl,
@@ -432,9 +443,9 @@ export const EjecucionServicioPage: React.FC = () => {
                         placeholder="Lista de componentes reemplazados (opcional)..."
                         onBlur={() => {
                             setTimeout(() => {
-                                const firmaTecEl = document.getElementById('firma-tecnico');
-                                if (firmaTecEl) {
-                                    firmaTecEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                const fotoDespuesEl = document.getElementById('foto-despues-container');
+                                if (fotoDespuesEl) {
+                                    fotoDespuesEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
                                 }
                             }, 200);
                         }}
@@ -442,7 +453,7 @@ export const EjecucionServicioPage: React.FC = () => {
                     />
                 </div>
 
-                <div>
+                <div id="foto-despues-container">
                     <PhotoInput label="FOTO DESPUÉS" url={fotoDespuesUrl} field="fotoDespues" required={ot.tipo !== 'Preventivo'} />
                 </div>
 

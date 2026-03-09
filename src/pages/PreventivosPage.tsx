@@ -2,9 +2,9 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
     collection,
     getDocs,
-    addDoc,
     where
 } from 'firebase/firestore';
+import { trackedAddDoc } from '../services/firestoreHelpers';
 import { db } from '../services/firebase';
 import { tenantQuery } from '../services/tenantContext';
 import { cleanString } from '../utils/cleaners';
@@ -151,8 +151,7 @@ const MESES = [
 ];
 
 export const PreventivosPage: React.FC = () => {
-    const { user, isSuperAdmin } = useAuth();
-    const isAdmin = user?.rol === 'Admin';
+    const { user, isSuperAdmin, isAdmin, isCoordinador } = useAuth();
     const [activeTab, setActiveTab] = useState<'resumen' | 'calendario' | 'directorio'>('resumen');
     const [sucursales, setSucursales] = useState<Sucursal[]>([]);
     const [franquicias, setFranquicias] = useState<Franquicia[]>([]);
@@ -265,7 +264,7 @@ export const PreventivosPage: React.FC = () => {
                 getDocs(tenantQuery('sucursales', user)),
                 getDocs(tenantQuery('franquicias', user)),
                 getDocs(tenantQuery('equipos', user)),
-                getDocs(tenantQuery('usuarios', user, where('rol', 'in', ['Tecnico', 'TecnicoExterno']))),
+                getDocs(tenantQuery('usuarios', user, where('rol', 'in', ['Tecnico', 'TecnicoExterno', 'ROL_TECNICO', 'ROL_TECNICO_EXTERNO']))),
                 getDocs(tenantQuery('planPreventivo2026', user)),
                 getCounterConfig(user.clienteId),
                 getDocs(tenantQuery('ordenesTrabajo', user))
@@ -286,7 +285,7 @@ export const PreventivosPage: React.FC = () => {
                 setIsMigrating(true);
                 const batchPromises = PLAN_2026.map(item => {
                     // Inject clienteId automatically to default seeded entries
-                    return addDoc(collection(db, 'planPreventivo2026'), { ...item, clienteId: user.clienteId });
+                    return trackedAddDoc(collection(db, 'planPreventivo2026'), { ...item, clienteId: user.clienteId });
                 });
                 await Promise.all(batchPromises);
                 const freshSnap = await getDocs(tenantQuery('planPreventivo2026', user));
@@ -521,15 +520,18 @@ export const PreventivosPage: React.FC = () => {
 
         const equipo = equipos.find(e => e.id === ot.equipoId);
         const newTecnico = allTecnicos.find(t => t.id === newTecnicoId);
-
         const normalize = (s: string | undefined) => s?.trim().toLowerCase() || '';
         const tecSpec = normalize(newTecnico?.especialidad);
         const eqFam = normalize(equipo?.familia);
 
-        // --- REGLA DE NEGOCIO: Especialidad de Técnico ---
+        // --- REGLA DE NEGOCIO: Especialidad de Técnico (Vínculo de Hierro) ---
         if (tecSpec && tecSpec !== eqFam) {
+            // Buscamos el nombre amigable en los catálogos si estuviera disponible, sino usamos el ID
+            const specLabel = newTecnico?.especialidad || 'Sin especialidad';
+            const famLabel = equipo?.familia || 'Sin familia';
+
             showNotification(
-                `❌ Regla de Negocio: ${newTecnico?.nombre} tiene especialidad en ${newTecnico?.especialidad}. NO puede atender este equipo de familia ${equipo?.familia}.`,
+                `❌ Especialidad Incorrecta: ${newTecnico?.nombre} tiene perfil [${specLabel}], pero el equipo requiere [${famLabel}].`,
                 "error"
             );
             return;
@@ -646,7 +648,7 @@ export const PreventivosPage: React.FC = () => {
                 showNotification("Programación actualizada correctamente.", "success");
             } else {
                 // Creación de nuevo registro
-                await addDoc(collection(db, 'planPreventivo2026'), finalData);
+                await trackedAddDoc(collection(db, 'planPreventivo2026'), finalData);
                 showNotification("Nueva programación creada con éxito.", "success");
             }
 
@@ -1315,10 +1317,12 @@ export const PreventivosPage: React.FC = () => {
                                                     onDragEnd={() => setDraggedEvent(null)}
                                                     style={{
                                                         padding: '1.5rem', borderBottom: '1px solid var(--glass-border)',
-                                                        display: 'flex', alignItems: 'center', gap: '1.5rem', transition: 'all 0.2s',
+                                                        display: 'flex', alignItems: 'center', gap: '1.5rem', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                                                         cursor: canDrag ? 'grab' : 'default',
                                                         opacity: draggedEvent?.id === e.id ? 0.4 : 1,
-                                                    }} className="hover:bg-amber-50/5">
+                                                        background: draggedEvent?.id === e.id ? 'rgba(var(--primary-rgb), 0.1)' : 'transparent',
+                                                        transform: draggedEvent?.id === e.id ? 'scale(0.98)' : 'scale(1)',
+                                                    }} className="hover:bg-white/[0.03] active:scale-[0.99]">
                                                     <button
                                                         onClick={() => { setEditingEvent(e); setShowEditModal(true); }}
                                                         style={{
@@ -1602,7 +1606,7 @@ export const PreventivosPage: React.FC = () => {
                                                             const dayInitial = date ? ['D', 'L', 'M', 'M', 'J', 'V', 'S'][date.getDay()] : '';
                                                             const isWeekend = date ? (date.getDay() === 0 || date.getDay() === 6) : false;
 
-                                                            const eventForDay = filteredEvents.find(e => {
+                                                            const eventForDay = eventsForMonthDist.find(e => {
                                                                 if (e.mes !== mIdx) return false;
                                                                 if (e.fechas.includes('-')) {
                                                                     const [start, end] = e.fechas.split('-').map(s => parseInt(s.trim()));
@@ -1693,94 +1697,100 @@ export const PreventivosPage: React.FC = () => {
 
                 {activeTab === 'directorio' && (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
-                        {sucursales.map(sucursal => (
-                            <div
-                                key={sucursal.id}
-                                onClick={() => {
-                                    setFilterSucursal(sucursal.id);
-                                    setRangeStart(0);
-                                    setRangeEnd(11);
-                                    setFilterFranquicia('todas');
-                                    setActiveTab('calendario');
-                                    setCalendarView('lista');
-                                    showNotification(`Mostrando plan preventivo para ${sucursal.nombre}`, "info");
-                                }}
-                                style={{
-                                    padding: '1.5rem', cursor: 'pointer', transition: 'all 0.3s',
-                                    border: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column'
-                                }}
-                                className="glass-card hover:scale-[1.02] hover:shadow-xl group"
-                            >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-                                    <div style={{
-                                        width: '48px', height: '48px', borderRadius: '12px',
-                                        background: 'rgba(255, 255, 255, 0.05)',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem',
-                                        overflow: 'hidden', border: '1px solid var(--glass-border)'
-                                    }}>
-                                        {(() => {
-                                            const f = franquicias.find(f => f.id === sucursal.franquiciaId);
-                                            if (f?.logoUrl) return <div style={{ background: f.colorFondo || 'white', width: '100%', height: '100%', display: 'flex', padding: '4px' }}><img src={f.logoUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} /></div>;
-                                            return '🏢';
-                                        })()}
-                                    </div>
-                                    <div style={{ flex: 1 }}>
-                                        <h4 style={{ fontWeight: '900', fontSize: '1rem', lineHeight: '1.2' }}>{sucursal.nombre}</h4>
-                                        <span style={{ fontSize: '0.6rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                            {franquicias.find(f => f.id === sucursal.franquiciaId)?.nombre || 'INDEPENDIENTE'}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)' }}>
-                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem', display: 'flex', gap: '0.5rem' }}>
-                                        <MapPin size={14} style={{ flexShrink: 0 }} />
-                                        {sucursal.direccion}
-                                    </p>
-                                    <div style={{
-                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                        fontSize: '0.65rem', padding: '0.65rem 0.85rem', background: 'rgba(0,0,0,0.2)',
-                                        borderRadius: '10px', color: 'var(--text-main)', border: '1px solid rgba(255,255,255,0.03)'
-                                    }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <div style={{ background: 'var(--primary)', width: '6px', height: '6px', borderRadius: '50%' }}></div>
-                                            <span style={{ fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                                {equipos.filter(eq => eq.sucursalId === sucursal.id).length} Equipos
+                        {sucursales
+                            .filter(sucursal => {
+                                const matchFran = filterFranquicia === 'todas' || sucursal.franquiciaId === filterFranquicia;
+                                const matchSuc = filterSucursal === 'todas' || sucursal.id === filterSucursal;
+                                return matchFran && matchSuc;
+                            })
+                            .map(sucursal => (
+                                <div
+                                    key={sucursal.id}
+                                    onClick={() => {
+                                        setFilterSucursal(sucursal.id);
+                                        setRangeStart(0);
+                                        setRangeEnd(11);
+                                        setFilterFranquicia('todas');
+                                        setActiveTab('calendario');
+                                        setCalendarView('lista');
+                                        showNotification(`Mostrando plan preventivo para ${sucursal.nombre}`, "info");
+                                    }}
+                                    style={{
+                                        padding: '1.5rem', cursor: 'pointer', transition: 'all 0.3s',
+                                        border: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column'
+                                    }}
+                                    className="glass-card hover:scale-[1.02] hover:shadow-xl group"
+                                >
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+                                        <div style={{
+                                            width: '48px', height: '48px', borderRadius: '12px',
+                                            background: 'rgba(255, 255, 255, 0.05)',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem',
+                                            overflow: 'hidden', border: '1px solid var(--glass-border)'
+                                        }}>
+                                            {(() => {
+                                                const f = franquicias.find(f => f.id === sucursal.franquiciaId);
+                                                if (f?.logoUrl) return <div style={{ background: f.colorFondo || 'white', width: '100%', height: '100%', display: 'flex', padding: '4px' }}><img src={f.logoUrl} style={{ width: '100%', height: '100%', objectFit: 'contain' }} /></div>;
+                                                return '🏢';
+                                            })()}
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                            <h4 style={{ fontWeight: '900', fontSize: '1rem', lineHeight: '1.2' }}>{sucursal.nombre}</h4>
+                                            <span style={{ fontSize: '0.6rem', fontWeight: '900', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                                {franquicias.find(f => f.id === sucursal.franquiciaId)?.nombre || 'INDEPENDIENTE'}
                                             </span>
                                         </div>
+                                    </div>
 
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                const lat = sucursal.coordenadas?.lat;
-                                                const lng = sucursal.coordenadas?.lng;
-                                                if (lat && lng) {
-                                                    window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
-                                                } else {
-                                                    window.open(`https://www.google.com/maps/search/${encodeURIComponent(sucursal.nombre + ' ' + sucursal.direccion)}`, '_blank');
-                                                }
-                                            }}
-                                            style={{
-                                                background: 'var(--bg-card)', border: '1px solid var(--glass-border)',
-                                                color: 'var(--primary)', padding: '0.4rem 0.6rem', borderRadius: '8px',
-                                                display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer',
-                                                transition: 'all 0.2s', fontWeight: '800', fontSize: '0.6rem'
-                                            }}
-                                            className="hover:bg-primary hover:text-white"
-                                        >
-                                            <MapPin size={12} />
-                                            VER MAPA
-                                        </button>
+                                    <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)' }}>
+                                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem', display: 'flex', gap: '0.5rem' }}>
+                                            <MapPin size={14} style={{ flexShrink: 0 }} />
+                                            {sucursal.direccion}
+                                        </p>
+                                        <div style={{
+                                            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                            fontSize: '0.65rem', padding: '0.65rem 0.85rem', background: 'rgba(0,0,0,0.2)',
+                                            borderRadius: '10px', color: 'var(--text-main)', border: '1px solid rgba(255,255,255,0.03)'
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                <div style={{ background: 'var(--primary)', width: '6px', height: '6px', borderRadius: '50%' }}></div>
+                                                <span style={{ fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                                    {equipos.filter(eq => eq.sucursalId === sucursal.id).length} Equipos
+                                                </span>
+                                            </div>
+
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const lat = sucursal.coordenadas?.lat;
+                                                    const lng = sucursal.coordenadas?.lng;
+                                                    if (lat && lng) {
+                                                        window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
+                                                    } else {
+                                                        window.open(`https://www.google.com/maps/search/${encodeURIComponent(sucursal.nombre + ' ' + sucursal.direccion)}`, '_blank');
+                                                    }
+                                                }}
+                                                style={{
+                                                    background: 'var(--bg-card)', border: '1px solid var(--glass-border)',
+                                                    color: 'var(--primary)', padding: '0.4rem 0.6rem', borderRadius: '8px',
+                                                    display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer',
+                                                    transition: 'all 0.2s', fontWeight: '800', fontSize: '0.6rem'
+                                                }}
+                                                className="hover:bg-primary hover:text-white"
+                                            >
+                                                <MapPin size={12} />
+                                                VER MAPA
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))}
                     </div>
                 )}
             </div>
 
             {/* --- PANEL DE ASIGNACIÓN PARA COORDINADOR (DRAG & DROP) --- */}
-            {(user?.rol === 'Coordinador' || isAdmin) && (
+            {(isCoordinador || isAdmin) && (
                 <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                         <div>
@@ -1808,7 +1818,10 @@ export const PreventivosPage: React.FC = () => {
                             .filter(t => {
                                 // Filtrar técnicos que tengan acceso a alguna de las sucursales filtradas o todas si no hay filtro
                                 const belongsToBranch = filterSucursal === 'todas' || (t.sucursalesPermitidas || []).includes(filterSucursal);
-                                const matchesRol = filterTecnicoPanel === 'todos' || (filterTecnicoPanel === 'internos' && t.rol === 'Tecnico') || (filterTecnicoPanel === 'externos' && t.rol === 'TecnicoExterno');
+                                // IRON LINK: Check for Nomenclature IDs (Safe fallback for transitions)
+                                const isInternal = t.rol === 'ROL_TECNICO' || t.rol === 'Tecnico';
+                                const isExternal = t.rol === 'ROL_TECNICO_EXTERNO' || t.rol === 'TecnicoExterno';
+                                const matchesRol = filterTecnicoPanel === 'todos' || (filterTecnicoPanel === 'internos' && isInternal) || (filterTecnicoPanel === 'externos' && isExternal);
                                 return belongsToBranch && matchesRol;
                             })
                             .map(tec => {

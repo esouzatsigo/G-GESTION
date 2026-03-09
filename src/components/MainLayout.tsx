@@ -87,7 +87,7 @@ const NavItem: React.FC<NavItemProps> = ({ icon: Icon, label, active, onClick, p
 );
 
 export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { user, isTecnico, isAdmin, isCoordinador, isGerente, isAdminCliente, isSuperAdmin, logout } = useAuth();
+    const { user, isTecnico, isAdmin, isCoordinador, isGerente, isAdminCliente, isSuperAdmin, logout, activeClienteNombre } = useAuth();
     const { hiddenIds, toggleVisibility } = usePanelPrefs(user?.id);
     const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
     const [theme, setTheme] = React.useState<'light' | 'dark'>(() => {
@@ -275,6 +275,10 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
                                     {(isAdmin || isSuperAdmin) && (
                                         <>
                                             <NavItem
+                                                icon={Database} label="Catálogos Dinámicos" active={isPathActive('/catalogos')} onClick={() => handleNavigation('/catalogos')}
+                                                panelId="CATALOGOS_GRAL" isInPanel={!hiddenIds.includes("CATALOGOS_GRAL")} onTogglePanel={toggleVisibility}
+                                            />
+                                            <NavItem
                                                 icon={Users} label="Clientes" active={isPathActive('/clientes')} onClick={() => handleNavigation('/clientes')}
                                                 panelId="CLIENTES" isInPanel={!hiddenIds.includes("CLIENTES")} onTogglePanel={toggleVisibility}
                                             />
@@ -397,32 +401,37 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-                        {user?.clienteNombre && (
-                            <div style={{
-                                fontSize: '0.85rem',
-                                fontWeight: '900',
-                                color: '#10b981',
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.15em',
-                                marginBottom: '4px',
-                                opacity: 1,
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px'
-                            }}>
-                                <Store size={14} /> {user.clienteNombre}
-                            </div>
-                        )}
-                        <div style={{ fontSize: '0.9rem', fontWeight: '800', letterSpacing: '0.02em', color: 'var(--primary-light)' }}>
+                        {/* REGLA DE HIERRO: Identidad Veraz en Header */}
+                        {(() => {
+                            const displayClient = user?.clienteNombre || activeClienteNombre;
+                            if (!displayClient) return null;
+                            return (
+                                <div style={{
+                                    fontSize: '1.4rem',
+                                    fontWeight: '900',
+                                    color: '#10b981',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.1em',
+                                    marginBottom: '4px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    textShadow: '0 0 20px rgba(16, 185, 129, 0.3)'
+                                }}>
+                                    <Store size={20} /> {displayClient.toUpperCase()}
+                                </div>
+                            );
+                        })()}
+                        <div style={{ fontSize: '1.2rem', fontWeight: '800', letterSpacing: '0.02em', color: 'var(--primary-light)', lineHeight: '1.2' }}>
                             {user?.nombre?.toUpperCase()}
                         </div>
-                        <div style={{ fontSize: '0.65rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '2px' }}>
                             {user?.rol}
                         </div>
                     </div>
 
                     <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                        {user?.rol === 'Admin' && <AdminClientSelector />}
+                        {user?.rol === 'Admin General' && <AdminClientSelector />}
                         <button
                             onClick={toggleTheme}
                             style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}

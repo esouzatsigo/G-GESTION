@@ -301,3 +301,89 @@ table,
 .custom-range-slider::-moz-range-progress {
   background: transparent;
 }
+
+/* ═══════════════════════════════════════════════
+   PREMIUM DESIGN ADDITIONS (IRON LINK COMPLIANT)
+   ═══════════════════════════════════════════════ */
+:root {
+  --premium-glass: rgba(255, 255, 255, 0.03);
+  --premium-border: rgba(255, 255, 255, 0.08);
+  --premium-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+  --glow-primary: 0 0 15px rgba(79, 70, 229, 0.3);
+  /* Hex 4f46e5 as RGBA */
+}
+
+.premium-card {
+  background: var(--premium-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--premium-border);
+  border-radius: 20px;
+  box-shadow: var(--premium-shadow);
+  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+.premium-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(79, 70, 229, 0.4);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.9), 0 0 20px rgba(79, 70, 229, 0.2);
+}
+
+.status-ribbon {
+  position: relative;
+  overflow: hidden;
+}
+
+.status-ribbon::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: currentColor;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.modern-table-row {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.modern-table-row:hover {
+  background: rgba(79, 70, 229, 0.05) !important;
+  transform: scale(1.002);
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
+
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Glass Tabs */
+.glass-tabs {
+  background: rgba(255, 255, 255, 0.02);
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
+}
+
+.glass-tab-active {
+  background: var(--primary);
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+}

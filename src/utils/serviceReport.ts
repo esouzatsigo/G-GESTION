@@ -69,12 +69,15 @@ export const generateServiceReport = async (
                 for (let i = 0; i < data.length; i += 4) {
                     const alpha = data[i + 3];
                     const r = data[i], g = data[i + 1], b = data[i + 2];
-                    const isColor = (r < 240 || g < 240 || b < 240);
+                    // Un pixel se considera parte del trazo si es oscuro (r,g,b < 220)
+                    const isColor = (r < 220 || g < 220 || b < 220);
 
-                    if (alpha > 40 || isColor) {
+                    // Solo convertimos a negro lo que tenga opacidad ALTA y sea OSCURO
+                    if (alpha > 40 && isColor) {
                         data[i] = 0; data[i + 1] = 0; data[i + 2] = 0;
                         data[i + 3] = 255;
                     } else {
+                        // Todo lo demás (fondo blanco o transparente) se vuelve blanco puro
                         data[i] = 255; data[i + 1] = 255; data[i + 2] = 255;
                         data[i + 3] = 255;
                     }
@@ -101,17 +104,20 @@ export const generateServiceReport = async (
     doc.setFontSize(32);
     doc.text('T-GESTION', margin, 20);
 
-    doc.setFontSize(10);
-    doc.setTextColor(102, 102, 102);
-    doc.text('SOLUCIONES DE LOGÍSTICA Y TRANSPORTE', margin, 26);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text('SOLUCIONES EN LOGÍSTICA Y TRANSPORTE', margin, 26);
+
+    // Priority Color Logic
+    const priorityColor = ot.prioridad === 'ALTA' ? [239, 68, 68] : ot.prioridad === 'MEDIA' ? [245, 158, 11] : [34, 197, 94];
 
     doc.setTextColor(51, 65, 85);
     doc.setFontSize(22);
     doc.text('HOJA DE SERVICIO', pageWidth - margin, 18, { align: 'right' });
 
-    doc.setTextColor(239, 68, 68);
+    doc.setTextColor(priorityColor[0], priorityColor[1], priorityColor[2]);
     doc.setFontSize(18);
-    doc.text(`OT #${ot.numero}`, pageWidth - margin, 26, { align: 'right' });
+    doc.text(ot.tipo === 'Preventivo' ? `OT P-${ot.numero}` : `OT #${ot.numero}`, pageWidth - margin, 26, { align: 'right' });
 
     doc.setDrawColor(blueNavy[0], blueNavy[1], blueNavy[2]);
     doc.setLineWidth(0.8);
@@ -140,9 +146,9 @@ export const generateServiceReport = async (
     doc.setTextColor(0);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold'); doc.text('FRANQUICIA:', margin + 3, currentY + 14);
-    doc.setFont('helvetica', 'normal'); doc.text(franquicia?.nombre || cliente.nombre || '—', margin + 22, currentY + 14);
+    doc.setFont('helvetica', 'normal'); doc.text(franquicia?.nombre || cliente.nombre || '—', margin + 28, currentY + 14);
     doc.setFont('helvetica', 'bold'); doc.text('SUCURSAL:', margin + 3, currentY + 20);
-    doc.setFont('helvetica', 'normal'); doc.text(sucursal.nombre || '—', margin + 25, currentY + 20);
+    doc.setFont('helvetica', 'normal'); doc.text(sucursal.nombre || '—', margin + 26, currentY + 20);
     doc.setFontSize(8);
     doc.setFont('helvetica', 'bold'); doc.text('DIRECCIÓN:', margin + 3, currentY + 25);
     const dirTxt = doc.splitTextToSize(sucursal.direccion || '—', colW - 25);
@@ -151,7 +157,7 @@ export const generateServiceReport = async (
     drawBox(margin + colW + 6, currentY, colW, 28, 'INFORMACIÓN DEL SERVICIO');
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold'); doc.text('FECHA SOLICITUD:', margin + colW + 9, currentY + 14);
-    doc.setFont('helvetica', 'normal'); doc.text(ot.fechas.solicitada ? new Date(ot.fechas.solicitada).toLocaleDateString() : '—', margin + colW + 45, currentY + 14);
+    doc.setFont('helvetica', 'normal'); doc.text(ot.fechas.solicitada ? new Date(ot.fechas.solicitada).toLocaleDateString() : '—', margin + colW + 46, currentY + 14);
     doc.setFont('helvetica', 'bold'); doc.text('ESTATUS:', margin + colW + 9, currentY + 20);
     doc.setFont('helvetica', 'normal'); doc.text((ot.estatus || '—').toUpperCase(), margin + colW + 28, currentY + 20);
     doc.setFont('helvetica', 'bold'); doc.text('TIPO:', margin + colW + 9, currentY + 25);
@@ -165,9 +171,19 @@ export const generateServiceReport = async (
     doc.setFont('helvetica', 'bold'); doc.text('NOMBRE:', margin + 3, currentY + 14);
     doc.setFont('helvetica', 'normal'); doc.text(equipo.nombre || '—', margin + 22, currentY + 14);
     doc.setFont('helvetica', 'bold'); doc.text('FAMILIA:', margin + 100, currentY + 14);
-    doc.setFont('helvetica', 'normal'); doc.text(equipo.familia || '—', margin + 118, currentY + 14);
-    doc.setFont('helvetica', 'bold'); doc.text('ID:', margin + contentWidth - 30, currentY + 14);
-    doc.setFont('helvetica', 'normal'); doc.text(String(equipo.id || '—'), margin + contentWidth - 24, currentY + 14);
+
+    const familiaMap: Record<string, string> = {
+        'ESP_REFRIGERACION': 'Refrigeración',
+        'ESP_COCCION': 'Cocción',
+        'ESP_GENERADORES': 'Generadores',
+        'ESP_AGUA': 'Agua',
+        'ESP_AIRES': 'Aires',
+        'ESP_COCINA': 'Cocina',
+        'ESP_RESTAURANTE': 'Restaurante',
+        'ESP_LOCAL': 'Local'
+    };
+    const familiaNombre = familiaMap[equipo.familia] || equipo.familia || '—';
+    doc.setFont('helvetica', 'normal'); doc.text(familiaNombre, margin + 118, currentY + 14);
 
     currentY += 25;
 

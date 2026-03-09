@@ -1,14 +1,14 @@
 import {
     collection,
-    addDoc,
-    updateDoc,
     doc,
     getDoc,
     getDocs,
     query,
     where,
-    runTransaction
+    runTransaction,
+    deleteDoc
 } from 'firebase/firestore';
+import { trackedAddDoc, trackedUpdateDoc } from './firestoreHelpers';
 import { db } from './firebase';
 import type { Cliente, Franquicia, Sucursal, Equipo, WorkOrder, User } from '../types';
 import { notificarNuevaOT, notificarTecnicoAsignacion, notificarAsignacionOT, notificarCambioOT } from './notificationService';
@@ -26,6 +26,7 @@ export interface BitacoraEntry {
     valorAnterior: any;
     valorNuevo: any;
     isSuperAdminAction?: boolean;
+    collectionName?: string;
 }
 
 export interface PreventivoPlanEntry {
@@ -69,7 +70,7 @@ export const saveCliente = async (cliente: Omit<Cliente, 'id'>, user: User, id?:
         const oldSnap = await getDoc(docRef);
         const oldData = oldSnap.data() as Cliente;
 
-        await updateDoc(docRef, cliente);
+        await trackedUpdateDoc(docRef, cliente);
 
         // Auditar cambios de campos relevantes
         const fields = ['nombre', 'razonSocial'] as (keyof Cliente)[];
@@ -91,7 +92,7 @@ export const saveCliente = async (cliente: Omit<Cliente, 'id'>, user: User, id?:
         }
         return id;
     } else {
-        const docRef = await addDoc(collection(db, 'clientes'), cliente);
+        const docRef = await trackedAddDoc(collection(db, 'clientes'), cliente);
         await logBitacora({
             clienteId: 'ADMIN',
             otId: 'CATALOG_CLIENTE',
@@ -104,6 +105,23 @@ export const saveCliente = async (cliente: Omit<Cliente, 'id'>, user: User, id?:
             valorAnterior: 'N/A',
             valorNuevo: `Cliente: ${cliente.nombre} / ${cliente.razonSocial}`
         });
+
+        // REGLA DE NEGOCIO: Sembrar Catálogos Base (Globales) al nuevo cliente.
+        try {
+            const qGlobal = query(collection(db, 'catalogos'), where('clienteId', '==', 'ADMIN'));
+            const globalSnap = await getDocs(qGlobal);
+            const globalCatalogs = globalSnap.docs.map(doc => doc.data());
+
+            const promises = globalCatalogs.map(cat => {
+                const newCat = { ...cat, clienteId: docRef.id };
+                return trackedAddDoc(collection(db, 'catalogos'), newCat);
+            });
+            await Promise.all(promises);
+            console.log(`Sembrados ${globalCatalogs.length} catálogos base para el nuevo cliente ${cliente.nombre}.`);
+        } catch (error) {
+            console.error("Error al sembrar catálogos base para el cliente nuevo:", error);
+        }
+
         return docRef.id;
     }
 };
@@ -132,20 +150,216 @@ export const getSucursales = async (targetClienteId?: string | null, franquiciaI
 };
 
 // --- Servicios de Equipos ---
+// FIX: Query con máximo 2 filtros Firestore (sucursalId + clienteId) para evitar
+// dependencia de índice compuesto de 3 campos. Familia se filtra client-side.
 export const getEquipos = async (sucursalId: string, familia?: string, targetClienteId?: string | null) => {
-    let q = query(collection(db, 'equipos'));
+    let q = query(collection(db, 'equipos'), where('sucursalId', '==', sucursalId));
     if (targetClienteId && targetClienteId !== 'ADMIN') {
         q = query(q, where('clienteId', '==', targetClienteId));
     }
-    if (sucursalId) {
-        q = query(q, where('sucursalId', '==', sucursalId));
-    }
+    const snapshot = await getDocs(q);
+    let results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Equipo));
     if (familia) {
-        q = query(q, where('familia', '==', familia));
+        results = results.filter(e => e.familia === familia);
+    }
+    return results;
+};
+
+// --- Servicios de Catálogos ---
+export const getCatalogos = async (targetClienteId?: string | null) => {
+    let q = query(collection(db, 'catalogos'));
+    if (targetClienteId) {
+        q = query(q, where('clienteId', '==', targetClienteId));
     }
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Equipo));
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
 };
+
+export const saveCatalogo = async (catalogo: any, user: any, id?: string) => {
+    if (id) {
+        const docRef = doc(db, 'catalogos', id);
+        const oldSnap = await getDoc(docRef);
+        const oldData = oldSnap.data() as any;
+
+        await trackedUpdateDoc(docRef, catalogo);
+
+        const fields = ['nombre', 'categoria', 'nomenclatura', 'descripcion', 'colorFondo'];
+        for (const field of fields) {
+            if (catalogo[field] !== oldData[field]) {
+                await logBitacora({
+                    clienteId: catalogo.clienteId,
+                    otId: id,
+                    otNumero: 0,
+                    fecha: new Date().toISOString(),
+                    usuarioId: user.id,
+                    usuarioNombre: user.nombre,
+                    accion: `Edición de Catálogo: ${catalogo.nombre}`,
+                    campo: field,
+                    valorAnterior: oldData[field] || 'Vacio',
+                    valorNuevo: catalogo[field],
+                    collectionName: 'catalogos'
+                });
+            }
+        }
+        return id;
+    } else {
+        const docRef = await trackedAddDoc(collection(db, 'catalogos'), catalogo);
+        await logBitacora({
+            clienteId: catalogo.clienteId,
+            otId: docRef.id,
+            otNumero: 0,
+            fecha: new Date().toISOString(),
+            usuarioId: user.id,
+            usuarioNombre: user.nombre,
+            accion: `Creación de Registro de Catálogo`,
+            campo: 'General',
+            valorAnterior: 'N/A',
+            valorNuevo: `Registro: ${catalogo.nombre} / ${catalogo.categoria}`,
+            collectionName: 'catalogos'
+        });
+        return docRef.id;
+    }
+};
+
+export const getBitacoraCatalogos = async () => {
+    const q = query(collection(db, 'bitacora'));
+    const snapshot = await getDocs(q);
+    const allEntries = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BitacoraEntry));
+    const recent = allEntries.filter(e => e.accion.includes('Edición de Catálogo'));
+    recent.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+    return recent.slice(0, 50);
+};
+
+
+/**
+ * MOTOR DE REVERSIÓN UNIVERSAL — ANÁLISIS DE IMPACTO (Hardcodeado)
+ * Evalúa el riesgo de revertir un campo en una colección antes de ejecutar el cambio.
+ *
+ * Niveles de impacto:
+ *  - 'safe'    → Se permite sin restricción.
+ *  - 'warning' → Se permite, pero se advierte al usuario.
+ *  - 'blocked' → Se NIEGA la operación y se informa el motivo.
+ */
+export interface UndoImpactResult {
+    level: 'safe' | 'warning' | 'blocked';
+    message: string;
+}
+
+export const checkUndoImpact = (collectionName: string, campo: string): UndoImpactResult => {
+
+    // ── REGLA 1: clienteId es SIEMPRE bloqueado en CUALQUIER colección ──
+    if (campo === 'clienteId') {
+        return {
+            level: 'blocked',
+            message: `❌ BLOQUEADO: Revertir el campo "clienteId" en "${collectionName}" violaría el aislamiento de datos entre empresas (Multi-Tenant). Esta operación está permanentemente bloqueada por seguridad.`
+        };
+    }
+
+    // ── REGLA 2: email de usuario — afecta la autenticación directamente ──
+    if (collectionName === 'usuarios' && campo === 'email') {
+        return {
+            level: 'blocked',
+            message: `❌ BLOQUEADO: Revertir el correo electrónico de un usuario puede impedir su acceso al sistema. Corrija el email directamente desde el módulo de Usuarios.`
+        };
+    }
+
+    // ── REGLA 3: rol de usuario — acceso y flujo de OTs ──
+    if (collectionName === 'usuarios' && campo === 'rol') {
+        return {
+            level: 'blocked',
+            message: `❌ BLOQUEADO: Revertir el Rol de un usuario activo puede cambiar sus permisos de acceso, romper el flujo de Órdenes de Trabajo asignadas y afectar la visibilidad de módulos. Cambie el rol directamente desde el módulo de Usuarios para asegurarse de que las asignaciones activas sean revisadas.`
+        };
+    }
+
+    // ── REGLA 4: nomenclatura de catálogo — EL VÍNCULO DE HIERRO ──
+    if (collectionName === 'catalogos' && campo === 'nomenclatura') {
+        return {
+            level: 'blocked',
+            message: `❌ BLOQUEADO: El campo "nomenclatura" es el Identificador Único (Vínculo de Hierro) que conecta este catálogo con Usuarios y Equipos. Revertirlo rompería todas las relaciones activas del sistema.`
+        };
+    }
+
+    // ── REGLA 5: sucursalId de equipo — OTs abiertas del equipo en sucursal incorrecta ──
+    if (collectionName === 'equipos' && campo === 'sucursalId') {
+        return {
+            level: 'blocked',
+            message: `❌ BLOQUEADO: Revertir la Sucursal de un equipo puede dejar Órdenes de Trabajo abiertas vinculadas a una ubicación incorrecta. Reasigne la sucursal directamente desde el módulo de Equipos, revisando primero las OTs activas del equipo.`
+        };
+    }
+
+    // ── REGLA 6: franquiciaId de sucursal — rompe jerarquía Org → Franquicia → Sucursal ──
+    if (collectionName === 'sucursales' && campo === 'franquiciaId') {
+        return {
+            level: 'blocked',
+            message: `❌ BLOQUEADO: Cambiar la Franquicia a la que pertenece una Sucursal afecta la estructura organizacional completa y puede romper los permisos de usuarios vinculados a esa franquicia. Realice este cambio desde el módulo de Sucursales.`
+        };
+    }
+
+    // ── REGLA 7: advertencias — impacto medio ──
+    const warningCases: Record<string, Record<string, string>> = {
+        'usuarios': {
+            'nombre': '⚠️ ADVERTENCIA: El nombre del usuario puede aparecer desnormalizado en Órdenes de Trabajo históricas. Este cambio no actualizará los reportes anteriores.',
+            'rol': '⚠️ ADVERTENCIA: Revertir el ROL puede afectar los permisos de acceso. Al usar el "Vínculo de Hierro", el cambio es estético pero funcional.',
+            'especialidad': '⚠️ ADVERTENCIA: Revertir la especialidad del usuario puede afectar los filtros de asignación de OTs futuras.',
+        },
+        'equipos': {
+            'nombre': '⚠️ ADVERTENCIA: El nombre del equipo puede estar desnormalizado en Órdenes de Trabajo históricas. Este cambio no actualizará los reportes anteriores.',
+            'familia': '⚠️ ADVERTENCIA: Revertir la familia del equipo puede afectar los filtros de consulta y asignación de OTs futuras.',
+        },
+        'sucursales': {
+            'nombre': '⚠️ ADVERTENCIA: El nombre de la sucursal puede estar referenciado en Órdenes de Trabajo históricas. Este cambio no actualizará los reportes anteriores.',
+        },
+        'franquicias': {
+            'nombre': '⚠️ ADVERTENCIA: El nombre de la franquicia aparece en reportes y pantallas de selección. Este cambio es visual y no afecta datos operativos.',
+        },
+        'clientes': {
+            'nombre': '⚠️ ADVERTENCIA: El nombre del cliente aparece en reportes y encabezados. Este cambio es visual y no afecta datos operativos.',
+            'razonSocial': '⚠️ ADVERTENCIA: La razón social aparece en reportes PDF. Este cambio es visual y no afecta datos operativos.',
+        },
+        'catalogos': {
+            'nombre': '⚠️ ADVERTENCIA: El nombre es puramente estético gracias al "Vínculo de Hierro", pero puede confundir a los usuarios si se revierte a un nombre obsoleto.',
+            'categoria': '⚠️ ADVERTENCIA: Cambiar la categoría del registro puede afectar su visibilidad en los filtros del módulo de Catálogos.',
+        }
+    };
+
+    const warningMsg = warningCases[collectionName]?.[campo];
+    if (warningMsg) {
+        return { level: 'warning', message: warningMsg };
+    }
+
+    // ── DEFAULT: Seguro ──
+    return {
+        level: 'safe',
+        message: 'El cambio puede revertirse de forma segura. Este campo no tiene dependencias críticas.'
+    };
+};
+
+export const undoUniversalChange = async (entry: BitacoraEntry): Promise<UndoImpactResult> => {
+    if (!entry.id || !entry.otId || !entry.collectionName) {
+        throw new Error("Entrada inválida o sin colección definida.");
+    }
+
+    // --- ANÁLISIS DE IMPACTO ---
+    const impact = checkUndoImpact(entry.collectionName, entry.campo);
+
+    if (impact.level === 'blocked') {
+        // Devolvemos el resultado para que la UI lo maneje y muestre el mensaje al usuario.
+        // NO ejecutamos el cambio.
+        return impact;
+    }
+
+    // Si es 'warning' o 'safe', procedemos con la reversión.
+    const docRef = doc(db, entry.collectionName, entry.otId);
+    const updateData: any = {};
+    updateData[entry.campo] = entry.valorAnterior;
+    await trackedUpdateDoc(docRef, updateData);
+
+    // Eliminar la entrada de la bitácora para mantener la línea temporal limpia.
+    await deleteDoc(doc(db, 'bitacora', entry.id));
+
+    return impact; // Devolvemos 'safe' o 'warning' para que la UI decida si mostrar algo.
+};
+
 
 // --- Gestión de Números de OT (Consecutivo Único Atómico) ---
 export const getNextOTNumber = async (clienteId: string, tipo: 'Correctivo' | 'Preventivo' = 'Correctivo') => {
@@ -177,7 +391,7 @@ export const getCounterConfig = async (clienteId: string) => {
 // --- Servicios de Ordenes de Trabajo (OT) ---
 export const createOT = async (ot: Omit<WorkOrder, 'id' | 'numero'>, user: User) => {
     const numero = await getNextOTNumber(ot.clienteId, ot.tipo);
-    const docRef = await addDoc(collection(db, 'ordenesTrabajo'), {
+    const docRef = await trackedAddDoc(collection(db, 'ordenesTrabajo'), {
         ...ot,
         numero,
         fechas: {
@@ -205,7 +419,7 @@ export const createOT = async (ot: Omit<WorkOrder, 'id' | 'numero'>, user: User)
         const coordQuery = query(
             collection(db, 'usuarios'),
             where('clienteId', '==', ot.clienteId),
-            where('rol', '==', 'Coordinador')
+            where('rol', '==', 'ROL_COORD')
         );
         const coordSnap = await getDocs(coordQuery);
         let sucDisplay = ot.sucursalId || 'Sin sucursal';
@@ -280,7 +494,7 @@ export const createMassivePreventiveOTsV2 = async (
             solicitanteId: 'SYSTEM_PLANNER'
         };
 
-        const docRef = await addDoc(collection(db, 'ordenesTrabajo'), newOT);
+        const docRef = await trackedAddDoc(collection(db, 'ordenesTrabajo'), newOT);
         otIds.push(docRef.id);
     }
 
@@ -297,7 +511,7 @@ export const createMassivePreventiveOTsV2 = async (
         otIdsAfectados: otIds,
     };
 
-    const batchRef = await addDoc(collection(db, 'massiveBatchRecords'), batchRecord);
+    const batchRef = await trackedAddDoc(collection(db, 'massiveBatchRecords'), batchRecord);
 
     await logBitacora({
         clienteId: sucursal.clienteId,
@@ -378,7 +592,7 @@ export const getFullMassiveOTsForEvent = async (eventId: string) => {
 /** Mantener compatibilidad con el código existente */
 export const getExistingOTsForEvent = async (eventId: string, user?: User) => {
     let q = query(collection(db, 'ordenesTrabajo'), where('preventivoPlanId', '==', eventId));
-    if (user && user.rol !== 'Admin' && user.clienteId !== 'ADMIN') {
+    if (user && user.rol !== 'ROL_ADMIN' && user.clienteId !== 'ADMIN') {
         q = query(q, where('clienteId', '==', user.clienteId));
     }
     const snap = await getDocs(q);
@@ -434,7 +648,7 @@ export const updateMassiveBatchOTs = async (
         // REGLA DE NEGOCIO: Especialidad de Técnico Externo
         if (change.newTecnicoId) {
             const targetTec = allTecnicos.find(t => t.id === change.newTecnicoId);
-            if (targetTec?.rol === 'TecnicoExterno') {
+            if (targetTec?.rol === 'ROL_TECNICO_EXTERNO' || targetTec?.rol === 'TecnicoExterno') {
                 // Necesitamos saber la familia del equipo
                 const eqSnap = await getDoc(doc(db, 'equipos', currentOT.equipoId));
                 const eqData = eqSnap.data() as Equipo;
@@ -550,7 +764,7 @@ export const updateMassiveBatchOTs = async (
 
         // Ejecutar la actualización
         if (Object.keys(updateData).length > 1) { // > 1 porque updatedAt siempre está
-            await updateDoc(otRef, updateData);
+            await trackedUpdateDoc(otRef, updateData);
             totalModificadas++;
             otIdsAfectados.push(change.otId);
 
@@ -575,12 +789,12 @@ export const updateMassiveBatchOTs = async (
         otIdsAfectados,
     };
 
-    const batchRef = await addDoc(collection(db, 'massiveBatchRecords'), batchRecord);
+    const batchRef = await trackedAddDoc(collection(db, 'massiveBatchRecords'), batchRecord);
 
     // 4. Registrar cambios granulares con referencia al batch
     for (const change of batchChanges) {
         change.batchRecordId = batchRef.id;
-        await addDoc(collection(db, 'massiveBatchChanges'), change);
+        await trackedAddDoc(collection(db, 'massiveBatchChanges'), change);
     }
 
     return { totalModificadas, conflictos, batchRecordId: batchRef.id };
@@ -621,7 +835,7 @@ export const updateCounterConfig = async (clienteId: string, otNumber: number, p
     const oldSnap = await getDoc(counterRef);
     const oldData = oldSnap.exists() ? oldSnap.data() : { otNumber: 0, preventiveOtNumber: 0 };
 
-    await updateDoc(counterRef, { otNumber, preventiveOtNumber });
+    await trackedUpdateDoc(counterRef, { otNumber, preventiveOtNumber });
 
     // Auditar cambio de folios
     if (oldData.otNumber !== otNumber) {
@@ -663,7 +877,7 @@ export const updateOTStatus = async (otId: string, status: string, user: User, a
     const timestampField = `fechas.${status.toLowerCase().replace(/ /g, '')}`;
     updateData[timestampField] = new Date().toISOString();
 
-    await updateDoc(otRef, { ...updateData, ...additionalData });
+    await trackedUpdateDoc(otRef, { ...updateData, ...additionalData });
 
     // Auditoría de cambio de estado
     await logBitacora({
@@ -682,16 +896,16 @@ export const updateOTStatus = async (otId: string, status: string, user: User, a
 
 // --- Bitácora de Auditoría ---
 export const logBitacora = async (entry: Omit<BitacoraEntry, 'id'>) => {
-    await addDoc(collection(db, 'bitacora'), entry);
+    await trackedAddDoc(collection(db, 'bitacora'), entry);
 };
 
 export const addBitacoraEntry = async (entry: any) => {
-    await addDoc(collection(db, 'bitacora'), entry);
+    await trackedAddDoc(collection(db, 'bitacora'), entry);
 };
 
 export const getWorkOrders = async (user?: User) => {
     let q = query(collection(db, 'ordenesTrabajo'));
-    if (user && user.rol !== 'Admin' && user.clienteId !== 'ADMIN') {
+    if (user && user.rol !== 'Admin General' && user.clienteId !== 'ADMIN') {
         q = query(q, where('clienteId', '==', user.clienteId));
     }
     const snapshot = await getDocs(q);
@@ -699,12 +913,12 @@ export const getWorkOrders = async (user?: User) => {
 };
 
 export const updateWorkOrder = async (id: string, data: Partial<WorkOrder>) => {
-    await updateDoc(doc(db, 'ordenesTrabajo', id), { ...data, updatedAt: new Date().toISOString() });
+    await trackedUpdateDoc(doc(db, 'ordenesTrabajo', id), { ...data });
 };
 
 export const getUsuarios = async (user?: User) => {
     let q = query(collection(db, 'usuarios'));
-    if (user && user.rol !== 'Admin' && user.clienteId !== 'ADMIN') {
+    if (user && user.rol !== 'Admin General' && user.clienteId !== 'ADMIN') {
         q = query(q, where('clienteId', '==', user.clienteId));
     }
     const snapshot = await getDocs(q);
@@ -754,7 +968,7 @@ export const updateOTWithAudit = async (
                 valorNuevo: change.new
             });
         }
-        await updateDoc(doc(db, 'ordenesTrabajo', otId), newData);
+        await trackedUpdateDoc(doc(db, 'ordenesTrabajo', otId), newData);
 
         // *** NOTIFICACIONES según rol y tipo de cambio ***
         try {
@@ -818,9 +1032,20 @@ export const logEntityChange = async (
 ) => {
     const { clienteId, entityName, entityId, otNumero, oldData, newData, user, fieldsToTrack, customAction } = params;
 
+    // Mapa para inferir la colección de Firestore basada en el nombre de la entidad UI
+    const collectionMap: Record<string, string> = {
+        'Usuario': 'usuarios',
+        'Equipo': 'equipos',
+        'Sucursal': 'sucursales',
+        'Franquicia': 'franquicias',
+        'Catálogo': 'catalogos',
+        'Cliente': 'clientes'
+    };
+    const collectionName = collectionMap[entityName] || '';
+
     if (!oldData) {
         // Es creación
-        const isSuperAdminAction = user.rol === 'Admin' && user.clienteId === 'ADMIN';
+        const isSuperAdminAction = user.rol === 'Admin General' && user.clienteId === 'ADMIN';
         await logBitacora({
             clienteId,
             otId: entityId,
@@ -832,13 +1057,14 @@ export const logEntityChange = async (
             campo: 'General',
             valorAnterior: 'N/A',
             valorNuevo: `Registro creado exitosamente.`,
-            isSuperAdminAction
+            isSuperAdminAction,
+            collectionName
         });
         return;
     }
 
     // Es edición
-    const isSuperAdminAction = user.rol === 'Admin' && user.clienteId === 'ADMIN';
+    const isSuperAdminAction = user.rol === 'Admin General' && user.clienteId === 'ADMIN';
 
     for (const field of fieldsToTrack) {
         if (newData[field] !== undefined && newData[field] !== oldData[field]) {
@@ -853,7 +1079,8 @@ export const logEntityChange = async (
                 campo: field,
                 valorAnterior: oldData[field] || 'Vacio',
                 valorNuevo: newData[field],
-                isSuperAdminAction
+                isSuperAdminAction,
+                collectionName
             });
         }
     }
@@ -862,7 +1089,7 @@ export const logEntityChange = async (
 // --- Servicios de Plan Preventivo 2026 ---
 export const getPlanPreventivo = async (user?: User) => {
     let q = query(collection(db, 'planPreventivo2026'));
-    if (user && user.rol !== 'Admin' && user.clienteId !== 'ADMIN') {
+    if (user && user.rol !== 'Admin General' && user.clienteId !== 'ADMIN') {
         q = query(q, where('clienteId', '==', user.clienteId));
     }
     const snapshot = await getDocs(q);
@@ -897,7 +1124,7 @@ export const updatePreventivoPlan = async (
 
     if (changes.length > 0) {
         // Guardar en Bitácora
-        await addDoc(collection(db, 'bitacoraPreventivos2026'), {
+        await trackedAddDoc(collection(db, 'bitacoraPreventivos2026'), {
             planId,
             fecha: new Date().toISOString(),
             usuarioId: user.id,
@@ -911,7 +1138,7 @@ export const updatePreventivoPlan = async (
         });
 
         // Actualizar en Firestore (usando solo los campos limpios sin el 'id')
-        await updateDoc(doc(db, 'planPreventivo2026', planId), dataToUpdate);
+        await trackedUpdateDoc(doc(db, 'planPreventivo2026', planId), dataToUpdate);
     }
 };
 
@@ -924,7 +1151,7 @@ export const undoPreventivoChange = async (auditEntry: BitacoraPreventivo) => {
     // Eliminamos el registro de la bitácora (o lo marcamos como deshecho)
     // Para simplificar según lo pedido "reversar en orden cronológico", 
     // en el componente buscaremos el último y llamaremos a esta función.
-    await updateDoc(doc(db, 'planPreventivo2026', auditEntry.planId), reverseData);
+    await trackedUpdateDoc(doc(db, 'planPreventivo2026', auditEntry.planId), reverseData);
     if (auditEntry.id) {
         // En un escenario real borraríamos o marcaríamos, aquí eliminamos para que el "siguiente último" sea el anterior
         const { deleteDoc } = await import('firebase/firestore');
@@ -945,7 +1172,7 @@ export const importPreventivoPlan = async (newData: Omit<PreventivoPlanEntry, 'i
 
     if (clearExisting) {
         let q = query(collection(db, 'planPreventivo2026'));
-        if (user && user.rol !== 'Admin' && user.clienteId !== 'ADMIN') {
+        if (user && user.rol !== 'Admin General' && user.clienteId !== 'ADMIN') {
             q = query(q, where('clienteId', '==', user.clienteId));
         }
         const snapshot = await getDocs(q);

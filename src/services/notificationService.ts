@@ -8,7 +8,8 @@
  *   tipo (NUEVA_OT | ASIGNACION_OT | MASIVA_PREVENTIVA | CAMBIO_OT),
  *   titulo, mensaje, otId?, otNumero?, fecha, leida, leidaEn?
  */
-import { collection, addDoc, getDocs, query, where, updateDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc } from 'firebase/firestore';
+import { trackedAddDoc, trackedUpdateDoc } from './firestoreHelpers';
 import { db } from './firebase';
 
 export interface Notificacion {
@@ -49,7 +50,7 @@ export const crearNotificacion = async (notif: Omit<Notificacion, 'id' | 'leida'
         fecha: new Date().toISOString(),
         leida: false,
     };
-    const docRef = await addDoc(collection(db, 'notificaciones'), data);
+    const docRef = await trackedAddDoc(collection(db, 'notificaciones'), data);
     return docRef.id;
 };
 
@@ -247,7 +248,7 @@ export const getNotificacionesLeidas = async (userId: string): Promise<Notificac
  * Marca una notificación como leída.
  */
 export const marcarComoLeida = async (notifId: string) => {
-    await updateDoc(doc(db, 'notificaciones', notifId), {
+    await trackedUpdateDoc(doc(db, 'notificaciones', notifId), {
         leida: true,
         leidaEn: new Date().toISOString(),
     });
@@ -260,6 +261,6 @@ export const marcarTodasComoLeidas = async (userId: string) => {
     const noLeidas = await getNotificacionesNoLeidas(userId);
     const ahora = new Date().toISOString();
     await Promise.all(
-        noLeidas.map(n => updateDoc(doc(db, 'notificaciones', n.id!), { leida: true, leidaEn: ahora }))
+        noLeidas.map(n => trackedUpdateDoc(doc(db, 'notificaciones', n.id!), { leida: true, leidaEn: ahora }))
     );
 };

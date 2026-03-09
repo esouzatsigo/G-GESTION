@@ -25,7 +25,9 @@ const SUPER_ADMIN_CLIENT_ID = 'ADMIN';
  * Determina si un usuario es super-admin (operador de H-GESTION que ve todo).
  */
 export const isSuperAdmin = (user: User | null): boolean => {
-    return user?.clienteId === SUPER_ADMIN_CLIENT_ID && user?.rol === 'Admin';
+    const r = user?.rol;
+    return user?.clienteId === SUPER_ADMIN_CLIENT_ID &&
+        (r === 'Admin General' || r === 'Admin' || r === 'ROL_ADMIN_GENERAL' || r === 'ROL_ADMIN');
 };
 
 /**

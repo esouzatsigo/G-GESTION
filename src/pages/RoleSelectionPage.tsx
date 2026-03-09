@@ -53,6 +53,20 @@ export const RoleSelectionPage: React.FC = () => {
             desc: 'Acceso total a catálogos y configuración de sistema.',
             color: '#ef4444'
         },
+        {
+            id: 'TecExternoAires',
+            title: 'Tec. Externo AIRES',
+            icon: <Wrench size={32} />,
+            desc: 'Técnico Externo especialista en Aires — TEST BPT.',
+            color: '#0ea5e9'
+        },
+        {
+            id: 'TecExternoRef',
+            title: 'Tec. Externo REF',
+            icon: <Wrench size={32} />,
+            desc: 'Técnico Externo especialista en Refrigeración — TEST BPT.',
+            color: '#0ea5e9'
+        },
         // --- BOTONES EXCLUSIVOS DE SIMULACIÓN QA ---
         {
             id: 'QA_Gerente',
@@ -89,6 +103,15 @@ export const RoleSelectionPage: React.FC = () => {
             color: '#ef4444',
             email: 'esp.coccion@t-sigo.com',
             isQA: true
+        },
+        {
+            id: 'TecnicoAdBA',
+            title: 'Tec. Ad BA',
+            icon: <Star size={32} />,
+            desc: 'tec.ad@BA',
+            color: '#14b8a6',
+            email: 'tec.ad@BA',
+            isQA: true
         }
     ];
 
@@ -97,8 +120,7 @@ export const RoleSelectionPage: React.FC = () => {
             const { saveCliente } = await import('../services/dataService');
             const { db } = await import('../services/firebase');
             const { doc, setDoc } = await import('firebase/firestore');
-
-            const mockUser = { id: 'DEBUG_UI', nombre: 'Poblador Automático', rol: 'Admin', clienteId: 'ADMIN' } as User;
+            const mockUser = { id: 'DEBUG_UI', nombre: 'Poblador Automático', rol: 'Admin General', clienteId: 'ADMIN' } as User;
             const cId = await saveCliente({ nombre: "BPT", razonSocial: "GRUPO BOSPATEX SAPI DE CV" }, mockUser);
             const sucs = [
                 { id: "BA", franquiciaId: "mock-boston", nombre: "Altabrisa", direccion: "Av. 7 451, Fraccionamiento Altabrisa, 97130 Mérida, YUC", coordenadas: { lat: 21.018751250251654, lng: -89.58276096432154 }, clienteId: cId },
@@ -112,7 +134,7 @@ export const RoleSelectionPage: React.FC = () => {
                 { id: "4", sucursalId: "BM", familia: "Refrigeracion", nombre: "Refrigerador de Postres 1", clienteId: cId }
             ];
             for (const e of eqs) await setDoc(doc(db, 'equipos', e.id), e);
-
+            /* Creación de usuarios de prueba removida a petición del usuario
             const usrs = [
                 { id: "Coord.IvanGo", nombre: "Coordinador BPT", rol: "Coordinador", clienteId: cId, sucursalesPermitidas: ["BA", "BM"] },
                 { id: "Gerente.BA", nombre: "GERENTE BA", rol: "Gerente", clienteId: cId, sucursalesPermitidas: ["BA"] },
@@ -120,8 +142,9 @@ export const RoleSelectionPage: React.FC = () => {
                 { id: "Tecnico.BA", nombre: "Tecnico BA", rol: "Tecnico", clienteId: cId, sucursalesPermitidas: ["BA"], especialidad: "Refrigeracion", supervisorId: "Supervisor.BA", coordinadorId: "Coord.IvanGo" }
             ];
             for (const u of usrs) await setDoc(doc(db, 'usuarios', u.id), u);
+            */
 
-            showNotification("Población completa (Clientes, Sucursales, Equipos y Usuarios) exitosa. Tecnico BA asignado a Altabrisa.", "success");
+            showNotification("Población rápida (Clientes, Sucursales, Equipos) exitosa.", "success");
         } catch (error: any) {
             showNotification("Error al poblar: " + error.message, "error");
         }

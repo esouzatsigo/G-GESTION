@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Download, Upload, CheckCircle, FileSpreadsheet, Loader2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { collection, writeBatch, doc, getDocs, addDoc } from 'firebase/firestore';
+import { collection, writeBatch, doc, getDocs } from 'firebase/firestore';
+import { trackedAddDoc } from '../services/firestoreHelpers';
 import { db } from '../services/firebase';
 import { useNotification } from '../context/NotificationContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
@@ -36,9 +37,9 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, type,
 
     const fetchCatalogs = async () => {
         try {
-            const targetClienteId = (user?.rol === 'Admin' && activeClienteId && activeClienteId !== 'ADMIN')
+            const targetClienteId = (user?.rol === 'Admin General' && activeClienteId && activeClienteId !== 'ADMIN')
                 ? activeClienteId
-                : (user?.rol !== 'Admin' ? user?.clienteId : undefined);
+                : (user?.rol !== 'Admin General' ? user?.clienteId : undefined);
 
             const [cSnap, fSnap, sSnap] = await Promise.all([
                 getClientes(targetClienteId),
@@ -221,7 +222,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, type,
         if (!name) return;
         setLoading(true);
         try {
-            await addDoc(collection(db, 'clientes'), {
+            await trackedAddDoc(collection(db, 'clientes'), {
                 nombre: name,
                 razonSocial: name // Fallback to same as name
             });
@@ -239,7 +240,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, type,
         if (!cId || !fName) return;
         setLoading(true);
         try {
-            await addDoc(collection(db, 'franquicias'), {
+            await trackedAddDoc(collection(db, 'franquicias'), {
                 clienteId: cId,
                 nombre: fName,
                 logoUrl: '',
@@ -259,7 +260,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, type,
         if (!cId || !fId || !sName) return;
         setLoading(true);
         try {
-            await addDoc(collection(db, 'sucursales'), {
+            await trackedAddDoc(collection(db, 'sucursales'), {
                 clienteId: cId,
                 franquiciaId: fId,
                 nombre: sName,
@@ -326,7 +327,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, type,
                         coordenadas: {
                             lat: parseFloat(row.LATITUD) || 0,
                             lng: parseFloat(row.LONGITUD) || 0
-                        }
+                        },
+                        createdAt: new Date().toISOString()
                     });
                     count++;
                 } else {
@@ -351,7 +353,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, type,
                         sucursalId: resolvedSucursal.id,
                         franquiciaId: resolvedFranchise.id,
                         familia: String(row.FAMILIA || 'Local'),
-                        nombre: String(row.NOMBRE_EQUIPO)
+                        nombre: String(row.NOMBRE_EQUIPO),
+                        createdAt: new Date().toISOString()
                     });
                     count++;
                 }

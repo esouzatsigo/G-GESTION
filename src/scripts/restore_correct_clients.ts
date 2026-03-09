@@ -15,7 +15,7 @@ async function fix() {
     let count = 0;
     for (const docSnap of u.docs) {
         const user = docSnap.data();
-        if (user.rol === 'Admin') continue;
+        if (user.rol === 'Admin General') continue;
 
         let correctClienteId = null;
 

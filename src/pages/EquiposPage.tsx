@@ -4,19 +4,21 @@ import * as XLSX from 'xlsx';
 import { downloadExcel, fileTimestamp } from '../utils/fileDownload';
 import { useNotification } from '../context/NotificationContext';
 import { ImportModal } from '../components/ImportModal';
-import { getSucursales, getClientes, getFranquicias, logEntityChange } from '../services/dataService';
+import { getSucursales, getClientes, getFranquicias, logEntityChange, getCatalogos } from '../services/dataService';
 import { tenantQuery } from '../services/tenantContext';
 import { db } from '../services/firebase';
-import { addDoc, collection, doc, updateDoc, getDocs } from 'firebase/firestore';
+import { collection, doc, getDocs } from 'firebase/firestore';
+import { trackedAddDoc, trackedUpdateDoc } from '../services/firestoreHelpers';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useAuth } from '../hooks/useAuth';
-import type { Equipo, Cliente, Sucursal, Franquicia } from '../types';
+import type { Equipo, Cliente, Sucursal, Franquicia, CatalogoItem } from '../types';
 
 export const EquiposPage: React.FC = () => {
     const [equipos, setEquipos] = useState<Equipo[]>([]);
     const [sucursales, setSucursales] = useState<Sucursal[]>([]);
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [franquicias, setFranquicias] = useState<Franquicia[]>([]);
+    const [catalogos, setCatalogos] = useState<CatalogoItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterCliente, setFilterCliente] = useState('');
@@ -32,27 +34,54 @@ export const EquiposPage: React.FC = () => {
     // Form State
     const [clienteId, setClienteId] = useState('');
     const [sucursalId, setSucursalId] = useState('');
-    const [familia, setFamilia] = useState<Equipo['familia']>('Refrigeracion');
+    const [familia, setFamilia] = useState<Equipo['familia']>('ESP_REFRIGERACION');
     const [nombre, setNombre] = useState('');
     const [franquiciaId, setFranquiciaId] = useState('');
 
-    const familias: Equipo['familia'][] = ['Aires', 'Coccion', 'Refrigeracion', 'Cocina', 'Restaurante', 'Local', 'Agua', 'Generadores'];
+    const defaultFamilias = [
+        { id: 'ESP_AIRES', name: 'Aires' },
+        { id: 'ESP_COCCION', name: 'Coccion' },
+        { id: 'ESP_REFRIGERACION', name: 'Refrigeracion' },
+        { id: 'ESP_COCINA', name: 'Cocina' },
+        { id: 'ESP_RESTAURANTE', name: 'Restaurante' },
+        { id: 'ESP_LOCAL', name: 'Local' },
+        { id: 'ESP_AGUA', name: 'Agua' },
+        { id: 'ESP_GENERADORES', name: 'Generadores' }
+    ];
+
+    const familias = React.useMemo(() => {
+        const dynamicFamilias = catalogos
+            .filter(c => c.categoria === 'Familia')
+            .map(c => ({ id: c.nomenclatura, name: c.nombre }));
+
+        if (dynamicFamilias.length > 0) return dynamicFamilias.sort((a, b) => a.name.localeCompare(b.name));
+        return defaultFamilias;
+    }, [catalogos]);
+
+    const getFamiliaName = (id: string) => {
+        const item = familias.find(f => f.id === id);
+        return item ? item.name : id;
+    };
 
     const fetchData = React.useCallback(async () => {
         setLoading(true);
         try {
-            // Contexto de cliente para filtrar catálogos y datos
-            const targetClienteId = (isSuperAdmin && activeClienteId && activeClienteId !== 'ADMIN')
-                ? activeClienteId
-                : (!isSuperAdmin ? user?.clienteId : undefined);
+            // LÓGICA DE AISLAMIENTO: 
+            // - SuperAdmin en 'ADMIN' -> Trae catálogos Maestros (ADMIN).
+            // - SuperAdmin en un cliente real -> Trae solo ese cliente.
+            // - Usuario normal -> Trae solo su cliente.
+            const targetClienteId = (isSuperAdmin)
+                ? (activeClienteId === 'ADMIN' ? 'ADMIN' : (activeClienteId || 'ADMIN'))
+                : user?.clienteId;
 
             const qEquipos = tenantQuery('equipos', user);
 
-            const [snapshot, sData, cData, fData] = await Promise.all([
+            const [snapshot, sData, cData, fData, catData] = await Promise.all([
                 getDocs(qEquipos),
                 getSucursales(targetClienteId),
                 getClientes(targetClienteId),
-                getFranquicias(targetClienteId)
+                getFranquicias(targetClienteId),
+                getCatalogos(targetClienteId)
             ]);
 
             const eData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Equipo));
@@ -60,6 +89,7 @@ export const EquiposPage: React.FC = () => {
             setSucursales(sData);
             setClientes(cData);
             setFranquicias(fData);
+            setCatalogos(catData);
         } catch (error) {
             console.error(error);
         } finally {
@@ -91,7 +121,7 @@ export const EquiposPage: React.FC = () => {
             setClienteId(effectiveClientId || '');
             setFranquiciaId('');
             setSucursalId('');
-            setFamilia('Refrigeracion');
+            setFamilia('ESP_REFRIGERACION');
             setNombre('');
         }
         setIsModalOpen(true);
@@ -132,7 +162,7 @@ export const EquiposPage: React.FC = () => {
 
         try {
             if (editingEquipo) {
-                await updateDoc(doc(db, 'equipos', editingEquipo.id), data);
+                await trackedUpdateDoc(doc(db, 'equipos', editingEquipo.id), data);
                 if (user) {
                     await logEntityChange({
                         clienteId: data.clienteId,
@@ -146,7 +176,7 @@ export const EquiposPage: React.FC = () => {
                 }
                 showNotification("Equipo actualizado correctamente.", "success");
             } else {
-                const docRef = await addDoc(collection(db, 'equipos'), data);
+                const docRef = await trackedAddDoc(collection(db, 'equipos'), data);
                 if (user) {
                     await logEntityChange({
                         clienteId: data.clienteId,
@@ -182,7 +212,7 @@ export const EquiposPage: React.FC = () => {
         try {
             const dataToExport = filteredEquipos.map(e => ({
                 Nombre: e.nombre,
-                Familia: e.familia,
+                Familia: getFamiliaName(e.familia),
                 Sucursal: sucursales.find(s => s.id === e.sucursalId)?.nombre || '',
                 Franquicia: franquicias.find(f => f.id === e.franquiciaId)?.nombre || '',
                 Cliente: clientes.find(c => c.id === e.clienteId)?.nombre || e.clienteId
@@ -229,18 +259,16 @@ export const EquiposPage: React.FC = () => {
                             />
                         </div>
 
-                        <div>
-                            <select
-                                value={filterFamilia}
-                                onChange={(e) => setFilterFamilia(e.target.value)}
-                                style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem', appearance: 'none' }}
-                            >
-                                <option value="" style={{ color: 'black' }}>Todas las Familias</option>
-                                {familias.map(f => (
-                                    <option key={f} value={f} style={{ color: 'black' }}>{f}</option>
-                                ))}
-                            </select>
-                        </div>
+                        <select
+                            value={filterFamilia}
+                            onChange={(e) => setFilterFamilia(e.target.value)}
+                            style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem', appearance: 'none' }}
+                        >
+                            <option value="" style={{ color: 'black' }}>Todas las Familias</option>
+                            {familias.map(f => (
+                                <option key={f.id} value={f.id} style={{ color: 'black' }}>{f.name}</option>
+                            ))}
+                        </select>
 
                         {(activeClienteId === 'ADMIN' || !activeClienteId) && (
                             <div>
@@ -359,7 +387,7 @@ export const EquiposPage: React.FC = () => {
                                                     margin: '0 0 0.3rem 0'
                                                 }}>{equipo.nombre}</h3>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                                    <span style={{ fontSize: '0.6rem', fontWeight: '900', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{equipo.familia}</span>
+                                                    <span style={{ fontSize: '0.6rem', fontWeight: '900', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{getFamiliaName(equipo.familia)}</span>
                                                     {equipo.franquiciaId && (
                                                         <>
                                                             <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--text-muted)', flexShrink: 0, display: 'inline-block' }}></span>
@@ -472,10 +500,11 @@ export const EquiposPage: React.FC = () => {
                                 <div>
                                     <label className="modal-label">Familia *</label>
                                     <select
-                                        value={familia} onChange={e => setFamilia(e.target.value as any)} required
+                                        value={familia} onChange={e => setFamilia(e.target.value)} required
                                         style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
                                     >
-                                        {familias.map(f => <option key={f} value={f} style={{ color: 'black' }}>{f}</option>)}
+                                        <option value="" style={{ color: 'black' }}>Seleccione Familia</option>
+                                        {familias.map(f => <option key={f.id} value={f.id} style={{ color: 'black' }}>{f.name}</option>)}
                                     </select>
                                 </div>
                             </div>

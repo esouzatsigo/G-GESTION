@@ -21,6 +21,7 @@ import { SupervisarPage } from './pages/SupervisarPage';
 import { FranquiciasPage } from './pages/FranquiciasPage';
 import { DashboardBIPage } from './pages/DashboardBIPage';
 import ConfigPage from './pages/ConfigPage';
+import { CatalogosGeneralesPage } from './pages/CatalogosGeneralesPage';
 import { NotificationProvider } from './context/NotificationContext';
 
 import {
@@ -101,8 +102,9 @@ const PanelOperativo = () => {
       buttons.push({ id: 'EQUIPOS', icon: HardDrive, label: "EQUIPOS", color: "71, 85, 105", path: '/equipos', desc: "Inventario general de equipos y activos a mantener." });
     }
 
-    // Sucursales, Clientes, Franquicias, Config: SOLO Admin / SuperAdmin
+    // Sucursales, Clientes, Franquicias, Catalogos, Config: SOLO Admin / SuperAdmin
     if (isAdmin || isSuperAdmin) {
+      buttons.push({ id: 'CATALOGOS_GRAL', icon: Database, label: "CATÁLOGOS DINÁMICOS", color: "234, 179, 8", path: '/catalogos', desc: "Administrador independiente de Roles y Especialidades." });
       buttons.push({ id: 'SUCURSALES', icon: Store, label: "SUCURSALES", color: "16, 185, 129", path: '/sucursales', desc: "Directorio de sucursales con validación y ubicación." });
       buttons.push({ id: 'CLIENTES', icon: Users, label: "CLIENTES", color: "147, 51, 234", path: '/clientes', desc: "Administración del catálogo de clientes corporativos." });
       buttons.push({ id: 'FRANQUICIAS', icon: Database, label: "FRANQUICIAS", color: "234, 88, 12", path: '/franquicias', desc: "Control y diseño de franquicias por cliente." });
@@ -301,6 +303,7 @@ function App() {
                     <Route path="/preventivos" element={<PreventivosPage />} />
                     <Route path="/bitacora" element={<BitacoraPage />} />
                     <Route path="/bi-dashboard" element={<DashboardBIPage />} />
+                    <Route path="/catalogos" element={<CatalogosGeneralesPage />} />
                     <Route path="/config" element={<ConfigPage />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>

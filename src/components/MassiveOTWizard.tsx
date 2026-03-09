@@ -192,9 +192,9 @@ export const MassiveOTWizard: React.FC<Props> = ({
     // Technicians for this branch
     const branchTecnicos = useMemo(() => {
         const internos = allTecnicos.filter(t =>
-            t.rol === 'Tecnico' && t.sucursalesPermitidas?.includes(evento.sucursalId)
+            (t.rol === 'Tecnico' || t.rol === 'ROL_TECNICO') && t.sucursalesPermitidas?.includes(evento.sucursalId)
         );
-        const externos = allTecnicos.filter(t => t.rol === 'TecnicoExterno');
+        const externos = allTecnicos.filter(t => t.rol === 'TecnicoExterno' || t.rol === 'ROL_TECNICO_EXTERNO');
         return { internos, externos };
     }, [allTecnicos, evento.sucursalId]);
 

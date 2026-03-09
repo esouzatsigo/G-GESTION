@@ -7,7 +7,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { tenantQuery } from '../services/tenantContext';
-import { Edit2, Eye, Save, Printer, Download, Search, Clock, AlertCircle, CheckCircle, X, User as UserIcon, FileText } from 'lucide-react';
+import { Edit2, Eye, Save, Printer, Download, Search, Clock, AlertCircle, CheckCircle, X, User as UserIcon } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import type { WorkOrder, Cliente, User, Sucursal, Equipo, Franquicia } from '../types';
 import { generateServiceReport } from '../utils/serviceReport';
@@ -18,6 +18,8 @@ import { PrintableServiceReport } from '../components/PrintableServiceReport';
 import { PrintableGeneralReport } from '../components/PrintableGeneralReport';
 import { useNotification } from '../context/NotificationContext';
 import { useEscapeKey } from '../hooks/useEscapeKey';
+import * as XLSX from 'xlsx';
+import { downloadExcel, fileTimestamp } from '../utils/fileDownload';
 
 import { SortableHeader } from '../components/SortableHeader';
 import type { SortDirectionConfig } from '../components/SortableHeader';
@@ -60,9 +62,9 @@ export const KardexPage: React.FC = () => {
         if (!user) return;
         setLoading(true);
         try {
-            const targetClienteId = (user.rol === 'Admin' && activeClienteId && activeClienteId !== 'ADMIN')
+            const targetClienteId = (isAdmin && activeClienteId && activeClienteId !== 'ADMIN')
                 ? activeClienteId
-                : (user.rol !== 'Admin' ? user.clienteId : undefined);
+                : (!isAdmin ? user?.clienteId : undefined);
 
             const [otSnap, clSnap, sucSnap, eqSnap, userSnap, franSnap] = await Promise.all([
                 getDocs(tenantQuery('ordenesTrabajo', user)),
@@ -277,6 +279,60 @@ export const KardexPage: React.FC = () => {
         setGeneratingPdf(null);
     };
 
+    const exportToExcel = async () => {
+        if (filteredOTs.length === 0) {
+            showNotification('No hay OTs para exportar.', 'warning');
+            return;
+        }
+
+        const data = filteredOTs.map(ot => {
+            const cl = clientes.find(c => c.id === ot.clienteId);
+            const suc = sucursales.find(s => s.id === ot.sucursalId);
+            const eq = equipos.find(e => e.id === ot.equipoId);
+            const tec = usuarios.find(u => u.id === ot.tecnicoId);
+            const fran = franquicias.find(f => f.id === suc?.franquiciaId);
+
+            return {
+                'OT Numero': ot.tipo === 'Preventivo' ? `P-${ot.numero}` : ot.numero,
+                'Tipo': ot.tipo,
+                'Estatus': ot.estatus,
+                'Prioridad': ot.prioridad || '',
+                'Fecha Solicitada': ot.fechas.solicitada ? new Date(ot.fechas.solicitada).toLocaleString('es-MX') : '',
+                'Fecha Asignada': ot.fechas.asignada ? new Date(ot.fechas.asignada).toLocaleString('es-MX') : '',
+                'Fecha Programada (Prev)': ot.fechas.programada ? new Date(ot.fechas.programada).toLocaleDateString('es-MX') : '',
+                'Fecha Llegada': ot.fechas.llegada ? new Date(ot.fechas.llegada).toLocaleString('es-MX') : '',
+                'Fecha Iniciada': ot.fechas.iniciada ? new Date(ot.fechas.iniciada).toLocaleString('es-MX') : '',
+                'Fecha Concluida (Tecnico)': ot.fechas.concluidaTecnico ? new Date(ot.fechas.concluidaTecnico).toLocaleString('es-MX') : '',
+                'Fecha Cierre Final': (ot.fechas.finalizadaFecha && ot.fechas.finalizadaHora)
+                    ? `${ot.fechas.finalizadaFecha} ${ot.fechas.finalizadaHora}`
+                    : (ot.fechas.finalizada ? new Date(ot.fechas.finalizada).toLocaleString('es-MX') : ''),
+                'Cliente': cl?.nombre || '',
+                'Franquicia': fran?.nombre || '',
+                'Sucursal': suc?.nombre || '',
+                'Nomenclatura': suc?.nomenclatura || '',
+                'Equipo': eq?.nombre || '',
+                'Familia Equipo': eq?.familia || '',
+                'Falla Reportada': ot.descripcionFalla || '',
+                'Trabajo Realizado': ot.descripcionServicio || '',
+                'Refacciones Utilizadas': ot.repuestosUtilizados || '',
+                'Tecnico Asignado': tec?.nombre || '',
+                'Especialidad Tecnico': tec?.especialidad || '',
+                'Comentarios Cliente': ot.comentariosCliente || '',
+                'Justificacion': ot.justificacion || '',
+                'Foto Antes': ot.fotoAntes ? 'Ver Foto' : '',
+                'Link Foto Antes': ot.fotoAntes || '',
+                'Foto Despues': ot.fotoDespues ? 'Ver Foto' : '',
+                'Link Foto Despues': ot.fotoDespues || '',
+            };
+        });
+
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Kardex OTs");
+        const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        downloadExcel(excelBuffer, `Reporte_General_OTs_${fileTimestamp()}.xlsx`);
+    };
+
     const handleEditSave = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedOT || !user) return;
@@ -293,7 +349,7 @@ export const KardexPage: React.FC = () => {
                 const newTec = usuarios.find(u => u.id === editForm.tecnicoId);
                 const equipo = equipos.find(e => e.id === selectedOT.equipoId);
 
-                if (newTec?.rol === 'TecnicoExterno' && newTec.especialidad !== equipo?.familia) {
+                if (newTec?.rol === 'ROL_TECNICO_EXTERNO' && newTec.especialidad !== equipo?.familia) {
                     showNotification(
                         `❌ Regla de Negocio: ${newTec.nombre} es EXTERNO especialista en ${newTec.especialidad || 'desconocido'}. NO puede atender este equipo de familia ${equipo?.familia}.`,
                         "error"
@@ -440,9 +496,9 @@ export const KardexPage: React.FC = () => {
                             <Download size={18} />
                             {generatingPdf === 'general-all' ? 'Generando...' : `Descargar PDF`}
                         </button>
-                        <button className="btn btn-primary" onClick={() => window.print()} style={{ gap: '0.5rem' }}>
+                        <button className="btn btn-primary" onClick={exportToExcel} style={{ gap: '0.5rem' }}>
                             <Download size={18} />
-                            Exportar Lista
+                            Exportar General CSV
                         </button>
                     </div>
                 </div>
@@ -486,9 +542,10 @@ export const KardexPage: React.FC = () => {
                         </div>
 
                         <select value={tecnicoFilter} onChange={e => setTecnicoFilter(e.target.value)}
-                            style={{ padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }}>
+                            className="bg-input rounded-xl border border-glass p-3 w-full"
+                            style={{ borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }}>
                             <option value="">Cualquier Técnico</option>
-                            {usuarios.filter(u => u.rol === 'Tecnico' || u.rol === 'TecnicoExterno').map(t => (
+                            {usuarios.filter(u => u.rol?.startsWith('ROL_TECNICO') || u.rol === 'Tecnico' || u.rol === 'TecnicoExterno').map(t => (
                                 <option key={t.id} value={t.id}>{t.nombre}</option>
                             ))}
                         </select>
@@ -507,6 +564,11 @@ export const KardexPage: React.FC = () => {
                             <option value="Correctivo">🔧 Correctivo</option>
                             <option value="Preventivo">📅 Preventivo</option>
                         </select>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)' }}>
+                        <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '600' }}>
+                            Mostrando {filteredOTs.length} registro(s) con los filtros actuales
+                        </div>
                     </div>
                 </div>
 
@@ -531,10 +593,6 @@ export const KardexPage: React.FC = () => {
                                     />
                                     <SortableHeader
                                         label="Estatus" field="estatus" currentSort={sortConfig}
-                                        onSort={(f) => setSortConfig(prev => ({ field: f, direction: prev.field === f && prev.direction === 'asc' ? 'desc' : 'asc' }))}
-                                    />
-                                    <SortableHeader
-                                        label="Prioridad" field="prioridad" currentSort={sortConfig}
                                         onSort={(f) => setSortConfig(prev => ({ field: f, direction: prev.field === f && prev.direction === 'asc' ? 'desc' : 'asc' }))}
                                     />
                                     <SortableHeader
@@ -622,30 +680,22 @@ export const KardexPage: React.FC = () => {
                                                     {(() => { const s = ot.estatus.toLowerCase(); return s.includes('concluida') || s.includes('finalizada') || s.includes('cerrada'); })() && (
                                                         <div style={{ display: 'flex', gap: '0.4rem' }}>
                                                             <button
-                                                                className="btn btn-primary"
-                                                                style={{
-                                                                    padding: '0.6rem 1.25rem', fontSize: '0.75rem', gap: '0.6rem',
-                                                                    opacity: generatingPdf === ot.id ? 0.5 : 1,
-                                                                    background: 'linear-gradient(135deg, #2563eb, #1e40af)',
-                                                                    boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)',
-                                                                    border: 'none'
-                                                                }}
-                                                                onClick={(e) => { e.stopPropagation(); handleDownloadPdf(ot); }}
-                                                                disabled={generatingPdf === ot.id}
-                                                                title="Descargar Hoja de Servicio (PDF)"
-                                                            >
-                                                                <FileText size={18} />
-                                                                <span style={{ fontWeight: '800' }}>{generatingPdf === ot.id ? 'GENERANDO...' : 'HOJA DE SERVICIO'}</span>
-                                                            </button>
-
-                                                            <button
                                                                 className="btn btn-ghost"
-                                                                style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem', gap: '0.5rem', background: 'rgba(34,197,94,0.1)' }}
-                                                                onClick={() => setPrintingOT(ot)}
-                                                                title="Ver Hoja Tamaño Carta para Imprimir"
+                                                                style={{
+                                                                    padding: '0.4rem 0.8rem',
+                                                                    fontSize: '0.75rem',
+                                                                    gap: '0.5rem',
+                                                                    background: 'rgba(34,197,94,0.1)',
+                                                                    border: '1px solid rgba(34,197,94,0.3)',
+                                                                    borderRadius: '8px',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center'
+                                                                }}
+                                                                onClick={(e) => { e.stopPropagation(); setPrintingOT(ot); }}
+                                                                title="Ver Hoja de Servicio (Vista Previa e Interacciones)"
                                                             >
                                                                 <Printer size={16} color="#22c55e" />
-                                                                <span style={{ fontWeight: '800', color: '#22c55e' }}>IMPRIMIR</span>
+                                                                <span style={{ fontWeight: '800', color: '#22c55e' }}>HOJA DE SERVICIO</span>
                                                             </button>
                                                         </div>
                                                     )}
@@ -855,7 +905,7 @@ export const KardexPage: React.FC = () => {
                                                         style={{ background: 'transparent', border: 'none', color: 'var(--text-main)', cursor: 'pointer', fontSize: '0.9rem', fontWeight: '700', outline: 'none', maxWidth: '150px' }}
                                                     >
                                                         <option value="" style={{ color: 'black' }}>Sin Seleccionar</option>
-                                                        {usuarios.filter(u => u.rol === 'Tecnico' || u.rol === 'TecnicoExterno').map(t => (
+                                                        {usuarios.filter(u => u.rol?.startsWith('ROL_TECNICO') || u.rol === 'Tecnico' || u.rol === 'TecnicoExterno').map(t => (
                                                             <option key={t.id} value={t.id} style={{ color: 'black' }}>{t.nombre}</option>
                                                         ))}
                                                     </select>
@@ -1019,6 +1069,8 @@ export const KardexPage: React.FC = () => {
                             tecnico={usuarios.find(u => u.id === printingOT.tecnicoId)}
                             franquicia={franquicias.find(f => f.id === sucursales.find(s => s.id === printingOT.sucursalId)?.franquiciaId)}
                             onClose={() => setPrintingOT(null)}
+                            onGeneratePdf={() => handleDownloadPdf(printingOT)}
+                            generating={generatingPdf === printingOT.id}
                         />
                     )
                 }

@@ -1,48 +1,100 @@
 import React, { useEffect, useState } from 'react';
-import { getDocs, limit } from 'firebase/firestore';
+import { getDocs } from 'firebase/firestore';
 import { tenantQuery } from '../services/tenantContext';
-import { History, Search, Calendar, User as UserIcon, AlertTriangle } from 'lucide-react';
-import type { BitacoraEntry } from '../services/dataService';
+import { History, Search, Calendar, User as UserIcon, AlertTriangle, RotateCcw } from 'lucide-react';
+import { undoUniversalChange, type BitacoraEntry } from '../services/dataService';
 import { useAuth } from '../hooks/useAuth';
+import { useNotification } from '../context/NotificationContext';
 
 export const BitacoraPage: React.FC = () => {
-    const { user, isAdminCliente, isSuperAdmin } = useAuth();
+    const { user, isAdminCliente, isSuperAdmin, isGerente } = useAuth();
     const [entries, setEntries] = useState<BitacoraEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isUndoing, setIsUndoing] = useState(false);
+    const { showNotification } = useNotification();
+
+    const fetchData = async () => {
+        if (!isAdminCliente && !isSuperAdmin && !isGerente) return;
+        setLoading(true);
+        try {
+            const q = tenantQuery('bitacora', user!);
+            const snap = await getDocs(q);
+            let allEntries = snap.docs.map(d => ({ id: d.id, ...d.data() } as BitacoraEntry));
+            allEntries.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+            allEntries = allEntries.slice(0, 100);
+
+            if (!isSuperAdmin) {
+                allEntries = allEntries.filter(e => !e.isSuperAdminAction);
+            }
+
+            setEntries(allEntries);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchData = async () => {
-            if (!isAdminCliente && !isSuperAdmin) return;
-            setLoading(true);
-            try {
-                const q = tenantQuery('bitacora', user!);
-                const snap = await getDocs(q);
-                let allEntries = snap.docs.map(d => ({ id: d.id, ...d.data() } as BitacoraEntry));
-                allEntries.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
-                allEntries = allEntries.slice(0, 100);
-
-                // REGLA: Los eventos del SUPERUSUARIO solo los ve el SUPERUSUARIO
-                if (!isSuperAdmin) {
-                    allEntries = allEntries.filter(e => !e.isSuperAdminAction);
-                }
-
-                setEntries(allEntries);
-            } catch (e) {
-                console.error(e);
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchData();
     }, [isAdminCliente, isSuperAdmin, user]);
 
-    if (!isAdminCliente && !isSuperAdmin) {
+    const handleUndo = async (entry: BitacoraEntry) => {
+        if (!entry.collectionName) {
+            showNotification("Este registro clásico no soporta reversión universal. Modifíquelo manualmente desde el módulo correspondiente.", "warning");
+            return;
+        }
+
+        // Pre-flight impact check (frontend preview before touching the DB)
+        // We import and call the same logic used server-side to give instant feedback
+        const { checkUndoImpact } = await import('../services/dataService');
+        const impact = checkUndoImpact(entry.collectionName, entry.campo);
+
+        if (impact.level === 'blocked') {
+            // Hard stop — explain the reason, do NOT proceed
+            window.alert(impact.message);
+            return;
+        }
+
+        if (impact.level === 'warning') {
+            // Extra confirmation for medium-risk fields
+            const confirmed = window.confirm(
+                `${impact.message}\n\n¿Deseas continuar de todas formas y revertir el campo "${entry.campo}" de "${entry.valorNuevo}" a "${entry.valorAnterior}"?`
+            );
+            if (!confirmed) return;
+        } else {
+            // Safe — standard confirmation
+            const confirmed = window.confirm(
+                `¿Seguro que deseas revertir el campo "${entry.campo}" de "${entry.valorNuevo}" → "${entry.valorAnterior}"?`
+            );
+            if (!confirmed) return;
+        }
+
+        setIsUndoing(true);
+        try {
+            const result = await undoUniversalChange(entry);
+            if (result.level === 'blocked') {
+                // Double-check: the server also refused
+                window.alert(result.message);
+                return;
+            }
+            showNotification("Cambio revertido con éxito en la base de datos.", "success");
+            fetchData();
+        } catch (err) {
+            console.error("Error al revertir:", err);
+            showNotification("Error al revertir el cambio.", "error");
+        } finally {
+            setIsUndoing(false);
+        }
+    };
+
+    if (!isAdminCliente && !isSuperAdmin && !isGerente) {
         return (
             <div style={{ textAlign: 'center', padding: '5rem 2rem' }}>
                 <AlertTriangle size={48} color="var(--priority-alta)" style={{ marginBottom: '1rem' }} />
                 <h2 style={{ fontSize: '1.5rem', fontWeight: '800' }}>ACCESO RESTRINGIDO</h2>
-                <p style={{ color: 'var(--text-muted)' }}>Solo el Administrador Cliente puede consultar la bitácora de eventos.</p>
+                <p style={{ color: 'var(--text-muted)' }}>Módulo exclusivo para Administradores y Gerentes.</p>
             </div>
         );
     }
@@ -66,13 +118,18 @@ export const BitacoraPage: React.FC = () => {
                 </div>
             </div>
 
-            <div className="glass-card" style={{ marginBottom: '2rem' }}>
+            <div className="glass-card" style={{ marginBottom: '2rem', padding: '1rem' }}>
                 <div style={{ position: 'relative' }}>
                     <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                     <input
                         type="text" placeholder="Buscar por OT (ej: P-1), usuario o acción..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
                         style={{ width: '100%', padding: '0.75rem 2.5rem', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
                     />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--glass-border)' }}>
+                    <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '600' }}>
+                        Mostrando {filtered.length} registro(s) con los filtros actuales
+                    </div>
                 </div>
             </div>
 
@@ -109,10 +166,28 @@ export const BitacoraPage: React.FC = () => {
                                         <td style={{ padding: '1rem' }}>
                                             <div style={{ fontSize: '0.8rem', background: 'rgba(0,0,0,0.1)', padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
                                                 <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>CAMPO: {entry.campo}</span>
-                                                <div style={{ marginTop: '0.25rem' }}>
-                                                    <span style={{ color: 'var(--priority-alta)', textDecoration: 'line-through', opacity: 0.6 }}>{String(entry.valorAnterior)}</span>
-                                                    <span style={{ margin: '0 0.5rem', opacity: 0.5 }}>→</span>
-                                                    <span style={{ color: 'var(--accent)', fontWeight: '600' }}>{String(entry.valorNuevo)}</span>
+                                                <div style={{ marginTop: '0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                    <div>
+                                                        <span style={{ color: 'var(--priority-alta)', textDecoration: 'line-through', opacity: 0.6 }}>{String(entry.valorAnterior)}</span>
+                                                        <span style={{ margin: '0 0.5rem', opacity: 0.5 }}>→</span>
+                                                        <span style={{ color: 'var(--accent)', fontWeight: '600' }}>{String(entry.valorNuevo)}</span>
+                                                    </div>
+
+                                                    {entry.accion.includes('EDICIÓN') && entry.collectionName && (
+                                                        <button
+                                                            onClick={() => handleUndo(entry)}
+                                                            disabled={isUndoing}
+                                                            className="btn hover:bg-red-500 hover:text-white hover:border-red-500 transition-all"
+                                                            style={{
+                                                                display: 'flex', alignItems: 'center', gap: '0.4rem', border: '1px solid var(--glass-border)',
+                                                                background: 'transparent', color: 'var(--text-main)', fontSize: '0.7rem', padding: '0.3rem 0.6rem',
+                                                                opacity: isUndoing ? 0.5 : 1
+                                                            }}
+                                                            title="Revertir este cambio y borrarlo del historial"
+                                                        >
+                                                            <RotateCcw size={12} /> {isUndoing ? '...' : 'DESHACER'}
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
                                         </td>

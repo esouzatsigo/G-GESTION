@@ -1,4 +1,4 @@
-export type UserRole = 'Admin' | 'Coordinador' | 'Gerente' | 'Supervisor' | 'Tecnico' | 'TecnicoExterno';
+export type UserRole = 'Admin' | 'Admin General' | 'Coordinador' | 'Gerente' | 'Supervisor' | 'Tecnico' | 'TecnicoExterno' | string;
 
 export interface User {
     id: string;
@@ -7,7 +7,7 @@ export interface User {
     email: string; // Auth email
     rol: UserRole;
     sucursalesPermitidas: string[]; // IDs de sucursal
-    especialidad?: 'Aires' | 'Coccion' | 'Refrigeracion' | 'Cocina' | 'Restaurante' | 'Local' | 'Agua' | 'Generadores';
+    especialidad?: string;
     supervisorId?: string;
     coordinadorId?: string;
     franquiciaId?: string;
@@ -49,7 +49,7 @@ export interface Equipo {
     clienteId: string;
     sucursalId: string;
     franquiciaId?: string; // ID de la franquicia vinculada
-    familia: 'Aires' | 'Coccion' | 'Refrigeracion' | 'Cocina' | 'Restaurante' | 'Local' | 'Agua' | 'Generadores';
+    familia: string;
     nombre: string;
 }
 
@@ -168,4 +168,14 @@ export interface MassiveBatchChange {
     tecnicoNuevoNombre?: string;
     fueModificadaIndividualmente: boolean; // TRUE si la OT fue tocada fuera del panel masivo
     fechaCambioIndividual?: string;        // Cuándo fue el cambio individual detectado
+}
+
+export interface CatalogoItem {
+    id: string;
+    clienteId: string;
+    categoria: 'Rol' | 'Especialidad' | 'Familia';
+    nomenclatura: string; // The "Iron Link" - UNIQUE internal ID (e.g., ROL_COORD_CN)
+    nombre: string;
+    descripcion: string;
+    colorFondo: string;
 }

@@ -4,7 +4,8 @@ import * as XLSX from 'xlsx';
 import { downloadExcel, fileTimestamp } from '../utils/fileDownload';
 import { useNotification } from '../context/NotificationContext';
 import { db, storage } from '../services/firebase';
-import { addDoc, collection, doc, updateDoc, getDocs } from 'firebase/firestore';
+import { collection, doc, getDocs } from 'firebase/firestore';
+import { trackedAddDoc, trackedUpdateDoc } from '../services/firestoreHelpers';
 import { tenantQuery, tenantStoragePath } from '../services/tenantContext';
 import { useAuth } from '../hooks/useAuth';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -40,9 +41,9 @@ export const FranquiciasPage: React.FC = () => {
         if (!user) return;
         setLoading(true);
         try {
-            const targetClienteId = (user.rol === 'Admin' && activeClienteId && activeClienteId !== 'ADMIN')
+            const targetClienteId = (user.rol === 'Admin General' && activeClienteId && activeClienteId !== 'ADMIN')
                 ? activeClienteId
-                : (user.rol !== 'Admin' ? user.clienteId : undefined);
+                : (user.rol !== 'Admin General' ? user.clienteId : undefined);
 
             const [fSnapshot, cSnapshot, sSnapshot, eSnapshot] = await Promise.all([
                 getDocs(tenantQuery('franquicias', user)),
@@ -211,7 +212,7 @@ export const FranquiciasPage: React.FC = () => {
             };
 
             if (editingFranquicia) {
-                await updateDoc(doc(db, 'franquicias', editingFranquicia.id), data);
+                await trackedUpdateDoc(doc(db, 'franquicias', editingFranquicia.id), data);
                 if (user) {
                     await logEntityChange({
                         clienteId: data.clienteId,
@@ -225,7 +226,7 @@ export const FranquiciasPage: React.FC = () => {
                 }
                 showNotification("Franquicia actualizada correctamente.", "success");
             } else {
-                const docRef = await addDoc(collection(db, 'franquicias'), data);
+                const docRef = await trackedAddDoc(collection(db, 'franquicias'), data);
                 if (user) {
                     await logEntityChange({
                         clienteId: data.clienteId,

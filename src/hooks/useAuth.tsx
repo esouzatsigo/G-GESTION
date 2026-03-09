@@ -53,7 +53,7 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [error] = useState<string | null>(null);
     const [activeClienteId, setActiveClienteIdState] = useState<string | null>(() => localStorage.getItem('hgestion_active_cliente'));
     const [activeClienteNombre, setActiveClienteNombreState] = useState<string | null>(() => localStorage.getItem('hgestion_active_cliente_name'));
 
@@ -79,6 +79,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem('hgestion_active_cliente_name');
         auth.signOut();
         setUser(null);
+        setActiveClienteIdState(null);
+        setActiveClienteNombreState(null);
         setLoading(false);
     };
 
@@ -98,12 +100,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     Gerente: { id: 'Gerente.BA', nombre: 'GERENTE BA', email: 'gerente.ba@bpt.com', rol: 'Gerente', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'] },
                     Coordinador: { id: 'Coord.IvanGo', nombre: 'Coordinador BPT', email: 'ivango@bpt.com', rol: 'Coordinador', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['TODAS'] },
                     Tecnico: { id: 'Tecnico.BA', nombre: 'TECNICO BA', email: 'tecnico.ba@bpt.com', rol: 'Tecnico', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'], coordinadorId: 'Coord.IvanGo', supervisorId: 'Supervisor.BA' },
-                    Admin: { id: 'hcelis', nombre: 'HCelis', email: 'hhcelis@hgestion.com', rol: 'Admin', clienteId: 'ADMIN', clienteNombre: 'H-GESTION GLOBAL', sucursalesPermitidas: ['TODAS'] },
+                    Admin: { id: 'hcelis', nombre: 'HCelis', email: 'hhcelis@hgestion.com', rol: 'Admin General', clienteId: 'ADMIN', clienteNombre: 'H-GESTION GLOBAL', sucursalesPermitidas: ['TODAS'] },
+                    'Admin General': { id: 'hcelis', nombre: 'HCelis', email: 'hhcelis@hgestion.com', rol: 'Admin General', clienteId: 'ADMIN', clienteNombre: 'H-GESTION GLOBAL', sucursalesPermitidas: ['TODAS'] },
                     Supervisor: { id: 'Supervisor.BA', nombre: 'SUPERVISOR BA', email: 'supervisor.ba@bpt.com', rol: 'Supervisor', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'] },
+                    TecnicoSitio1: { id: 'dz2sNRXMNHyQ4dYSUt4S', nombre: 'Tecnico Altabrisa', email: 'tecnico.altabrisa@hgestion.com', rol: 'Tecnico', clienteId: 'kWRmv16DNfMUlSF1Yqiv', clienteNombre: 'COMERCIALIZADORA NACIONAL', sucursalesPermitidas: ['Azbef4Og1nABbWAQdQvJ'], coordinadorId: 'iYQnJvdhChK1TLCbPoCD' },
                     QA_Gerente: { id: 'empiiN18VlLXZlXq45i4', nombre: 'Gerente BP Altabrisa', email: 'Ger.Altabrisa@BP.com', rol: 'Gerente', clienteId: 'kWRmv16DNfMUlSF1Yqiv', clienteNombre: 'COMERCIALIZADORA NACIONAL', sucursalesPermitidas: ['Azbef4Og1nABbWAQdQvJ'] },
                     QA_Coordinador: { id: 'iYQnJvdhChK1TLCbPoCD', nombre: 'Coordinador Gral', email: 'coord.bpt@t-sigo.com', rol: 'Coordinador', clienteId: 'kWRmv16DNfMUlSF1Yqiv', clienteNombre: 'COMERCIALIZADORA NACIONAL', sucursalesPermitidas: ['TODAS'] },
                     QA_Tecnico: { id: 'dz2sNRXMNHyQ4dYSUt4S', nombre: 'Tecnico Altabrisa', email: 'tecnico.altabrisa@hgestion.com', rol: 'Tecnico', clienteId: 'kWRmv16DNfMUlSF1Yqiv', clienteNombre: 'COMERCIALIZADORA NACIONAL', sucursalesPermitidas: ['Azbef4Og1nABbWAQdQvJ'], coordinadorId: 'iYQnJvdhChK1TLCbPoCD' },
-                    QA_Especialista: { id: 'fpgjGMjstt5W13HGHvGG', nombre: 'Especialista Coccion', email: 'esp.coccion@t-sigo.com', rol: 'TecnicoExterno', clienteId: 'kWRmv16DNfMUlSF1Yqiv', clienteNombre: 'COMERCIALIZADORA NACIONAL', sucursalesPermitidas: ['TODAS'], especialidad: 'Coccion', coordinadorId: 'iYQnJvdhChK1TLCbPoCD' }
+                    QA_Especialista: { id: 'fpgjGMjstt5W13HGHvGG', nombre: 'Especialista Coccion', email: 'esp.coccion@t-sigo.com', rol: 'TecnicoExterno', clienteId: 'kWRmv16DNfMUlSF1Yqiv', clienteNombre: 'COMERCIALIZADORA NACIONAL', sucursalesPermitidas: ['TODAS'], especialidad: 'Coccion', coordinadorId: 'iYQnJvdhChK1TLCbPoCD' },
+                    TecExternoAires: { id: 'XectHhoF0iBuykxXdhsO', nombre: 'Tecnico Externo AIRES', email: 'tec.aires@esterno.com', rol: 'TecnicoExterno', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'], especialidad: 'ESP_AIRES', coordinadorId: 'Coord.IvanGo', supervisorId: 'Supervisor.BA' },
+                    TecExternoRef: { id: 'ZQUVYuQ4AvNjWwXfucb6', nombre: 'Tecnico Externo REF', email: 'tec.ref@esterno.com', rol: 'TecnicoExterno', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'], especialidad: 'Refrigeracion', coordinadorId: 'Coord.IvanGo', supervisorId: 'Supervisor.BA' },
+                    TecnicoAdBA: { id: 'Tecnico.Site1', nombre: 'Tecnico Ad BA', email: 'tec.ad@BA', rol: 'Tecnico', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'], coordinadorId: 'Coord.IvanGo', supervisorId: 'Supervisor.BA' }
                 };
 
                 const userFound = allMockUsers[savedRole];
@@ -123,7 +130,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         if (userDoc.exists()) {
                             setUser({ id: firebaseUser.uid, ...userDoc.data() } as User);
                         } else if (firebaseUser.email === 'hhcelis@hgestion.com') {
-                            setUser({ id: firebaseUser.uid, clienteId: 'ADMIN', nombre: 'HCelis', email: firebaseUser.email, rol: 'Admin', sucursalesPermitidas: ['TODAS'], clienteNombre: 'H-GESTION GLOBAL' });
+                            setUser({ id: firebaseUser.uid, clienteId: 'ADMIN', nombre: 'HCelis', email: firebaseUser.email, rol: 'Admin General', sucursalesPermitidas: ['TODAS'], clienteNombre: 'H-GESTION GLOBAL' });
                         }
                     } catch (error) {
                         console.error('Error Auth Boot:', error);
@@ -145,8 +152,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             Gerente: { id: 'Gerente.BA', nombre: 'GERENTE BA', email: 'gerente.ba@bpt.com', rol: 'Gerente', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'] },
             Coordinador: { id: 'Coord.IvanGo', nombre: 'Coordinador BPT', email: 'ivango@bpt.com', rol: 'Coordinador', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['TODAS'] },
             Tecnico: { id: 'Tecnico.BA', nombre: 'TECNICO BA', email: 'tecnico.ba@bpt.com', rol: 'Tecnico', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'], coordinadorId: 'Coord.IvanGo', supervisorId: 'Supervisor.BA' },
-            Admin: { id: 'hcelis', nombre: 'HCelis', email: 'hhcelis@hgestion.com', rol: 'Admin', clienteId: 'ADMIN', clienteNombre: 'H-GESTION GLOBAL', sucursalesPermitidas: ['TODAS'] },
-            Supervisor: { id: 'Supervisor.BA', nombre: 'SUPERVISOR BA', email: 'supervisor.ba@bpt.com', rol: 'Supervisor', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'] }
+            Admin: { id: 'hcelis', nombre: 'HCelis', email: 'hhcelis@hgestion.com', rol: 'Admin General', clienteId: 'ADMIN', clienteNombre: 'H-GESTION GLOBAL', sucursalesPermitidas: ['TODAS'] },
+            'Admin General': { id: 'hcelis', nombre: 'HCelis', email: 'hhcelis@hgestion.com', rol: 'Admin General', clienteId: 'ADMIN', clienteNombre: 'H-GESTION GLOBAL', sucursalesPermitidas: ['TODAS'] },
+            Supervisor: { id: 'Supervisor.BA', nombre: 'SUPERVISOR BA', email: 'supervisor.ba@bpt.com', rol: 'Supervisor', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'] },
+            TecnicoSitio1: { id: 'dz2sNRXMNHyQ4dYSUt4S', nombre: 'Tecnico Altabrisa', email: 'tecnico.altabrisa@hgestion.com', rol: 'Tecnico', clienteId: 'kWRmv16DNfMUlSF1Yqiv', clienteNombre: 'COMERCIALIZADORA NACIONAL', sucursalesPermitidas: ['Azbef4Og1nABbWAQdQvJ'], coordinadorId: 'iYQnJvdhChK1TLCbPoCD' },
+            TecExternoAires: { id: 'XectHhoF0iBuykxXdhsO', nombre: 'Tecnico Externo AIRES', email: 'tec.aires@esterno.com', rol: 'TecnicoExterno', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'], especialidad: 'ESP_AIRES', coordinadorId: 'Coord.IvanGo', supervisorId: 'Supervisor.BA' },
+            TecExternoRef: { id: 'ZQUVYuQ4AvNjWwXfucb6', nombre: 'Tecnico Externo REF', email: 'tec.ref@esterno.com', rol: 'TecnicoExterno', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'], especialidad: 'Refrigeracion', coordinadorId: 'Coord.IvanGo', supervisorId: 'Supervisor.BA' },
+            TecnicoAdBA: { id: 'Tecnico.Site1', nombre: 'Tecnico Ad BA', email: 'tec.ad@BA', rol: 'Tecnico', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'], coordinadorId: 'Coord.IvanGo', supervisorId: 'Supervisor.BA' }
         };
         const m = standardUsers[role];
         if (m) {
@@ -167,7 +179,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             QA_Gerente: { id: 'empiiN18VlLXZlXq45i4', nombre: 'Gerente BP Altabrisa', email: 'Ger.Altabrisa@BP.com', rol: 'Gerente', clienteId: 'kWRmv16DNfMUlSF1Yqiv', clienteNombre: 'COMERCIALIZADORA NACIONAL', sucursalesPermitidas: ['Azbef4Og1nABbWAQdQvJ'] },
             QA_Coordinador: { id: 'iYQnJvdhChK1TLCbPoCD', nombre: 'Coordinador Gral', email: 'coord.bpt@t-sigo.com', rol: 'Coordinador', clienteId: 'kWRmv16DNfMUlSF1Yqiv', clienteNombre: 'COMERCIALIZADORA NACIONAL', sucursalesPermitidas: ['TODAS'] },
             QA_Tecnico: { id: 'dz2sNRXMNHyQ4dYSUt4S', nombre: 'Tecnico Altabrisa', email: 'tecnico.altabrisa@hgestion.com', rol: 'Tecnico', clienteId: 'kWRmv16DNfMUlSF1Yqiv', clienteNombre: 'COMERCIALIZADORA NACIONAL', sucursalesPermitidas: ['Azbef4Og1nABbWAQdQvJ'], coordinadorId: 'iYQnJvdhChK1TLCbPoCD' },
-            QA_Especialista: { id: 'fpgjGMjstt5W13HGHvGG', nombre: 'Especialista Coccion', email: 'esp.coccion@t-sigo.com', rol: 'TecnicoExterno', clienteId: 'kWRmv16DNfMUlSF1Yqiv', clienteNombre: 'COMERCIALIZADORA NACIONAL', sucursalesPermitidas: ['TODAS'], especialidad: 'Coccion', coordinadorId: 'iYQnJvdhChK1TLCbPoCD' }
+            QA_Especialista: { id: 'fpgjGMjstt5W13HGHvGG', nombre: 'Especialista Coccion', email: 'esp.coccion@t-sigo.com', rol: 'TecnicoExterno', clienteId: 'kWRmv16DNfMUlSF1Yqiv', clienteNombre: 'COMERCIALIZADORA NACIONAL', sucursalesPermitidas: ['TODAS'], especialidad: 'Coccion', coordinadorId: 'iYQnJvdhChK1TLCbPoCD' },
+            TecnicoAdBA: { id: 'Tecnico.Site1', nombre: 'Tecnico Ad BA', email: 'tec.ad@BA', rol: 'Tecnico', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'], coordinadorId: 'Coord.IvanGo', supervisorId: 'Supervisor.BA' }
         };
         const m = corpoUsers[role];
         if (m) {
@@ -206,7 +219,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    const isSuperAdminUser = (user?.rol === 'Admin' && user?.clienteId === 'ADMIN') || user?.email === 'hhcelis@hgestion.com';
+    const isSuperAdminUser = ((user?.rol === 'Admin General' || user?.rol === 'Admin' || user?.rol === 'ROL_ADMIN_GENERAL' || user?.rol === 'ROL_ADMIN') && user?.clienteId === 'ADMIN') || user?.email === 'hhcelis@hgestion.com';
 
     const activeUser = React.useMemo(() => {
         if (!user) return null;
@@ -225,14 +238,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user: activeUser,
         loading,
         error,
-        isAdmin: user?.rol === 'Admin',
-        isCoordinador: user?.rol === 'Coordinador',
-        isGerente: user?.rol === 'Gerente',
-        isGerenteBA: user?.rol === 'Gerente' && (user?.nombre?.toUpperCase().includes('BA') || user?.sucursalesPermitidas?.includes('TODAS') || (user?.sucursalesPermitidas?.length || 0) > 1),
-        isGerenteSucursal: user?.rol === 'Gerente' && !(user?.nombre?.toUpperCase().includes('BA') || user?.sucursalesPermitidas?.includes('TODAS') || (user?.sucursalesPermitidas?.length || 0) > 1),
-        isSupervisor: user?.rol === 'Supervisor',
-        isTecnico: user?.rol === 'Tecnico' || user?.rol === 'TecnicoExterno',
-        isAdminCliente: user?.rol === 'Admin' && user?.clienteId !== 'ADMIN',
+        // INTERNAL ID IS LAW: Checking for both legacy and nomenclature patterns
+        isAdmin: !!(user?.rol === 'Admin General' || user?.rol === 'Admin' || user?.rol?.startsWith('ROL_ADMIN')),
+        isCoordinador: !!(user?.rol === 'Coordinador' || user?.rol === 'Coordinador CN' || user?.rol?.startsWith('ROL_COORD')),
+        isGerente: !!(user?.rol === 'Gerente' || user?.rol?.startsWith('ROL_GERENTE')),
+        isGerenteBA: !!((user?.rol === 'Gerente' || user?.rol?.startsWith('ROL_GERENTE')) && (user?.nombre?.toUpperCase().includes('BA') || user?.sucursalesPermitidas?.includes('TODAS') || (user?.sucursalesPermitidas?.length || 0) > 1)),
+        isGerenteSucursal: !!((user?.rol === 'Gerente' || user?.rol?.startsWith('ROL_GERENTE')) && !(user?.nombre?.toUpperCase().includes('BA') || user?.sucursalesPermitidas?.includes('TODAS') || (user?.sucursalesPermitidas?.length || 0) > 1)),
+        isSupervisor: !!(user?.rol === 'Supervisor' || user?.rol?.startsWith('ROL_SUPERVISOR')),
+        isTecnico: !!(user?.rol === 'Tecnico' || user?.rol === 'TecnicoExterno' || user?.rol?.startsWith('ROL_TECNICO')),
+        isAdminCliente: !!((user?.rol === 'Admin General' || user?.rol === 'Admin' || user?.rol?.startsWith('ROL_ADMIN')) && user?.clienteId !== 'ADMIN'),
         isSuperAdmin: isSuperAdminUser,
         activeClienteId: isSuperAdminUser ? (activeClienteId || 'ADMIN') : activeClienteId,
         activeClienteNombre,

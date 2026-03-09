@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Send, X, AlertCircle, UploadCloud, CheckCircle, Clock, Users, Calendar, Camera } from 'lucide-react';
+import { Send, X, AlertCircle, UploadCloud, CheckCircle, Clock, Camera } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { createOT } from '../services/dataService';
 import { storage } from '../services/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { getDocs, query, where } from 'firebase/firestore';
-import { tenantQuery, tenantStoragePath } from '../services/tenantContext';
+import { tenantStoragePath } from '../services/tenantContext';
 import { CameraModal } from '../components/CameraModal';
 import { useNotification } from '../context/NotificationContext';
+import { getCatalogos } from '../services/dataService';
 import type { Equipo, WorkOrder, Sucursal } from '../types';
 
 export const SolicitarOTPage: React.FC = () => {
@@ -30,8 +30,17 @@ export const SolicitarOTPage: React.FC = () => {
     const [sucursales, setSucursales] = useState<Sucursal[]>([]);
     const [selectedSucursalId, setSelectedSucursalId] = useState('');
     const [isCameraOpen, setIsCameraOpen] = useState(false);
+    const [familiasCatalogo, setFamiliasCatalogo] = useState<any[]>([]);
 
-    const familias: Equipo['familia'][] = ['Aires', 'Coccion', 'Refrigeracion', 'Cocina', 'Restaurante', 'Local'];
+    // Cargar Catálogos (Familias)
+    useEffect(() => {
+        if (!user) return;
+        const loadCats = async () => {
+            const cats = await getCatalogos(user.clienteId);
+            setFamiliasCatalogo(cats.filter(c => c.categoria === 'Familia').sort((a, b) => a.nombre.localeCompare(b.nombre)));
+        };
+        loadCats();
+    }, [user]);
 
     // Cargar Sucursales Permitidas
     useEffect(() => {
@@ -188,10 +197,14 @@ export const SolicitarOTPage: React.FC = () => {
                         <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '600' }}>Familia de Equipo *</label>
                         <select
                             value={familia} onChange={e => { setFamilia(e.target.value as any); setEquipoId(''); }} required
-                            style={{ width: '100%', padding: '0.875rem', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
+                            style={{ width: '100%', padding: '0.875rem', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontWeight: '600' }}
                         >
                             <option value="">Seleccione Familia...</option>
-                            {familias.map(f => <option key={f} value={f}>{f}</option>)}
+                            {familiasCatalogo.map(f => (
+                                <option key={f.id} value={f.nomenclatura} style={{ color: 'black' }}>
+                                    {f.nombre}
+                                </option>
+                            ))}
                         </select>
                     </div>
                     <div>
@@ -310,59 +323,73 @@ export const SolicitarOTPage: React.FC = () => {
             {showSuccessModal && (
                 <div style={{
                     position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    background: 'rgba(15, 23, 42, 0.9)', backdropFilter: 'blur(10px)',
-                    zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem'
+                    background: 'rgba(5, 5, 5, 0.95)', backdropFilter: 'blur(20px)',
+                    zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem'
                 }}>
                     <div className="glass-card animate-scale-up" style={{
-                        maxWidth: '550px', width: '100%', textAlign: 'center', padding: '3rem',
-                        border: '1px solid var(--accent)', boxShadow: '0 0 50px rgba(37, 99, 235, 0.2)'
+                        maxWidth: '600px', width: '100%', textAlign: 'center', padding: '4rem 3rem',
+                        border: '2px solid var(--accent)', boxShadow: '0 0 80px rgba(37, 99, 235, 0.4)',
+                        position: 'relative', overflow: 'hidden'
                     }}>
-                        <div style={{ color: '#22c55e', marginBottom: '1.5rem' }}>
-                            <CheckCircle size={80} style={{ margin: '0 auto' }} />
+                        {/* Efecto de fondo premium */}
+                        <div style={{ position: 'absolute', top: '-50%', left: '-50%', width: '200%', height: '200%', background: 'radial-gradient(circle, rgba(37,99,235,0.1) 0%, transparent 70%)', zIndex: -1 }}></div>
+
+                        <div className="animate-bounce-subtle" style={{ color: '#22c55e', marginBottom: '2rem' }}>
+                            <CheckCircle size={100} style={{ margin: '0 auto', filter: 'drop-shadow(0 0 20px rgba(34,197,94,0.5))' }} />
                         </div>
 
-                        <h2 style={{ fontSize: '2rem', fontWeight: '800', marginBottom: '1rem', color: 'white' }}>
-                            ¡ORDEN REGISTRADA!
+                        <h2 style={{ fontSize: '2.5rem', fontWeight: '900', marginBottom: '1.5rem', color: 'white', letterSpacing: '-1px' }}>
+                            ¡REPORTE EXITOSO!
                         </h2>
 
                         <div style={{
-                            background: 'rgba(37, 99, 235, 0.1)', padding: '1.5rem', borderRadius: '16px',
-                            marginBottom: '2rem', border: '1px solid rgba(37, 99, 235, 0.3)'
+                            background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.15) 0%, rgba(37, 99, 235, 0.05) 100%)',
+                            padding: '2.5rem', borderRadius: '24px',
+                            marginBottom: '2.5rem', border: '1px solid rgba(37, 99, 235, 0.4)',
+                            boxShadow: 'inset 0 0 20px rgba(0,0,0,0.2)'
                         }}>
-                            <p style={{ fontSize: '1.25rem', color: 'var(--accent)', fontWeight: '700', marginBottom: '0.5rem' }}>
-                                Orden de Trabajo #: {lastOTNumber}
+                            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '0.5rem', fontWeight: '600' }}>
+                                Folio de Seguimiento
                             </p>
-                            <p style={{ color: 'var(--text-muted)', fontSize: '1rem', lineHeight: '1.6' }}>
-                                Tu solicitud ha sido guardada correctamente en el sistema.
+                            <p style={{ fontSize: '3rem', color: 'var(--accent)', fontWeight: '900', marginBottom: '1rem', textShadow: '0 0 15px rgba(37,99,235,0.3)' }}>
+                                #{lastOTNumber}
+                            </p>
+                            <div style={{ height: '2px', background: 'rgba(255,255,255,0.1)', width: '60px', margin: '1.5rem auto' }}></div>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', lineHeight: '1.6', fontWeight: '500' }}>
+                                La solicitud ha sido registrada con éxito y ya es visible para el Coordinador.
                             </p>
                         </div>
 
-                        <div style={{ textAlign: 'left', background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '12px', marginBottom: '2.5rem' }}>
-                            <p style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem', color: '#F59E0B', fontWeight: '600' }}>
-                                <Clock size={20} /> NOTA IMPORTANTE:
+                        <div style={{ textAlign: 'left', background: 'rgba(245, 158, 11, 0.05)', padding: '2rem', borderRadius: '20px', marginBottom: '3rem', borderLeft: '5px solid #F59E0B' }}>
+                            <p style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem', color: '#F59E0B', fontWeight: '800', fontSize: '1.1rem' }}>
+                                <Clock size={24} /> PRÓXIMOS PASOS
                             </p>
-                            <p style={{ color: 'var(--text-muted)', fontSize: '0.925rem', lineHeight: '1.6' }}>
-                                Desde este momento, la orden aparecerá como <strong style={{ color: 'white' }}>PENDIENTE</strong> en el panel del Coordinador para su revisión.
-                            </p>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem', fontSize: '0.875rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
-                                    <Users size={16} /> Asignación de Técnico
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '1rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', color: 'rgba(255,255,255,0.7)' }}>
+                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#F59E0B' }}></div>
+                                    Validación de impacto operativo
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
-                                    <AlertCircle size={16} /> Definición de Prioridad
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', color: 'rgba(255,255,255,0.7)' }}>
+                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#F59E0B' }}></div>
+                                    Asignación de técnico especializado
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
-                                    <Calendar size={16} /> Fecha de Atención
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', color: 'rgba(255,255,255,0.7)' }}>
+                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#F59E0B' }}></div>
+                                    Notificación de visita programada
                                 </div>
                             </div>
                         </div>
 
                         <button
                             onClick={() => setShowSuccessModal(false)}
-                            className="btn btn-primary"
-                            style={{ width: '100%', padding: '1.25rem', fontSize: '1.1rem', fontWeight: '700', borderRadius: '16px' }}
+                            className="btn btn-primary animate-pulse-subtle"
+                            style={{
+                                width: '100%', padding: '1.5rem', fontSize: '1.25rem', fontWeight: '800',
+                                borderRadius: '20px', boxShadow: '0 10px 30px rgba(37, 99, 235, 0.4)',
+                                border: 'none', cursor: 'pointer', transition: 'all 0.3s'
+                            }}
                         >
-                            ACEPTAR Y CONTINUAR
+                            ENTENDIDO Y CERRAR
                         </button>
                     </div>
                 </div>

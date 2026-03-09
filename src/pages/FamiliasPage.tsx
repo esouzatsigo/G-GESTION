@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { db } from '../services/firebase';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { trackedAddDoc, trackedUpdateDoc } from '../services/firestoreHelpers';
 import { tenantQuery } from '../services/tenantContext';
 import { Settings, Plus, Edit2, Trash2, Save, X } from 'lucide-react';
 import { useNotification } from '../context/NotificationContext';
@@ -65,10 +66,10 @@ export const FamiliasPage: React.FC = () => {
             };
 
             if (editingId) {
-                await updateDoc(doc(db, 'familias', editingId), dataToSave);
+                await trackedUpdateDoc(doc(db, 'familias', editingId), dataToSave);
                 showNotification("Familia actualizada", "success");
             } else {
-                await addDoc(collection(db, 'familias'), dataToSave);
+                await trackedAddDoc(collection(db, 'familias'), dataToSave);
                 showNotification("Familia creada", "success");
             }
 
@@ -117,9 +118,18 @@ export const FamiliasPage: React.FC = () => {
                     <p style={{ color: 'var(--text-muted)' }}>Catálogo unificado para categorizar los equipos por Cliente.</p>
                 </div>
                 {!showForm && (
-                    <button className="btn btn-primary" onClick={() => { setShowForm(true); setEditingId(null); setNombre(''); setDescripcion(''); }}>
-                        <Plus size={20} /> Nueva Familia
-                    </button>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                        <div style={{
+                            background: 'var(--primary)', color: 'white', padding: '0.4rem 0.8rem',
+                            borderRadius: '20px', fontSize: '0.75rem', fontWeight: '800',
+                            boxShadow: '0 0 10px var(--primary-shadow)'
+                        }}>
+                            {familias.length} Familias
+                        </div>
+                        <button className="btn btn-primary" onClick={() => { setShowForm(true); setEditingId(null); setNombre(''); setDescripcion(''); }}>
+                            <Plus size={20} /> Nueva Familia
+                        </button>
+                    </div>
                 )}
             </div>
 

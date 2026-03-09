@@ -3,7 +3,6 @@ import {
     collection,
     query,
     getDocs,
-    orderBy,
     where
 } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -38,15 +37,15 @@ export const SupervisarPage: React.FC = () => {
     // Modal de Visualización
     const [selectedOT, setSelectedOT] = useState<WorkOrder | null>(null);
     const [bitacora, setBitacora] = useState<any[]>([]);
-    const { user, activeClienteId } = useAuth();
+    const { user, activeClienteId, isAdmin } = useAuth();
 
     const fetchData = React.useCallback(async () => {
         if (!user) return;
         setLoading(true);
         try {
-            const targetClienteId = (user.rol === 'Admin' && activeClienteId && activeClienteId !== 'ADMIN')
+            const targetClienteId = (isAdmin && activeClienteId && activeClienteId !== 'ADMIN')
                 ? activeClienteId
-                : (user.rol !== 'Admin' ? user.clienteId : undefined);
+                : (!isAdmin ? user?.clienteId : undefined);
 
             const [otSnap, clSnap, sucSnap, eqSnap, userSnap] = await Promise.all([
                 getDocs(tenantQuery('ordenesTrabajo', user, where('estatus', '==', 'Concluida'))),
@@ -96,9 +95,9 @@ export const SupervisarPage: React.FC = () => {
 
         // Si el usuario actual es Supervisor, solo mostrar OTs de sus técnicos
         // Si es Admin, mostrar todo (opcional, pero ayuda a la depuración)
-        const reportsToMe = user?.id === tech?.supervisorId || user?.rol === 'Admin';
+        const reportsToMe = user?.id === tech?.supervisorId || isAdmin;
 
-        if (!reportsToMe && user?.rol !== 'Admin') return false;
+        if (!reportsToMe && !isAdmin) return false;
 
         const matchesSearch = ot.numero.toString().includes(search) ||
             ot.descripcionFalla?.toLowerCase().includes(search.toLowerCase());
@@ -177,7 +176,7 @@ export const SupervisarPage: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="glass-card" style={{ marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                <div className="glass-card" style={{ marginBottom: '2rem', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
                         <div style={{ position: 'relative' }}>
                             <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
@@ -191,8 +190,8 @@ export const SupervisarPage: React.FC = () => {
                             style={{ padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }}>
                             <option value="">Cualquier Técnico</option>
                             {usuarios
-                                .filter(u => u.rol === 'Tecnico' || u.rol === 'TecnicoExterno')
-                                .filter(u => user?.rol === 'Admin' || u.supervisorId === user?.id)
+                                .filter(u => u.rol?.startsWith('ROL_TECNICO') || u.rol === 'Tecnico' || u.rol === 'TecnicoExterno')
+                                .filter(u => isAdmin || u.supervisorId === user?.id)
                                 .map(t => (
                                     <option key={t.id} value={t.id}>{t.nombre}</option>
                                 ))}
@@ -205,6 +204,11 @@ export const SupervisarPage: React.FC = () => {
                                 <option key={s.id} value={s.id}>{s.nombre}</option>
                             ))}
                         </select>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)' }}>
+                        <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', fontWeight: '600' }}>
+                            Mostrando {filteredOTs.length} registro(s) con los filtros actuales
+                        </div>
                     </div>
                 </div>
 

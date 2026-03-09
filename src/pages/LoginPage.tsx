@@ -26,7 +26,7 @@ export const LoginPage: React.FC = () => {
                 await setDoc(doc(db, 'usuarios', userCredential.user.uid), {
                     nombre: nombre || 'Usuario Nuevo',
                     email,
-                    rol: 'Admin',
+                    rol: 'Admin General',
                     clienteId: 'ADMIN',
                     sucursalesPermitidas: ['TODAS'],
                     activo: true,

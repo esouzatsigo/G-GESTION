@@ -16,7 +16,7 @@ async function run() {
     let updated = 0;
     for (const docSnap of snap.docs) {
         const u = docSnap.data();
-        if (u.rol !== 'Admin' && u.clienteId !== targetClienteId) {
+        if (u.rol !== 'Admin General' && u.clienteId !== targetClienteId) {
             console.log(`Updating ${u.nombre} to have clienteId ${targetClienteId} (was ${u.clienteId})`);
             await updateDoc(doc(db, 'usuarios', docSnap.id), { clienteId: targetClienteId });
             updated++;

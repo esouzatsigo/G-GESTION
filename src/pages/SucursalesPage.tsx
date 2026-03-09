@@ -6,7 +6,8 @@ import { useNotification } from '../context/NotificationContext';
 import { ImportModal } from '../components/ImportModal';
 import { getSucursales, getClientes, getFranquicias, logEntityChange } from '../services/dataService';
 import { db } from '../services/firebase';
-import { addDoc, collection, doc, updateDoc } from 'firebase/firestore';
+import { collection, doc } from 'firebase/firestore';
+import { trackedAddDoc, trackedUpdateDoc } from '../services/firestoreHelpers';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useAuth } from '../hooks/useAuth';
 import type { Sucursal, Cliente, Franquicia } from '../types';
@@ -147,7 +148,7 @@ export const SucursalesPage: React.FC = () => {
 
         try {
             if (editingSucursal) {
-                await updateDoc(doc(db, 'sucursales', editingSucursal.id), data);
+                await trackedUpdateDoc(doc(db, 'sucursales', editingSucursal.id), data);
                 if (user) {
                     await logEntityChange({
                         clienteId: data.clienteId,
@@ -161,7 +162,7 @@ export const SucursalesPage: React.FC = () => {
                 }
                 showNotification("Sucursal actualizada correctamente.", "success");
             } else {
-                const docRef = await addDoc(collection(db, 'sucursales'), data);
+                const docRef = await trackedAddDoc(collection(db, 'sucursales'), data);
                 if (user) {
                     await logEntityChange({
                         clienteId: data.clienteId,

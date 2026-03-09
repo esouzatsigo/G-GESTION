@@ -1,5 +1,5 @@
 import React from 'react';
-import { Printer, X } from 'lucide-react';
+import { Printer, X, Download } from 'lucide-react';
 import type { WorkOrder, Cliente, Sucursal, Equipo, User, Franquicia } from '../types';
 
 interface PrintableServiceReportProps {
@@ -10,10 +10,12 @@ interface PrintableServiceReportProps {
     equipo: Equipo;
     tecnico?: User;
     onClose: () => void;
+    onGeneratePdf?: () => void;
+    generating?: boolean;
 }
 
 export const PrintableServiceReport: React.FC<PrintableServiceReportProps> = ({
-    ot, cliente, sucursal, franquicia, equipo, tecnico, onClose
+    ot, cliente, sucursal, franquicia, equipo, tecnico, onClose, onGeneratePdf, generating
 }) => {
     const handlePrint = () => {
         window.print();
@@ -36,8 +38,18 @@ export const PrintableServiceReport: React.FC<PrintableServiceReportProps> = ({
                 }}>
                     <div style={{ display: 'flex', gap: '1rem' }}>
                         <button onClick={handlePrint} className="btn btn-primary" style={{ background: '#22c55e' }}>
-                            <Printer size={18} /> IMPRIMIR REPORTE (CARTA)
+                            <Printer size={18} /> IMPRIMIR (CARTA)
                         </button>
+                        {onGeneratePdf && (
+                            <button
+                                onClick={onGeneratePdf}
+                                className="btn btn-primary"
+                                style={{ background: '#2563eb', opacity: generating ? 0.6 : 1 }}
+                                disabled={generating}
+                            >
+                                <Download size={18} /> {generating ? 'GENERANDO...' : 'GENERA PDF'}
+                            </button>
+                        )}
                     </div>
                     <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer' }}>
                         <X size={24} />
@@ -133,26 +145,56 @@ export const PrintableServiceReport: React.FC<PrintableServiceReportProps> = ({
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                         {/* Bloque de Datos Generales */}
                         <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '0.8rem' }}>
-                            <div style={{ padding: '0.4rem 0.6rem', border: '1.5px solid #cbd5e1', borderRadius: '4px', background: '#f8fafc' }}>
-                                <p style={{ fontSize: '10px', fontWeight: 'bold', color: '#1e3a8a', textTransform: 'uppercase', marginBottom: '3px', borderBottom: '1.5px solid #e2e8f0', paddingBottom: '2px' }}>FRANQUICIA Y SUCURSAL</p>
-                                <p style={{ fontSize: '14px', margin: '4px 0' }}><b>FRANQUICIA:</b> {franquicia?.nombre || cliente.nombre}</p>
-                                <p style={{ fontSize: '14px', margin: '4px 0' }}><b>SUCURSAL:</b> {sucursal.nombre}</p>
-                                <p style={{ fontSize: '12px', margin: '4px 0', color: '#334155' }}><b>DIRECCIÓN:</b> {sucursal.direccion}</p>
+                            <div style={{ padding: '0.5rem 0.8rem', border: '1.5px solid #cbd5e1', borderRadius: '4px', background: '#f8fafc' }}>
+                                <p style={{ fontSize: '10px', fontWeight: 'bold', color: '#1e3a8a', textTransform: 'uppercase', marginBottom: '6px', borderBottom: '1.5px solid #e2e8f0', paddingBottom: '3px' }}>FRANQUICIA Y SUCURSAL</p>
+                                <p style={{ fontSize: '14px', margin: '6px 0', display: 'flex', gap: '8px' }}>
+                                    <span style={{ fontWeight: 'bold', minWidth: '95px' }}>FRANQUICIA:</span>
+                                    <span>{franquicia?.nombre || cliente.nombre}</span>
+                                </p>
+                                <p style={{ fontSize: '14px', margin: '6px 0', display: 'flex', gap: '8px' }}>
+                                    <span style={{ fontWeight: 'bold', minWidth: '95px' }}>SUCURSAL:</span>
+                                    <span>{sucursal.nombre}</span>
+                                </p>
+                                <p style={{ fontSize: '12px', margin: '6px 0', color: '#334155', display: 'flex', gap: '8px' }}>
+                                    <span style={{ fontWeight: 'bold', minWidth: '95px' }}>DIRECCIÓN:</span>
+                                    <span>{sucursal.direccion}</span>
+                                </p>
                             </div>
                             <div style={{ padding: '0.5rem 0.8rem', border: '1.5px solid #cbd5e1', borderRadius: '4px', background: '#f8fafc' }}>
-                                <p style={{ fontSize: '10px', fontWeight: 'bold', color: '#1e3a8a', textTransform: 'uppercase', marginBottom: '4px', borderBottom: '1.5px solid #e2e8f0', paddingBottom: '2px' }}>INFORMACIÓN DEL SERVICIO</p>
-                                <p style={{ fontSize: '14px', margin: '4px 0' }}><b>FECHA SOLICITUD:</b> {new Date(ot.fechas.solicitada).toLocaleDateString()}</p>
-                                <p style={{ fontSize: '14px', margin: '4px 0' }}><b>ESTATUS:</b> {ot.estatus?.toUpperCase()}</p>
-                                <p style={{ fontSize: '14px', margin: '4px 0' }}><b>TIPO:</b> {ot.tipo || 'CORECCIÓN'}</p>
+                                <p style={{ fontSize: '10px', fontWeight: 'bold', color: '#1e3a8a', textTransform: 'uppercase', marginBottom: '6px', borderBottom: '1.5px solid #e2e8f0', paddingBottom: '3px' }}>INFORMACIÓN DEL SERVICIO</p>
+                                <p style={{ fontSize: '14px', margin: '6px 0', display: 'flex', gap: '8px' }}>
+                                    <span style={{ fontWeight: 'bold', minWidth: '130px' }}>FECHA SOLICITUD:</span>
+                                    <span>{new Date(ot.fechas.solicitada).toLocaleDateString()}</span>
+                                </p>
+                                <p style={{ fontSize: '14px', margin: '6px 0', display: 'flex', gap: '8px' }}>
+                                    <span style={{ fontWeight: 'bold', minWidth: '130px' }}>ESTATUS:</span>
+                                    <span style={{ fontWeight: '800' }}>{ot.estatus?.toUpperCase()}</span>
+                                </p>
+                                <p style={{ fontSize: '14px', margin: '6px 0', display: 'flex', gap: '8px' }}>
+                                    <span style={{ fontWeight: 'bold', minWidth: '130px' }}>TIPO:</span>
+                                    <span>{ot.tipo || 'CORRECTIVO'}</span>
+                                </p>
                             </div>
                         </div>
 
                         {/* Bloque de Equipo */}
-                        <div style={{ padding: '0.4rem 0.6rem', border: '1.5px solid #cbd5e1', borderRadius: '4px' }}>
-                            <p style={{ fontSize: '10px', fontWeight: 'bold', color: '#1e3a8a', textTransform: 'uppercase', marginBottom: '3px', borderBottom: '1.5px solid #e2e8f0', paddingBottom: '2px' }}>DETALLES DEL EQUIPO ATENDIDO</p>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1.5rem' }}>
+                        <div style={{ padding: '0.6rem 0.8rem', border: '1.5px solid #cbd5e1', borderRadius: '4px' }}>
+                            <p style={{ fontSize: '10px', fontWeight: 'bold', color: '#1e3a8a', textTransform: 'uppercase', marginBottom: '6px', borderBottom: '1.5px solid #e2e8f0', paddingBottom: '3px' }}>DETALLES DEL EQUIPO ATENDIDO</p>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1rem' }}>
                                 <p style={{ fontSize: '14px', margin: '2px 0' }}><b>NOMBRE:</b> {equipo.nombre}</p>
-                                <p style={{ fontSize: '14px', margin: '2px 0' }}><b>FAMILIA:</b> {equipo.familia}</p>
+                                <p style={{ fontSize: '14px', margin: '2px 0' }}><b>FAMILIA:</b> {(() => {
+                                    const map: Record<string, string> = {
+                                        'ESP_REFRIGERACION': 'Refrigeración',
+                                        'ESP_COCCION': 'Cocción',
+                                        'ESP_GENERADORES': 'Generadores',
+                                        'ESP_AGUA': 'Agua',
+                                        'ESP_AIRES': 'Aires',
+                                        'ESP_COCINA': 'Cocina',
+                                        'ESP_RESTAURANTE': 'Restaurante',
+                                        'ESP_LOCAL': 'Local'
+                                    };
+                                    return map[equipo.familia] || equipo.familia;
+                                })()}</p>
                             </div>
                         </div>
 

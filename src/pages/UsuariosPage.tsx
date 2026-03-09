@@ -4,18 +4,20 @@ import * as XLSX from 'xlsx';
 import { downloadExcel, fileTimestamp } from '../utils/fileDownload';
 import { useNotification } from '../context/NotificationContext';
 import { db } from '../services/firebase';
-import { addDoc, collection, doc, updateDoc, getDocs } from 'firebase/firestore';
+import { collection, doc, getDocs } from 'firebase/firestore';
+import { trackedAddDoc, trackedUpdateDoc } from '../services/firestoreHelpers';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useAuth } from '../hooks/useAuth';
 import { tenantQuery } from '../services/tenantContext';
-import { logEntityChange, getClientes } from '../services/dataService';
-import type { User, Sucursal, Cliente, UserRole, Franquicia } from '../types';
+import { logEntityChange, getClientes, getCatalogos } from '../services/dataService';
+import type { User, Sucursal, Cliente, UserRole, Franquicia, CatalogoItem } from '../types';
 
 export const UsuariosPage: React.FC = () => {
     const [usuarios, setUsuarios] = useState<User[]>([]);
     const [sucursales, setSucursales] = useState<Sucursal[]>([]);
     const [clientes, setClientes] = useState<Cliente[]>([]);
     const [franquicias, setFranquicias] = useState<Franquicia[]>([]);
+    const [catalogos, setCatalogos] = useState<CatalogoItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [searchEmail, setSearchEmail] = useState('');
@@ -44,30 +46,63 @@ export const UsuariosPage: React.FC = () => {
     const [supervisorId, setSupervisorId] = useState('');
     const [coordinadorId, setCoordinadorId] = useState('');
 
-    const roles: UserRole[] = ['Admin', 'Coordinador', 'Gerente', 'Supervisor', 'Tecnico', 'TecnicoExterno'];
-    const especialidades: User['especialidad'][] = ['Aires', 'Coccion', 'Refrigeracion', 'Cocina', 'Restaurante', 'Local', 'Agua', 'Generadores'];
+    const defaultRoles = [
+        { id: 'ROL_ADMIN_GENERAL', name: 'Admin General' },
+        { id: 'ROL_COORD', name: 'Coordinador' },
+        { id: 'ROL_GERENTE', name: 'Gerente' },
+        { id: 'ROL_SUPERVISOR', name: 'Supervisor' },
+        { id: 'ROL_TECNICO', name: 'Tecnico' },
+        { id: 'ROL_TECNICO_EXTERNO', name: 'TecnicoExterno' }
+    ];
+    const dynamicRoles = catalogos.filter(c => c.categoria === 'Rol').map(c => ({ id: c.nomenclatura, name: c.nombre }));
+    const roles = dynamicRoles.length > 0 ? dynamicRoles : defaultRoles;
 
-    const { user: currentUser, activeClienteId } = useAuth();
+    const defaultEsp = [
+        { id: 'ESP_AIRES', name: 'Aires' },
+        { id: 'ESP_COCCION', name: 'Coccion' },
+        { id: 'ESP_REFRIGERACION', name: 'Refrigeracion' },
+        { id: 'ESP_COCINA', name: 'Cocina' },
+        { id: 'ESP_RESTAURANTE', name: 'Restaurante' },
+        { id: 'ESP_LOCAL', name: 'Local' },
+        { id: 'ESP_AGUA', name: 'Agua' },
+        { id: 'ESP_GENERADORES', name: 'Generadores' }
+    ];
+    const dynamicEsp = catalogos.filter(c => c.categoria === 'Especialidad').map(c => ({ id: c.nomenclatura, name: c.nombre }));
+    const especialidades = dynamicEsp.length > 0 ? dynamicEsp : defaultEsp;
+
+    const getCatalogoName = (id: string, categoria: 'Rol' | 'Especialidad') => {
+        const item = catalogos.find(c => c.categoria === categoria && c.nomenclatura === id);
+        return item ? item.nombre : id;
+    };
+
+    // Helper roles identification (Iron Link) - Strictly Nomenclature
+    const _isCoordinador = (r: string) => r?.startsWith('ROL_COORD') || r === 'Coordinador' || r === 'Coordinador CN';
+    const _isSupervisor = (r: string) => r?.startsWith('ROL_SUPERVISOR') || r === 'Supervisor';
+    const _isTecnico = (r: string) => r?.startsWith('ROL_TECNICO') || r === 'Tecnico' || r === 'TecnicoExterno';
+
+    const { user: currentUser, activeClienteId, isAdmin } = useAuth();
 
     const fetchData = React.useCallback(async () => {
         if (!currentUser) return;
         setLoading(true);
         try {
-            const targetClienteId = (currentUser.rol === 'Admin' && activeClienteId && activeClienteId !== 'ADMIN')
+            const targetClienteId = (isAdmin && activeClienteId && activeClienteId !== 'ADMIN')
                 ? activeClienteId
-                : (currentUser.rol !== 'Admin' ? currentUser.clienteId : undefined);
+                : (!isAdmin ? currentUser?.clienteId : undefined);
 
             const snapshot = await getDocs(tenantQuery('usuarios', currentUser));
             const uData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
-            const [sData, cData, fData] = await Promise.all([
+            const [sData, cData, fData, catData] = await Promise.all([
                 getDocs(tenantQuery('sucursales', currentUser)),
                 getClientes(targetClienteId),
-                getDocs(tenantQuery('franquicias', currentUser))
+                getDocs(tenantQuery('franquicias', currentUser)),
+                getCatalogos(targetClienteId)
             ]);
             setUsuarios(uData);
             setSucursales(sData.docs.map(d => ({ id: d.id, ...d.data() } as Sucursal)));
             setClientes(cData);
             setFranquicias(fData.docs.map(d => ({ id: d.id, ...d.data() } as Franquicia)));
+            setCatalogos(catData);
         } catch (error) {
             console.error(error);
         } finally {
@@ -80,13 +115,19 @@ export const UsuariosPage: React.FC = () => {
     }, [fetchData]);
 
     useEffect(() => {
-        if (isModalOpen && !editingUser) {
-            const availableCoordinators = usuarios.filter(u => u.rol === 'Coordinador');
+        if (isModalOpen && !editingUser && clienteId) {
+            // Auto-asignación de Coordinador si solo hay uno
+            const availableCoordinators = usuarios.filter(u => _isCoordinador(u.rol) && u.clienteId === clienteId);
             if (availableCoordinators.length === 1 && !coordinadorId) {
                 setCoordinadorId(availableCoordinators[0].id);
             }
+            // Auto-asignación de Supervisor si solo hay uno
+            const availableSupervisors = usuarios.filter(u => _isSupervisor(u.rol) && u.clienteId === clienteId);
+            if (availableSupervisors.length === 1 && !supervisorId) {
+                setSupervisorId(availableSupervisors[0].id);
+            }
         }
-    }, [isModalOpen, editingUser, usuarios, coordinadorId]);
+    }, [isModalOpen, editingUser, usuarios, coordinadorId, supervisorId, clienteId]);
 
     useEscapeKey(() => setIsModalOpen(false), isModalOpen);
 
@@ -112,15 +153,15 @@ export const UsuariosPage: React.FC = () => {
             setNombre('');
             setEmail('');
             setContrasena('');
-            setRol('Tecnico'); // Changed from 'Consultor' to 'Tecnico' to match original default
+            setRol('ROL_TECNICO'); // Default to standard Nomenclature ID
             setClienteId(effectiveClientId);
             setFranquiciaId('');
             setSucursalesPermitidas([]);
             setSupervisorId('');
             setEspecialidad(undefined);
 
-            // AUTO-PRESELECCIÓN DE COORDINADOR ÚNICO
-            const availableCoordinators = usuarios.filter(u => u.rol === 'Coordinador');
+            // AUTO-PRESELECCIÓN DE COORDINADOR ÚNICO (Usando ID Interno)
+            const availableCoordinators = usuarios.filter(u => _isCoordinador(u.rol));
             if (availableCoordinators.length === 1) {
                 setCoordinadorId(availableCoordinators[0].id);
             } else {
@@ -156,7 +197,7 @@ export const UsuariosPage: React.FC = () => {
             showNotification("Seleccione un cliente para el usuario.", "warning");
             return;
         }
-        if (rol !== 'TecnicoExterno' && rol !== 'Supervisor' && !franquiciaId) {
+        if (rol !== 'TecnicoExterno' && !_isSupervisor(rol) && !_isCoordinador(rol) && !franquiciaId) {
             showNotification("Seleccione una franquicia para el usuario.", "warning");
             return;
         }
@@ -168,35 +209,41 @@ export const UsuariosPage: React.FC = () => {
         }
 
         // Validación específica para Técnicos
-        if (rol === 'Tecnico' || rol === 'TecnicoExterno') {
-            if (rol === 'TecnicoExterno' && !especialidad) {
+        if (_isTecnico(rol)) {
+            if (rol === 'ROL_TECNICO_EXTERNO' && !especialidad) {
                 showNotification("Los técnicos externos deben tener una especialidad asignada.", "warning");
                 return;
             }
         }
 
         // Validación de Coordinador: Todos excepto el Coordinador deben tener uno (opcional para Supervisor)
-        if (rol !== 'Coordinador' && rol !== 'Supervisor' && !coordinadorId) {
+        if (!_isCoordinador(rol) && !_isSupervisor(rol) && !coordinadorId) {
             showNotification("El Coordinador Asignado es obligatorio para este rol.", "warning");
+            return;
+        }
+
+        // Validación de Supervisor: Técnicos y Gerentes deben tener uno
+        if (_isTecnico(rol) && !supervisorId) {
+            showNotification("El Supervisor Asignado es obligatorio para técnicos.", "warning");
             return;
         }
 
         const data = {
             clienteId: clienteId,
-            franquiciaId: rol === 'TecnicoExterno' ? null : (franquiciaId || null),
+            franquiciaId: (rol === 'ROL_TECNICO_EXTERNO') ? null : (franquiciaId || null),
             rol,
             nombre,
             email,
             contrasena,
             sucursalesPermitidas: sucursalesPermitidas || [],
-            especialidad: rol === 'TecnicoExterno' ? (especialidad || null) : null,
-            supervisorId: (rol === 'Tecnico' || rol === 'TecnicoExterno' || rol === 'Gerente' || rol === 'Supervisor') ? (supervisorId || null) : null,
-            coordinadorId: rol !== 'Coordinador' ? (coordinadorId || null) : null
+            especialidad: (rol === 'ROL_TECNICO_EXTERNO') ? (especialidad || null) : null,
+            supervisorId: (_isTecnico(rol) || rol === 'ROL_GERENTE' || _isSupervisor(rol)) ? (supervisorId || null) : null,
+            coordinadorId: !_isCoordinador(rol) ? (coordinadorId || null) : null
         };
 
         try {
             if (editingUser) {
-                await updateDoc(doc(db, 'usuarios', editingUser.id), data);
+                await trackedUpdateDoc(doc(db, 'usuarios', editingUser.id), data);
                 if (currentUser) {
                     await logEntityChange({
                         clienteId: data.clienteId,
@@ -210,7 +257,7 @@ export const UsuariosPage: React.FC = () => {
                 }
                 showNotification("Usuario actualizado correctamente.", "success");
             } else {
-                const docRef = await addDoc(collection(db, 'usuarios'), data);
+                const docRef = await trackedAddDoc(collection(db, 'usuarios'), data);
                 if (currentUser) {
                     await logEntityChange({
                         clienteId: data.clienteId,
@@ -237,17 +284,19 @@ export const UsuariosPage: React.FC = () => {
         const matchEmail = (u.email || '').toLowerCase().includes(searchEmail.toLowerCase());
         const matchRol = !filterRol || u.rol === filterRol;
 
+        const isGlobalRole = u.rol === 'ROL_ADMIN_GENERAL' || u.rol.includes('COORD');
+
         const matchFranquicia = !filterFranquicia || u.sucursalesPermitidas?.some(sid => {
             const suc = sucursales.find(s => s.id === sid);
             return suc?.franquiciaId === filterFranquicia;
-        }) || (u.rol === 'Admin' || u.rol === 'Coordinador');
+        }) || isGlobalRole;
 
-        const matchSucursalId = !filterSucursalId || u.sucursalesPermitidas?.includes(filterSucursalId) || u.sucursalesPermitidas?.includes('TODAS');
+        const matchSucursalId = !filterSucursalId || u.sucursalesPermitidas?.includes(filterSucursalId) || u.sucursalesPermitidas?.includes('TODAS') || isGlobalRole;
 
         const matchNombreSucursal = !searchSucursal || u.sucursalesPermitidas?.some(sid => {
             const suc = sucursales.find(s => s.id === sid);
             return (suc?.nombre || '').toLowerCase().includes(searchSucursal.toLowerCase());
-        });
+        }) || isGlobalRole;
 
         const matchCliente = !filterCliente || u.clienteId === filterCliente;
         const matchEspecialidad = !filterEspecialidad || u.especialidad === filterEspecialidad;
@@ -340,7 +389,7 @@ export const UsuariosPage: React.FC = () => {
                             style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem' }}
                         >
                             <option value="">Todos los Roles</option>
-                            {roles.map(r => <option key={r} value={r} style={{ color: 'black' }}>{r}</option>)}
+                            {roles.map(r => <option key={r.id} value={r.id} style={{ color: 'black' }}>{r.name}</option>)}
                         </select>
 
                         {/* Franquicia */}
@@ -384,7 +433,7 @@ export const UsuariosPage: React.FC = () => {
                             style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem' }}
                         >
                             <option value="">Todas las Especialidades</option>
-                            {especialidades.map(e => <option key={e!} value={e} style={{ color: 'black' }}>{e}</option>)}
+                            {especialidades.map(e => <option key={e.id} value={e.id} style={{ color: 'black' }}>{e.name}</option>)}
                         </select>
 
                         {/* Supervisor */}
@@ -394,7 +443,7 @@ export const UsuariosPage: React.FC = () => {
                             style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem' }}
                         >
                             <option value="">Todos los Supervisores</option>
-                            {usuarios.filter(u => u.rol === 'Supervisor').map(u => <option key={u.id} value={u.id} style={{ color: 'black' }}>{u.nombre}</option>)}
+                            {usuarios.filter(u => _isSupervisor(u.rol)).map(u => <option key={u.id} value={u.id} style={{ color: 'black' }}>{u.nombre}</option>)}
                         </select>
 
                         {/* Coordinador */}
@@ -404,7 +453,7 @@ export const UsuariosPage: React.FC = () => {
                             style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontSize: '0.85rem' }}
                         >
                             <option value="">Todos los Coordinadores</option>
-                            {usuarios.filter(u => u.rol === 'Coordinador').map(u => <option key={u.id} value={u.id} style={{ color: 'black' }}>{u.nombre}</option>)}
+                            {usuarios.filter(u => _isCoordinador(u.rol)).map(u => <option key={u.id} value={u.id} style={{ color: 'black' }}>{u.nombre}</option>)}
                         </select>
 
                     </div>
@@ -452,12 +501,12 @@ export const UsuariosPage: React.FC = () => {
                             <div key={u.id} className="glass-card animate-fade">
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
                                     <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                                        <div style={{ padding: '0.5rem', background: u.rol === 'Admin' ? 'rgba(37, 99, 235, 0.15)' : 'var(--bg-input)', borderRadius: '8px', color: u.rol === 'Admin' ? 'var(--primary-light)' : 'var(--text-main)' }}>
-                                            {u.rol === 'Admin' ? <Shield size={20} /> : <UserCheck size={20} />}
+                                        <div style={{ padding: '0.5rem', background: (u.rol === 'ROL_ADMIN_GENERAL' || u.rol === 'Admin General') ? 'rgba(37, 99, 235, 0.15)' : 'var(--bg-input)', borderRadius: '8px', color: (u.rol === 'ROL_ADMIN_GENERAL' || u.rol === 'Admin General') ? 'var(--primary-light)' : 'var(--text-main)' }}>
+                                            {(u.rol === 'ROL_ADMIN_GENERAL' || u.rol === 'Admin General') ? <Shield size={20} /> : <UserCheck size={20} />}
                                         </div>
                                         <div>
                                             <h3 style={{ fontSize: '1.05rem', fontWeight: '700', color: 'var(--text-main)' }}>{u.nombre}</h3>
-                                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{u.rol} • {clientes.find(c => c.id === u.clienteId)?.nombre || u.clienteId}</p>
+                                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{getCatalogoName(u.rol, 'Rol')} • {clientes.find(c => c.id === u.clienteId)?.nombre || u.clienteId}</p>
                                         </div>
                                     </div>
                                     <button onClick={() => handleOpenModal(u)} style={{ background: 'var(--bg-input)', padding: '0.4rem', borderRadius: '6px', border: '1px solid var(--glass-border)', color: 'var(--text-main)', cursor: 'pointer', transition: 'all 0.2s' }}>
@@ -491,7 +540,7 @@ export const UsuariosPage: React.FC = () => {
                                     </div>
                                 </div>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                    {u.especialidad && <span style={{ fontSize: '0.65rem', padding: '0.25rem 0.6rem', background: 'rgba(56, 189, 248, 0.1)', color: 'var(--accent)', borderRadius: '6px', fontWeight: 'bold' }}>{u.especialidad}</span>}
+                                    {u.especialidad && <span style={{ fontSize: '0.65rem', padding: '0.25rem 0.6rem', background: 'rgba(56, 189, 248, 0.1)', color: 'var(--accent)', borderRadius: '6px', fontWeight: 'bold' }}>{getCatalogoName(u.especialidad, 'Especialidad')}</span>}
                                     {u.supervisorId && (
                                         <span style={{ fontSize: '0.65rem', padding: '0.25rem 0.6rem', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--status-concluida)', borderRadius: '6px', fontWeight: 'bold' }}>
                                             SUP: {usuarios.find(sup => sup.id === u.supervisorId)?.nombre || u.supervisorId}
@@ -555,7 +604,7 @@ export const UsuariosPage: React.FC = () => {
                                     }} required
                                         style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
                                     >
-                                        {roles.map(r => <option key={r} value={r} style={{ color: 'black' }}>{r}</option>)}
+                                        {roles.map(r => <option key={r.id} value={r.id} style={{ color: 'black' }}>{r.name}</option>)}
                                     </select>
                                 </div>
                                 <div>
@@ -571,12 +620,12 @@ export const UsuariosPage: React.FC = () => {
                                 </div>
                                 {rol !== 'TecnicoExterno' && (
                                     <div>
-                                        <label className="modal-label">Franquicia {rol !== 'Supervisor' && <span style={{ color: '#ef4444' }}>*</span>}</label>
+                                        <label className="modal-label">Franquicia {!_isSupervisor(rol) && !_isCoordinador(rol) && <span style={{ color: '#ef4444' }}>*</span>}</label>
                                         <select value={franquiciaId} onChange={e => {
                                             setFranquiciaId(e.target.value);
                                             // Reset sucursales if franchise changes to prevent cross-franchise assignments
                                             setSucursalesPermitidas([]);
-                                        }} required={rol !== 'Supervisor'}
+                                        }} required={!_isSupervisor(rol) && !_isCoordinador(rol)}
                                             style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
                                         >
                                             <option value="" style={{ color: 'black' }}>Seleccione Franquicia...</option>
@@ -586,7 +635,7 @@ export const UsuariosPage: React.FC = () => {
                                 )}
                             </div>
 
-                            {rol === 'TecnicoExterno' && (
+                            {rol === 'ROL_TECNICO_EXTERNO' && (
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
                                     <div>
                                         <label className="modal-label">
@@ -597,39 +646,42 @@ export const UsuariosPage: React.FC = () => {
                                             required
                                         >
                                             <option value="" style={{ color: 'black' }}>Seleccione Especialidad...</option>
-                                            {especialidades.map(es => <option key={es} value={es} style={{ color: 'black' }}>{es}</option>)}
+                                            {especialidades.map(es => <option key={es.id} value={es.id} style={{ color: 'black' }}>{es.name}</option>)}
                                         </select>
                                     </div>
                                 </div>
                             )}
 
-                            {rol !== 'Coordinador' && (
-                                <div style={{ display: 'grid', gridTemplateColumns: (rol === 'Tecnico' || rol === 'TecnicoExterno' || rol === 'Gerente' || rol === 'Supervisor') ? '1fr 1fr' : '1fr', gap: '1rem' }}>
-                                    {(rol === 'Tecnico' || rol === 'TecnicoExterno' || rol === 'Gerente' || rol === 'Supervisor') && (
+                            {(!_isCoordinador(rol) || !_isSupervisor(rol)) && (
+                                <div style={{ display: 'grid', gridTemplateColumns: (!_isCoordinador(rol) && !_isSupervisor(rol)) ? '1fr 1fr' : '1fr', gap: '1rem' }}>
+                                    {!_isSupervisor(rol) && (
                                         <div>
-                                            <label className="modal-label">Supervisor Asignado</label>
+                                            <label className="modal-label">Supervisor Asignado {_isTecnico(rol) && <span style={{ color: '#ef4444' }}>*</span>}</label>
                                             <select value={supervisorId} onChange={e => setSupervisorId(e.target.value)}
                                                 style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
+                                                required={_isTecnico(rol)}
                                             >
                                                 <option value="" style={{ color: 'black' }}>Sin Supervisor</option>
-                                                {usuarios.filter(u => u.rol === 'Supervisor').map(u => (
+                                                {usuarios.filter(u => _isSupervisor(u.rol)).map(u => (
                                                     <option key={u.id} value={u.id} style={{ color: 'black' }}>{u.nombre}</option>
                                                 ))}
                                             </select>
                                         </div>
                                     )}
-                                    <div>
-                                        <label className="modal-label">Coordinador Asignado {rol !== 'Supervisor' && <span style={{ color: '#ef4444' }}>*</span>}</label>
-                                        <select value={coordinadorId} onChange={e => setCoordinadorId(e.target.value)}
-                                            style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
-                                            required={rol !== 'Supervisor'}
-                                        >
-                                            <option value="" style={{ color: 'black' }}>Seleccione Coordinador...</option>
-                                            {usuarios.filter(u => u.rol === 'Coordinador').map(u => (
-                                                <option key={u.id} value={u.id} style={{ color: 'black' }}>{u.nombre}</option>
-                                            ))}
-                                        </select>
-                                    </div>
+                                    {!_isCoordinador(rol) && (
+                                        <div>
+                                            <label className="modal-label">Coordinador Asignado {!_isSupervisor(rol) && <span style={{ color: '#ef4444' }}>*</span>}</label>
+                                            <select value={coordinadorId} onChange={e => setCoordinadorId(e.target.value)}
+                                                style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
+                                                required={!_isSupervisor(rol)}
+                                            >
+                                                <option value="" style={{ color: 'black' }}>Seleccione Coordinador...</option>
+                                                {usuarios.filter(u => _isCoordinador(u.rol)).map(u => (
+                                                    <option key={u.id} value={u.id} style={{ color: 'black' }}>{u.nombre}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 

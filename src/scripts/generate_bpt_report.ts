@@ -35,7 +35,7 @@ async function run() {
         sucursalesSnap.forEach(doc => { sucursales[doc.id] = doc.data().nombre; });
 
         let output = "## Relación de Usuarios BPT\n\n| Nombre | Correo (Contraseña) | Rol | Sucursal Asignada |\n|---|---|---|---|\n";
-        const usuariosBpt = usersSnap.docs.map(d => d.data()).filter(u => u.clienteId === bptId && u.rol !== 'Admin');
+        const usuariosBpt = usersSnap.docs.map(d => d.data()).filter(u => u.clienteId === bptId && u.rol !== 'Admin General');
 
         usuariosBpt.forEach(u => {
             let sucN = u.sucursalesPermitidas ? u.sucursalesPermitidas.map((id: string) => sucursales[id] || id).join(', ') : 'N/A';

@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>H-GESTION | Protocolo Vínculo de Hierro v5.5</title>
+    <style>
+        :root {
+            --primary: #00d4ff;
+            --secondary: #0055ff;
+            --bg: #0a0e14;
+            --card-bg: #151b23;
+            --text: #e6edf3;
+            --text-dim: #8b949e;
+            --accent: #ff0055;
+            --success: #238636;
+            --warning: #d29922;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            margin: 0;
+            padding: 40px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 60px;
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+
+        .version-tag {
+            background: var(--accent);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .phase {
+            position: relative;
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 40px;
+            border-left: 5px solid var(--primary);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .phase-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .phase-icon {
+            font-size: 2rem;
+        }
+
+        .phase-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .phase-meta {
+            margin-left: auto;
+            color: var(--warning);
+            font-weight: 600;
+            font-family: monospace;
+        }
+
+        .step {
+            margin-bottom: 20px;
+            padding-left: 20px;
+            border-left: 1px solid #30363d;
+        }
+
+        .step-id {
+            color: var(--secondary);
+            font-weight: 700;
+            font-family: monospace;
+            margin-right: 10px;
+        }
+
+        .balloon-box {
+            background: rgba(0, 212, 255, 0.05);
+            border: 1px dashed var(--primary);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            position: relative;
+        }
+
+        .balloon-box strong {
+            color: var(--warning);
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+        }
+
+        .balloon-text {
+            font-style: italic;
+            color: var(--text);
+            font-size: 1.1rem;
+        }
+
+        .law-box {
+            background: linear-gradient(45deg, #ff005522, #0055ff22);
+            border: 1px solid var(--accent);
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+
+        .law-title {
+            color: var(--accent);
+            font-weight: 800;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .instruction-tag {
+            font-size: 0.8rem;
+            background: #30363d;
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--text-dim);
+        }
+
+        .photo-path {
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: var(--secondary);
+            background: #0d1117;
+            padding: 4px;
+            border-radius: 4px;
+        }
+
+        .btn-pdf {
+            display: inline-block;
+            background: var(--success);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 15px;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>H-GESTION | Vínculo de Hierro</h1>
+            <div class="version-tag">Protocolo v5.5: El Rescate del Inventario</div>
+            <p style="color: var(--text-dim); margin-top: 15px;">Guía de Ejecución Cinemática para Simulación QA</p>
+            <p style="color: var(--text-dim); font-size: 0.9rem;">Este documento es el <strong>Protocolo de Vuelo
+                    Definitivo</strong>. Cada globo tiene una duración de <strong>20 segundos</strong>. Los Títulos de
+                Fase aparecen por <strong>10 segundos</strong>.</p>
+        </header>
+
+        <!-- FASE 1 -->
+        <div class="phase">
+            <div class="phase-header">
+                <span class="phase-icon">📽️</span>
+                <span class="phase-title">Fase 1: El Caos de Madrugada</span>
+                <span class="phase-meta">01:00 AM</span>
+            </div>
+
+            <div class="step">
+                <p><span class="step-id">1.1</span> <strong>Título Visual (10s):</strong> 📽️ Fase 1: El Caos de
+                    Madrugada (01:00 AM)</p>
+                <p><span class="step-id">1.2</span> <strong>Actor:</strong> Gerente Boston's Altabrisa
+                    (`Ger.Altabrisa@BP.com`)</p>
+
+                <div class="balloon-box">
+                    <strong>1.3 Falla</strong>
+                    <span class="balloon-text">"¡ALARMA CRÍTICA! Condensador emite humo ligero y saltó el breaker del
+                        panel principal. El congelador se apagó por completo y tenemos 100 kg de Carnes Frías y
+                        Congeladas en riesgo inminente."</span>
+                </div>
+
+                <div class="balloon-box">
+                    <strong>1.3 Justificación</strong>
+                    <span class="balloon-text">"Riesgo de pérdida de inventario por falta de cadena de frío. Valor
+                        estimado del producto: $45,000 MXN."</span>
+                </div>
+
+                <p style="margin-top:10px;"><span class="instruction-tag">1.4 FOTOS REALES DE CAMPO</span> <span
+                        class="photo-path">C:\Users\HACel\Documents\T-SIGO\Implementaciones\BPT (Sin Titulo0.jpg, Sin
+                        Titulo1.jpg, Sin Titulo2.jpg)</span></p>
+            </div>
+
+            <div class="step">
+                <div class="balloon-box" style="border-style: solid;">
+                    <strong>1.5 Globo WOW | Disponibilidad</strong>
+                    <span class="balloon-text">"DISPONIBILIDAD ABSOLUTA (01:00 AM): La operación no duerme y H-GESTION
+                        tampoco. El sistema garantiza que el Gerente tenga el control total para proteger sus activos en
+                        el segundo cero de la falla."</span>
+                    <p style="font-size: 0.7rem; color: var(--primary); margin-top: 5px;">TRIGGER: Carga de Dashboard
+                        Post-Login (20s)</p>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="balloon-box">
+                    <strong>1.6 Globo | Vínculo de Hierro</strong>
+                    <span class="balloon-text">"VÍNCULO DE HIERRO: Nuestra arquitectura de IDs Internos garantiza que la
+                        información sea robusta. Lo que el usuario ve como 'Refrigeración' es para el sistema un vínculo
+                        matemático inquebrantable."</span>
+                    <p style="font-size: 0.7rem; color: var(--primary); margin-top: 5px;">TRIGGER: Selección de Equipo
+                        Camara Congelacion Walk-in (20s)</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- FASE 2 -->
+        <div class="phase" style="border-color: var(--secondary);">
+            <div class="phase-header">
+                <span class="phase-icon">🛡️</span>
+                <span class="phase-title">Fase 2: Control Táctico y Sincronía</span>
+                <span class="phase-meta">06:00 AM</span>
+            </div>
+
+            <div class="step">
+                <p><span class="step-id">2.0</span> <strong>Título Visual (10s):</strong> 🛡️ Fase 2: Control Táctico y
+                    Triage (06:00 AM)</p>
+                <p><span class="step-id">2.1</span> <strong>Actor:</strong> BPT Coordinador Gral
+                    (`coord.bpt@t-sigo.com`)</p>
+                <div class="balloon-box">
+                    <strong>2.2 Acción: Recepción y Respuesta</strong>
+                    <span class="balloon-text">"Abrir la Notificación recibida."</span>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="balloon-box">
+                    <strong>2.3 Globo | Sincronía Radar</strong>
+                    <span class="balloon-text">"SINCRONÍA RADAR: El Coordinador detecta la alerta en su panel. La
+                        solicitud del Gerente de Sucursal se registró a la 01:00 AM, eliminando la fricción de
+                        comunicaciones perdidas."</span>
+                    <p style="font-size: 0.7rem; color: var(--primary); margin-top: 5px;">TRIGGER: Apertura de OT desde
+                        Notificación (20s)</p>
+                </div>
+            </div>
+
+            <div class="step">
+                <p><span class="step-id">2.4</span> <strong>Acción:</strong> Apertura de la OT, Asignación de Prioridad
+                    ALTA y Horario de Atención.</p>
+                <div class="balloon-box">
+                    <strong>2.5 Globo | Transparencia de Tiempos</strong>
+                    <span class="balloon-text">"MÉTRICA DE TRANSPARENCIA: El Coordinador visualiza cuánto tiempo ha
+                        pasado desde la solicitud del Gerente y tantas actualizaciones como el gerente de la sucursal
+                        hubiera ejecutado en su solicitud, todas registradas con fecha y hora; cada una de las cuales
+                        genera una notificación inmediata al coordinador."</span>
+                </div>
+            </div>
+
+            <div class="law-box">
+                <div class="law-title">⚖️ 2.6 Globo | La Ley de la Verdad Inmutable (Parte 1)</div>
+                <p style="margin:0; font-style: italic;">"H-GESTION consagra la soberanía del autor; cualquier dato
+                    puede ser rectificado mientras el flujo le pertenezca. Pero en el instante en que el siguiente rol
+                    asume el mando, el pasado se bloquea para blindar la coherencia operativa."</p>
+                <p style="font-size: 0.7rem; color: var(--accent); margin-top: 5px;">TRIGGER: Al terminar de asignar
+                    Horario/Prioridad (20s)</p>
+            </div>
+
+            <div class="step">
+                <p><span class="step-id">2.7</span> <strong>Acción (Asignación Técnica):</strong> Intento de asignar a
+                    un técnico con especialidad diferente (Demostrar Flexibilidad).</p>
+                <div class="balloon-box">
+                    <strong>Globo | Flexibilidad Táctica</strong>
+                    <span class="balloon-text">"FLEXIBILIDAD TÁCTICA: El sistema cuida los costos y normas, pero es
+                        suficientemente flexible para no parar la operación y cumplir con un objetivo técnico
+                        mayor."</span>
+                    <p style="font-size: 0.7rem; color: var(--primary); margin-top: 5px;">TRIGGER: Selección de técnico
+                        con especialidad COCCION para REFRIGERACION (20s)</p>
+                </div>
+            </div>
+
+            <div class="step">
+                <p><span class="step-id">2.8</span> <strong>Confirmación de Asignación</strong></p>
+                <div class="balloon-box">
+                    <strong>Globo | Notificación Dual</strong>
+                    <span class="balloon-text">"OMNIPRESENCIA: Tanto el GERENTE de la Sucursal como el PROPIO TÉCNICO
+                        reciben una notificación de inmediato. Todos están alineados al instante sin una sola
+                        llamada."</span>
+                    <p style="font-size: 0.7rem; color: var(--primary); margin-top: 5px;">TRIGGER: Clic final en
+                        "Asignar Técnico" (20s)</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- FASE 3 -->
+        <div class="phase" style="border-color: var(--secondary);">
+            <div class="phase-header">
+                <span class="phase-icon">🔧</span>
+                <span class="phase-title">Fase 3: Despliegue Satelital y El Candado</span>
+                <span class="phase-meta">08:55 AM</span>
+            </div>
+
+            <div class="step">
+                <p><span class="step-id">3.0</span> <strong>Título Visual (10s):</strong> 🔧 Fase 3: Ejecución Satelital
+                    y El Candado (08:55 AM)</p>
+                <p><span class="step-id">3.1</span> <strong>Actor:</strong> Tecnico Especialista
+                    (`esp.coccion@t-sigo.com`)</p>
+                <p><span class="step-id">3.2</span> <strong>Validación GPS:</strong> Clic en "Llegar a Sitio".</p>
+                <div class="balloon-box">
+                    <strong>3.3 Globo | Certeza GPS</strong>
+                    <span class="balloon-text">"TRAZABILIDAD SATELITAL: La presencia física no es una duda, es una
+                        certeza GPS. El sistema valida la proximidad del técnico a Boston's Altabrisa antes del inicio
+                        de labores."</span>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="balloon-box">
+                    <strong>3.4 Reporte de Trabajos Realizados</strong>
+                    <span class="balloon-text">"Se detectó borne de conexión sulfatado en el contactor principal del
+                        condensador, provocando arco eléctrico y disparo de termomagnético. Se procedió con la limpieza
+                        de terminales, reapriete de conexiones y sustitución de contactor de 30A. Se valida arranque y
+                        consumo de amperaje dentro de placa (12.4A). Equipo operando y recuperando temperatura de
+                        consigna (-18°C)."</span>
+                </div>
+
+                <div class="balloon-box">
+                    <strong>3.5 Lista de Refacciones</strong>
+                    <span class="balloon-text">
+                        • Contactor Definitive Purpose 3 Poles 30A 120V (1 pza).<br>
+                        • Kit de terminales de ojo 10AWG (4 pzas).
+                    </span>
+                </div>
+                <p style="margin-top:10px;"><span class="instruction-tag">3.6 FOTOS DE LABOR TÉCNICO</span> <span
+                        class="photo-path">BPT\Sin Titulo3.jpg a Sin Titulo5.jpg</span></p>
+            </div>
+
+            <div class="law-box" style="border-color: var(--success); background: rgba(35, 134, 54, 0.1);">
+                <div class="law-title" style="color: var(--success);">🔒 3.7 Globo | El Sello Incorruptible</div>
+                <p style="margin:0; font-style: italic;">"EL SELLO FINAL: Una vez capturada la firma técnica de término,
+                    la Orden de Trabajo entra en un estado de inmutabilidad absoluta: NADIE, NADIE puede modificar NADA
+                    de la OT. Es la verdad incorruptible."</p>
+                <p style="font-size: 0.7rem; color: var(--success); margin-top: 5px;">TRIGGER: Al presionar "CONCLUIR
+                    SERVICIO" (20s)</p>
+            </div>
+        </div>
+
+        <!-- FASE 4 -->
+        <div class="phase" style="border-color: var(--success);">
+            <div class="phase-header">
+                <span class="phase-icon">✅</span>
+                <span class="phase-title">Fase 4: Justicia Operativa</span>
+                <span class="phase-meta">11:00 AM</span>
+            </div>
+
+            <div class="step">
+                <p><span class="step-id">4.0</span> <strong>Título Visual (10s):</strong> ✅ Fase 4: Justicia Operativa y
+                    Visto Bueno (11:00 AM)</p>
+                <p><span class="step-id">4.1</span> <strong>Actor:</strong> Quien Recibe (Receptor en Sucursal)</p>
+                <div class="balloon-box">
+                    <strong>4.2 Comentario del Receptor</strong>
+                    <span class="balloon-text">"Visto Bueno otorgado. Equipo operando en rangos normales de temperatura.
+                        Se rescató el 100% del inventario crítico (100 kg de carnes preservados)."</span>
+                </div>
+                <p style="margin-top:10px;"><span class="instruction-tag">4.3 FOTOS DE CONFORMIDAD</span> <span
+                        class="photo-path">BPT\Sin Titulo6.jpg a Sin Titulo8.jpg</span></p>
+            </div>
+
+            <div class="step">
+                <div class="balloon-box">
+                    <strong>4.4 Globo | Justicia Operativa</strong>
+                    <span class="balloon-text">"JUSTICIA MÉTRICA: El cronómetro del técnico se detiene al concluir su
+                        trabajo. El tiempo que tarda el Cliente en dar su Visto Bueno se mide por separado, garantizando
+                        una evaluación de KPIs objetiva."</span>
+                    <p style="font-size: 0.7rem; color: var(--primary); margin-top: 5px;">TRIGGER: Al abrir Supervisar
+                        OTs (20s)</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- FASE 5 -->
+        <div class="phase" style="border-color: #f0f;">
+            <div class="phase-header">
+                <span class="phase-icon">🚀</span>
+                <span class="phase-title">Fase 5: Auditoría 360 y Meta Estratégica</span>
+                <span class="phase-meta">Kardex Forense</span>
+            </div>
+
+            <div class="step">
+                <p><span class="step-id">5.0</span> <strong>Título Visual (10s):</strong> 🚀 Fase 5: Auditoría 360 y
+                    Meta Estratégica</p>
+                <p><span class="step-id">5.1 Acción:</span> El Coordinador/Admin navega al <strong>Kardex</strong> de
+                    Ordenes.</p>
+                <div class="balloon-box">
+                    <strong>5.2 Globo | Visibilidad Global</strong>
+                    <span class="balloon-text">"CONTROL TOTAL: Antes de profundizar, el sistema permite visualizar en un
+                        solo golpe de vista el estatus de todas las órdenes de trabajo. Transparencia corporativa en
+                        tiempo real."</span>
+                    <p style="font-size: 0.7rem; color: var(--primary); margin-top: 5px;">TRIGGER: Al visualizar la
+                        lista general de OTs en el Kardex (20s)</p>
+                </div>
+            </div>
+
+            <div class="step">
+                <p><span class="step-id">5.3 Acción:</span> Seleccionar la OT específica de Boston´s Altabrisa y abrir
+                    su detalle.</p>
+                <div class="balloon-box" style="border-color: #f0f; background: rgba(255, 0, 255, 0.05);">
+                    <strong>5.4 Globo | Línea de Tiempo Forense</strong>
+                    <span class="balloon-text">"TRAZABILIDAD FORENSE: Destacamos la Línea de Tiempo de todo el flujo de
+                        la OT, desde que nace hasta que concluye. Registramos usuario, fecha, hora y el dato anterior a
+                        cada cambio, con distancias 'Delta' precisas."</span>
+                    <p style="font-size: 0.7rem; color: var(--primary); margin-top: 5px;">TRIGGER: Al abrir la sección
+                        de línea de tiempo dentro de la OT (20s)</p>
+                </div>
+            </div>
+
+            <div class="step">
+                <p><span class="step-id">5.5 Acción:</span> Generación de la <strong>HOJA DE SERVICIO</strong> desde el
+                    Kardex.</p>
+                <div class="balloon-box">
+                    <strong>5.6 Globo | Meta Final</strong>
+                    <span class="balloon-text">"VISIÓN ESTRATÉGICA: El objetivo final es reducir los Correctivos al
+                        mínimo mediante la Prevención Inteligente. Menos fallas significa mayor rentabilidad y equipos
+                        siempre operativos."</span>
+                    <p style="font-size: 0.7rem; color: var(--primary); margin-top: 5px;">TRIGGER: En el Dashboard BI
+                        (20s)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

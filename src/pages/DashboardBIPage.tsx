@@ -105,7 +105,7 @@ export const DashboardBIPage: React.FC = () => {
                 setTecnicos(userSnap.docs.map(d => {
                     const data = d.data();
                     return { id: d.id, ...data } as User;
-                }).filter(u => u.rol && (u.rol.toLowerCase().includes('tecnico') || u.rol.toLowerCase().includes('coordinador'))));
+                }).filter(u => u.rol && (u.rol.startsWith('ROL_TECNICO') || u.rol === 'ROL_COORD')));
             } catch (error) {
                 console.error("Error fetching data for BI Dashboard:", error);
             } finally {
