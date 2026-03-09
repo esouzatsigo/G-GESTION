@@ -114,10 +114,26 @@ const EQUIPOS_DATA = [
 const FAMILIAS = ["Coccion", "Agua", "Restaurante", "Refrigeracion", "Aires", "Generadores", "Cocina"];
 
 const FRANQUICIAS = [
-    { nombre: "Boston's Pizza", logoUrl: "", colorFondo: "#FFFFFF" },
-    { nombre: "La Parroquia", logoUrl: "", colorFondo: "#FFFFFF" },
-    { nombre: "SUSHIROLL", logoUrl: "", colorFondo: "#FFFFFF" },
-    { nombre: "Corporativo BPT", logoUrl: "", colorFondo: "#FFFFFF" },
+    {
+        nombre: "Boston's Pizza",
+        logoUrl: "https://firebasestorage.googleapis.com/v0/b/h-gestion-dev.firebasestorage.app/o/franquicias%2Flogos%2F1772527452849_image.png?alt=media&token=17205b2f-d7cf-434e-ace5-e2da115c7c2d",
+        colorFondo: "#c40e2c"
+    },
+    {
+        nombre: "La Parroquia",
+        logoUrl: "https://firebasestorage.googleapis.com/v0/b/h-gestion-dev.firebasestorage.app/o/franquicias%2Flogos%2F1772527506415_image.png?alt=media&token=c4fff2be-cf24-463e-b61e-88cdbe7f0626",
+        colorFondo: "#332324"
+    },
+    {
+        nombre: "SUSHIROLL",
+        logoUrl: "https://firebasestorage.googleapis.com/v0/b/h-gestion-dev.firebasestorage.app/o/franquicias%2Flogos%2F1772526438437_image.png?alt=media&token=16fd3546-4456-4678-a9a1-b1b1211dc597",
+        colorFondo: "#332324"
+    },
+    {
+        nombre: "Corporativo BPT",
+        logoUrl: "https://firebasestorage.googleapis.com/v0/b/h-gestion-dev.firebasestorage.app/o/franquicias%2Flogos%2F1772526841639_image.png?alt=media&token=37960c7b-5340-4b9b-9833-b51862c29e18",
+        colorFondo: "#FFFFFF"
+    },
 ];
 
 const RAW_SCHEDULE = [
