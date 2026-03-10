@@ -159,14 +159,14 @@ export const CameraModal: React.FC<CameraModalProps> = ({ onCapture, onClose, ti
                         muted
                         onClick={takePhoto}
                         style={{
-                            width: '100%', height: '100%', objectFit: 'contain',
+                            width: '100%', height: '100%', objectFit: 'cover',
                             transform: facingMode === 'user' ? 'scaleX(-1)' : 'none',
                             cursor: 'pointer',
                             background: '#000'
                         }}
                     />
                 ) : (
-                    <img src={capturedImage} alt="Captured" style={{ width: '100%', height: '100%', objectFit: 'contain', background: '#000' }} />
+                    <img src={capturedImage} alt="Captured" style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#000' }} />
                 )}
 
                 <canvas ref={canvasRef} style={{ display: 'none' }} />
@@ -174,114 +174,131 @@ export const CameraModal: React.FC<CameraModalProps> = ({ onCapture, onClose, ti
 
             {/* UI Layer */}
             <div style={{ position: 'relative', zIndex: 1, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                {/* 1. Header with title + close */}
+                {/* TOP MASK (RECORTADO ARRIBA) + CONTROLES */}
                 <div style={{
-                    padding: '0.75rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'white',
-                    background: 'rgba(0,0,0,0.7)', borderBottom: '1px solid rgba(255,255,255,0.1)'
+                    background: 'rgba(0,0,0,0.85)',
+                    padding: '0.5rem 0',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    borderBottom: '2px solid rgba(255,255,255,0.1)'
                 }}>
-                    <h2 style={{ fontSize: '0.9rem', fontWeight: '800', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>{title}</h2>
-                    <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', cursor: 'pointer', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <X size={20} />
-                    </button>
+                    {/* Header Tiny */}
+                    <div style={{ padding: '0.5rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.7rem', fontWeight: '900', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }}>{title}</span>
+                        <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', cursor: 'pointer', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <X size={18} />
+                        </button>
+                    </div>
+
+                    {/* CONTROLES PRINCIPALES - "ENCERRADOS" EN EL MARCO SUPERIOR */}
+                    <div style={{
+                        padding: '1rem 0 2rem 0',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        gap: '2rem'
+                    }}>
+                        {!capturedImage ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '2.5rem' }}>
+                                <button
+                                    onClick={switchCamera}
+                                    style={{
+                                        background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', color: 'white',
+                                        width: '48px', height: '48px', borderRadius: '50%',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                    }}
+                                >
+                                    <SwitchCamera size={22} />
+                                </button>
+
+                                <button
+                                    onClick={takePhoto}
+                                    style={{
+                                        width: '90px', height: '90px', borderRadius: '50%', border: '4px solid white',
+                                        background: 'transparent', padding: '6px', display: 'flex',
+                                        boxShadow: '0 0 30px rgba(255,255,255,0.3)', position: 'relative'
+                                    }}
+                                >
+                                    <div style={{ flex: 1, background: 'white', borderRadius: '50%' }} />
+                                    <div style={{ position: 'absolute', bottom: '-22px', left: '50%', transform: 'translateX(-50%)', whiteSpace: 'nowrap', fontSize: '0.75rem', fontWeight: '950', color: 'white', textShadow: '0 2px 4px black' }}>CAPTURAR</div>
+                                </button>
+
+                                <label
+                                    style={{
+                                        background: 'rgba(59,130,246,0.3)', border: '1px solid rgba(59,130,246,0.5)', color: 'white',
+                                        width: '48px', height: '48px', borderRadius: '50%',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    <Upload size={20} />
+                                    <input type="file" accept="image/*" hidden onChange={handleFileUpload} />
+                                </label>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '3rem' }}>
+                                <button
+                                    onClick={() => setCapturedImage(null)}
+                                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', background: 'transparent', border: 'none', color: 'white' }}
+                                >
+                                    <div style={{
+                                        width: '60px', height: '60px', borderRadius: '50%',
+                                        background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        border: '2px solid #ef4444'
+                                    }}>
+                                        <RotateCcw size={26} />
+                                    </div>
+                                    <span style={{ fontSize: '0.75rem', fontWeight: '900' }}>REINTENTAR</span>
+                                </button>
+
+                                <button
+                                    onClick={confirmPhoto}
+                                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', background: 'transparent', border: 'none', color: 'white' }}
+                                >
+                                    <div style={{
+                                        width: '90px', height: '90px', borderRadius: '50%',
+                                        background: '#22c55e', color: 'white',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        boxShadow: '0 0 40px rgba(34, 197, 94, 0.6)',
+                                        border: '4px solid white'
+                                    }}>
+                                        <Check size={48} />
+                                    </div>
+                                    <span style={{ fontSize: '1rem', fontWeight: '950', color: '#4ade80', textShadow: '0 2px 4px black' }}>ACEPTAR FOTO</span>
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                {/* 2. MAIN CONTROLS - NOW AT THE TOP FOR ACCESSIBILITY */}
-                <div style={{
-                    padding: '1.25rem 1.5rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '2rem',
-                    background: 'linear-gradient(to bottom, rgba(0,0,0,0.8), rgba(0,0,0,0.4) 70%, transparent)',
-                    minHeight: '120px'
-                }}>
-                    {!capturedImage ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '2.5rem' }}>
-                            <button
-                                onClick={switchCamera}
-                                style={{
-                                    background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', color: 'white',
-                                    width: '50px', height: '50px', borderRadius: '50%',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    backdropFilter: 'blur(10px)'
-                                }}
-                            >
-                                <SwitchCamera size={24} />
-                            </button>
-
-                            {/* MAIN SHUTTER BUTTON */}
-                            <button
-                                onClick={takePhoto}
-                                style={{
-                                    width: '86px', height: '86px', borderRadius: '50%', border: '4px solid white',
-                                    background: 'transparent', padding: '6px', display: 'flex', transition: 'transform 0.1s active:scale(0.9)',
-                                    boxShadow: '0 0 25px rgba(255,255,255,0.4)', position: 'relative'
-                                }}
-                            >
-                                <div style={{ flex: 1, background: 'white', borderRadius: '50%' }} />
-                                <div style={{ position: 'absolute', bottom: '-20px', left: '50%', transform: 'translateX(-50%)', whiteSpace: 'nowrap', fontSize: '0.65rem', fontWeight: '900', letterSpacing: '0.1em' }}>CAPTURAR</div>
-                            </button>
-
-                            <label
-                                style={{
-                                    background: 'rgba(59,130,246,0.3)', border: '1px solid rgba(59,130,246,0.6)', color: 'white',
-                                    width: '50px', height: '50px', borderRadius: '50%',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    backdropFilter: 'blur(10px)', cursor: 'pointer'
-                                }}
-                                title="Subir de galería"
-                            >
-                                <Upload size={22} />
-                                <input type="file" accept="image/*" hidden onChange={handleFileUpload} />
-                            </label>
-                        </div>
-                    ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '3rem' }}>
-                            <button
-                                onClick={() => setCapturedImage(null)}
-                                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', background: 'transparent', border: 'none', color: 'white' }}
-                            >
-                                <div style={{
-                                    width: '64px', height: '64px', borderRadius: '50%',
-                                    background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    border: '2px solid #ef4444', backdropFilter: 'blur(5px)'
-                                }}>
-                                    <RotateCcw size={28} />
-                                </div>
-                                <span style={{ fontSize: '0.75rem', fontWeight: '900' }}>REINTENTAR</span>
-                            </button>
-
-                            <button
-                                onClick={confirmPhoto}
-                                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', background: 'transparent', border: 'none', color: 'white' }}
-                            >
-                                <div style={{
-                                    width: '86px', height: '86px', borderRadius: '50%',
-                                    background: '#22c55e', color: 'white',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    boxShadow: '0 0 30px rgba(34, 197, 94, 0.5)',
-                                    border: '3px solid white'
-                                }}>
-                                    <Check size={44} />
-                                </div>
-                                <span style={{ fontSize: '0.9rem', fontWeight: '900', color: '#4ade80' }}>ACEPTAR FOTO</span>
-                            </button>
+                {/* VISOR CENTRAL (ÁREA LIBRE) */}
+                <div style={{ flex: 1, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {!capturedImage && (
+                        <div style={{
+                            border: '1px dashed rgba(255,255,255,0.3)',
+                            width: '80%', height: '60%',
+                            borderRadius: '20px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}>
+                            <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.7rem', fontWeight: '700', textTransform: 'uppercase' }}>FOTO AQUÍ</span>
                         </div>
                     )}
                 </div>
 
-                {/* Rest of the space is just for the viewfinder visibility */}
-                <div style={{ flex: 1, pointerEvents: 'none' }} />
-
-                {/* Tap hint at the bottom (optional and discrete) */}
-                {!capturedImage && !isLoading && !error && (
-                    <div style={{
-                        padding: '1.5rem', textAlign: 'center',
-                        background: 'linear-gradient(to top, rgba(0,0,0,0.6), transparent)',
-                        pointerEvents: 'none'
-                    }}>
-                        <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.7rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                            Toca el visor para capturar directo
+                {/* BOTTOM MASK (RECORTADO ABAJO) - ESTO EMPUJA TODO HACIA ARRIBA */}
+                <div style={{
+                    background: 'rgba(0,0,0,0.85)',
+                    padding: '3rem 1rem',
+                    textAlign: 'center',
+                    borderTop: '2px solid rgba(255,255,255,0.1)'
+                }}>
+                    {!capturedImage && (
+                        <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.7rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                            Toca el visor para capturar
                         </span>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
         </div>
     );
