@@ -37,10 +37,10 @@ const EvidenceCarousel: React.FC<{ photos: string[] }> = ({ photos }) => {
     return (
         <div style={{ position: 'relative', width: '100%', aspectRatio: '16/9', overflow: 'hidden', borderRadius: '12px' }}>
             <img
-                src={photos[currentIndex]}
+                src={encodeURI(photos[currentIndex])}
                 alt="Evidencia"
                 style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }}
-                onClick={() => window.open(photos[currentIndex], '_blank')}
+                onClick={() => window.open(encodeURI(photos[currentIndex]), '_blank')}
                 title="Click para ver en pantalla completa"
             />
             <div style={{ position: 'absolute', bottom: '12px', left: '50%', transform: 'translateX(-50%)', background: 'var(--bg-switch)', padding: '4px 12px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-main)' }}>
