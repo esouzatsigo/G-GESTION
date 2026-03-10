@@ -68,14 +68,14 @@ const USUARIOS_BASE = (clienteId: string, sucursalesAll: string[], sucursalPrinc
         nombre: 'Hector Celis (Master)',
         email: 'hcelis.master@tsigoglobal.com.mx',
         contrasena: '12345678',
-        rol: 'Admin General',
+        rol: 'ROL_ADMIN_GENERAL',
         sucursalesPermitidas: []
     },
     {
         nombre: 'Coordinador Master',
         email: 'coordinador.master@bpt.com',
         contrasena: '12345678',
-        rol: 'Coordinador',
+        rol: 'ROL_COORD',
         sucursalesPermitidas: sucursalesAll
     }
 ];
@@ -145,13 +145,21 @@ async function main() {
     }
 
     // 5. Crear Catálogos de Roles y Especialidades
-    const roles = ['Admin', 'Coordinador', 'Gerente', 'Supervisor', 'Tecnico', 'TecnicoExterno'];
-    for (const rol of roles) {
+    const roles = [
+        { id: 'ROL_ADMIN_GENERAL', name: 'Admin General' },
+        { id: 'ROL_COORD', name: 'Coordinador' },
+        { id: 'ROL_GERENTE', name: 'Gerente' },
+        { id: 'ROL_SUPERVISOR', name: 'Supervisor' },
+        { id: 'ROL_TECNICO', name: 'Tecnico' },
+        { id: 'ROL_TECNICO_EXTERNO', name: 'TecnicoExterno' }
+    ];
+    for (const r of roles) {
         await trackedAddDoc(collection(db, 'catalogos'), {
             clienteId,
             tipo: 'roles',
-            categoria: 'Roles de Usuario',
-            nombre: rol,
+            categoria: 'Rol', // UsuariosPage espera 'Rol'
+            nombre: r.name,
+            nomenclatura: r.id,
             batchTag: CONFIG.BATCH_TAG
         });
     }

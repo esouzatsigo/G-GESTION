@@ -250,33 +250,7 @@ export const SolicitarOTPage: React.FC = () => {
                 </div>
 
                 <div>
-                    <label style={{ display: 'block', marginBottom: '1rem', fontSize: '1.55rem', fontWeight: '600' }}>KARDEX DEL EQUIPO (Sugeridas)</label>
-                    <div className="custom-scrollbar" style={{ display: 'flex', gap: '1rem', overflowX: 'auto', padding: '1rem 0', marginBottom: '1.5rem' }}>
-                        {[0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => {
-                            const url = `/kardex_demo/Sin título${i}.jpg`;
-                            const isSelected = selectedKardexPhotos.includes(url);
-                            return (
-                                <div
-                                    key={i}
-                                    onClick={() => {
-                                        if (isSelected) setSelectedKardexPhotos(prev => prev.filter(p => p !== url));
-                                        else setSelectedKardexPhotos(prev => [...prev, url]);
-                                    }}
-                                    style={{
-                                        minWidth: '140px', height: '140px', borderRadius: '12px', overflow: 'hidden',
-                                        border: isSelected ? '3px solid var(--accent)' : '1px solid var(--glass-border)',
-                                        cursor: 'pointer', position: 'relative', flexShrink: 0,
-                                        transition: 'transform 0.2s', transform: isSelected ? 'scale(1.05)' : 'scale(1)'
-                                    }}
-                                >
-                                    <img src={url} alt={`Kardex ${i}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                    {isSelected && <div style={{ position: 'absolute', top: 5, right: 5, background: 'var(--accent)', color: 'white', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>✓</div>}
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    <label style={{ display: 'block', marginBottom: '1.5rem', fontSize: '1.55rem', fontWeight: '600' }}>EVIDENCIA FRESCA (Nueva)</label>
+                    <label style={{ display: 'block', marginBottom: '1.5rem', fontSize: '1.55rem', fontWeight: '600' }}>EVIDENCIA DOCUMENTAL</label>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
                         {previewUrls.map((url, i) => (
                             <div key={i} style={{ position: 'relative', aspectRatio: '1', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--glass-border)' }}>
