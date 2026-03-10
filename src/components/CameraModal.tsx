@@ -286,10 +286,10 @@ export const CameraModal: React.FC<CameraModalProps> = ({ onCapture, onClose, ti
                     )}
                 </div>
 
-                {/* BOTTOM MASK (RECORTADO ABAJO) - ESTO EMPUJA TODO HACIA ARRIBA */}
+                {/* BOTTOM MASK (RECORTADO ABAJO) - ESTO EMPUJA TODO HACIA ARRIBA CON FUERZA */}
                 <div style={{
-                    background: 'rgba(0,0,0,0.85)',
-                    padding: '3rem 1rem',
+                    background: 'rgba(0,0,0,0.92)',
+                    padding: '3rem 1rem 35vh 1rem', // 35% del alto de la pantalla libre abajo
                     textAlign: 'center',
                     borderTop: '2px solid rgba(255,255,255,0.1)'
                 }}>
