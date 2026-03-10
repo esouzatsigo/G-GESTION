@@ -275,7 +275,7 @@ function App() {
   return (
     <AuthProvider>
       <NotificationProvider>
-        <Router>
+        <Router basename="/T-GESTION-Lite">
           <Routes>
             {/* Public/Selection Routes */}
             <Route path="/seleccion-rol" element={<RoleSelectionPage />} />
