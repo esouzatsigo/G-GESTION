@@ -296,6 +296,7 @@ async function main() {
         await trackedAddDoc(collection(db, 'familias'), {
             clienteId,
             nombre: fam,
+            nomenclatura: fam.toUpperCase(),
             batchTag: BATCH_TAG,
         });
         console.log(`   ✅ Familia: ${fam}`);

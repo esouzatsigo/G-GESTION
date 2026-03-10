@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx';
 import { downloadExcel, fileTimestamp } from '../utils/fileDownload';
 import { useNotification } from '../context/NotificationContext';
 import { ImportModal } from '../components/ImportModal';
-import { getSucursales, getClientes, getFranquicias, logEntityChange, getCatalogos } from '../services/dataService';
+import { getSucursales, getClientes, getFranquicias, logEntityChange, getCatalogos, getFamilias } from '../services/dataService';
 import { tenantQuery } from '../services/tenantContext';
 import { db } from '../services/firebase';
 import { collection, doc, getDocs } from 'firebase/firestore';
@@ -49,14 +49,25 @@ export const EquiposPage: React.FC = () => {
         { id: 'ESP_GENERADORES', name: 'Generadores' }
     ];
 
+    const [familiasCollection, setFamiliasCollection] = useState<any[]>([]);
+
     const familias = React.useMemo(() => {
-        const dynamicFamilias = catalogos
+        // Familias desde catálogos (Legacy)
+        const legacyFamilias = catalogos
             .filter(c => c.categoria === 'Familia')
             .map(c => ({ id: c.nomenclatura, name: c.nombre }));
 
-        if (dynamicFamilias.length > 0) return dynamicFamilias.sort((a, b) => a.name.localeCompare(b.name));
+        // Familias desde colección 'familias' (Nuevo Standard)
+        const currentFamilias = familiasCollection.map(f => ({
+            id: f.nomenclatura || f.nombre,
+            name: f.nombre
+        }));
+
+        const allFamilias = [...legacyFamilias, ...currentFamilias];
+
+        if (allFamilias.length > 0) return allFamilias.sort((a, b) => a.name.localeCompare(b.name));
         return defaultFamilias;
-    }, [catalogos]);
+    }, [catalogos, familiasCollection]);
 
     const getFamiliaName = (id: string) => {
         const item = familias.find(f => f.id === id);
@@ -76,12 +87,13 @@ export const EquiposPage: React.FC = () => {
 
             const qEquipos = tenantQuery('equipos', user);
 
-            const [snapshot, sData, cData, fData, catData] = await Promise.all([
+            const [snapshot, sData, cData, fData, catData, famData] = await Promise.all([
                 getDocs(qEquipos),
                 getSucursales(targetClienteId),
                 getClientes(targetClienteId),
                 getFranquicias(targetClienteId),
-                getCatalogos(targetClienteId)
+                getCatalogos(targetClienteId),
+                getFamilias(targetClienteId)
             ]);
 
             const eData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Equipo));
@@ -90,6 +102,7 @@ export const EquiposPage: React.FC = () => {
             setClientes(cData);
             setFranquicias(fData);
             setCatalogos(catData);
+            setFamiliasCollection(famData);
         } catch (error) {
             console.error(error);
         } finally {

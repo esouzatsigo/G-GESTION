@@ -175,6 +175,15 @@ export const getCatalogos = async (targetClienteId?: string | null) => {
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
 };
 
+export const getFamilias = async (targetClienteId?: string | null) => {
+    let q = query(collection(db, 'familias'));
+    if (targetClienteId) {
+        q = query(q, where('clienteId', '==', targetClienteId));
+    }
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+};
+
 export const saveCatalogo = async (catalogo: any, user: any, id?: string) => {
     if (id) {
         const docRef = doc(db, 'catalogos', id);

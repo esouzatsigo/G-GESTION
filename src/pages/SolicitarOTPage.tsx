@@ -36,8 +36,17 @@ export const SolicitarOTPage: React.FC = () => {
     useEffect(() => {
         if (!user) return;
         const loadCats = async () => {
-            const cats = await getCatalogos(user.clienteId);
-            setFamiliasCatalogo(cats.filter(c => c.categoria === 'Familia').sort((a, b) => a.nombre.localeCompare(b.nombre)));
+            const { getFamilias } = await import('../services/dataService');
+            const [cats, fams] = await Promise.all([
+                getCatalogos(user.clienteId),
+                getFamilias(user.clienteId)
+            ]);
+
+            // Unir catálogos antiguos (con categoria Familia) y la nueva colección familias
+            const legacyFams = cats.filter(c => c.categoria === 'Familia');
+            const allFams = [...legacyFams, ...fams];
+
+            setFamiliasCatalogo(allFams.sort((a, b) => a.nombre.localeCompare(b.nombre)));
         };
         loadCats();
     }, [user]);
@@ -201,7 +210,7 @@ export const SolicitarOTPage: React.FC = () => {
                         >
                             <option value="">Seleccione Familia...</option>
                             {familiasCatalogo.map(f => (
-                                <option key={f.id} value={f.nomenclatura} style={{ color: 'black' }}>
+                                <option key={f.id} value={f.nomenclatura || f.nombre} style={{ color: 'black' }}>
                                     {f.nombre}
                                 </option>
                             ))}
