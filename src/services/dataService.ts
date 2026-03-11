@@ -185,9 +185,9 @@ export const getEquipos = async (sucursalId: string, familiaId?: string, targetC
     const snapshot = await getDocs(q);
     let results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Equipo));
     
-    // Filtrado inteligente: Priorizar por familiaId (Migration Safe)
+    // Filtrado estricto por ID (Consolidado)
     if (familiaId) {
-        results = results.filter(e => e.familiaId === familiaId || e.familia === familiaId);
+        results = results.filter(e => e.familiaId === familiaId);
     }
     return results;
 };
