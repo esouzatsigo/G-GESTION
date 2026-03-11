@@ -134,19 +134,29 @@ export const saveCliente = async (cliente: Omit<Cliente, 'id'>, user: User, id?:
             });
             await Promise.all(promises);
             console.log(`Sembrados ${globalCatalogs.length} catálogos base para el nuevo cliente ${cliente.nombre}.`);
+        } catch (error) {
+            console.error("Error al sembrar catálogos base:", error);
+        }
 
-            // REGLA DE NEGOCIO: Sembrar Familias Base (Nuevas)
+        // REGLA DE NEGOCIO: Asegurar Familias Base (Globales / Maestras)
+        try {
+            const familySnap = await getDocs(collection(db, 'familias'));
+            const existingNames = familySnap.docs.map(d => (d.data().nombre || '').trim());
+            
             const familyPromises = BASE_FAMILIAS.map(famName => {
-                return firestoreAddDoc(collection(db, 'familias'), {
-                    nombre: famName,
-                    clienteId: docRef.id,
-                    nomenclatura: famName
-                });
+                if (!existingNames.includes(famName)) {
+                    return firestoreAddDoc(collection(db, 'familias'), {
+                        nombre: famName,
+                        nomenclatura: famName
+                        // Ya no incluimos clienteId para que sean registros Maestro
+                    });
+                }
+                return Promise.resolve();
             });
             await Promise.all(familyPromises);
-            console.log(`Sembradas ${BASE_FAMILIAS.length} familias base para el nuevo cliente ${cliente.nombre}.`);
+            console.log(`Verificadas familias maestras. El sistema ya no crea familias duplicadas por cliente.`);
         } catch (error) {
-            console.error("Error al sembrar datos base para el cliente nuevo:", error);
+            console.error("Error al verificar familias maestras:", error);
         }
 
         return docRef.id;
@@ -202,12 +212,10 @@ export const getCatalogos = async (targetClienteId?: string | null) => {
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
 };
 
-export const getFamilias = async (targetClienteId?: string | null) => {
-    let q = query(collection(db, 'familias'));
-    if (targetClienteId) {
-        q = query(q, where('clienteId', '==', targetClienteId));
-    }
-    const snapshot = await getDocs(q);
+export const getFamilias = async (_targetClienteId?: string | null) => {
+    // Definitive Fix: Las familias ahora son un Catálogo Maestro Global
+    // Ignoramos el filtro por cliente para evitar duplicados en los selectores.
+    const snapshot = await getDocs(collection(db, 'familias'));
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
 };
 

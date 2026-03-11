@@ -3,19 +3,17 @@ import { useAuth } from '../hooks/useAuth';
 import { db } from '../services/firebase';
 import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { trackedAddDoc, trackedUpdateDoc } from '../services/firestoreHelpers';
-import { tenantQuery } from '../services/tenantContext';
 import { Settings, Plus, Edit2, Trash2, Save, X } from 'lucide-react';
 import { useNotification } from '../context/NotificationContext';
 
 export interface Familia {
     id: string;
-    clienteId: string;
     nombre: string;
     descripcion?: string;
 }
 
 export const FamiliasPage: React.FC = () => {
-    const { user, activeClienteId, isSuperAdmin } = useAuth();
+    const { user, isSuperAdmin } = useAuth();
     const { showNotification } = useNotification();
     const [familias, setFamilias] = useState<Familia[]>([]);
     const [loading, setLoading] = useState(true);
@@ -30,15 +28,15 @@ export const FamiliasPage: React.FC = () => {
         if (!user) return;
         setLoading(true);
         try {
-            const q = tenantQuery('familias', user);
-            const snap = await getDocs(q);
+            // Catálogo Maestro: No filtramos por cliente
+            const snap = await getDocs(collection(db, 'familias'));
             setFamilias(snap.docs.map(d => ({ id: d.id, ...d.data() } as Familia)).sort((a, b) => a.nombre.localeCompare(b.nombre)));
         } catch (error) {
             console.error(error);
         } finally {
             setLoading(false);
         }
-    }, [user, activeClienteId]);
+    }, [user]);
 
     useEffect(() => {
         if (isSuperAdmin) {
@@ -52,17 +50,10 @@ export const FamiliasPage: React.FC = () => {
         e.preventDefault();
         setSaving(true);
         try {
-            const targetClienteId = isSuperAdmin && activeClienteId && activeClienteId !== 'ADMIN' ? activeClienteId : user?.clienteId;
-            if (!targetClienteId || targetClienteId === 'ADMIN') {
-                showNotification("Debe seleccionar un cliente activo para crear familias.", "warning");
-                setSaving(false);
-                return;
-            }
-
             const dataToSave = {
                 nombre,
                 descripcion,
-                clienteId: targetClienteId
+                nomenclatura: nombre // ID legible para vinculación
             };
 
             if (editingId) {
@@ -113,9 +104,9 @@ export const FamiliasPage: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <div>
                     <h1 style={{ fontSize: '1.75rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <Settings color="var(--primary)" /> Familias de Equipos
+                        <Settings color="var(--primary)" /> Catálogo de Familias
                     </h1>
-                    <p style={{ color: 'var(--text-muted)' }}>Catálogo unificado para categorizar los equipos por Cliente.</p>
+                    <p style={{ color: 'var(--text-muted)' }}>Catálogo Maestro Global (Unificado para todos los clientes).</p>
                 </div>
                 {!showForm && (
                     <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
