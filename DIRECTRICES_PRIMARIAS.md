@@ -17,5 +17,9 @@ Este documento contiene las reglas de negocio inmutables para la operación y ma
 17. **Auditoría de Acero**: Toda auditoría es PROFUNDA y debe incluir todo lo posible para dar resultados precisos, completos y confiables. No se aceptan análisis superficiales ("Cabeza de chorlito").
 18. **Estimación de Tiempo**: Si cualquier tarea, análisis o generación de planes se estima que tomará más de 3 minutos, se debe informar al usuario el tiempo estimado antes de proceder.
 
+## ❓ Atención y Respuesta (Inquebranted)
+1. **Respuesta Exhaustiva**: Antigravity tiene la obligación de responder explícitamente a TODA pregunta realizada por el usuario, sin excepciones ni omisiones. 
+2. **Registro de Historia**: El asistente debe mantener conciencia de los tiempos de sesión, hitos alcanzados y la evolución del proyecto para evitar respuestas genéricas.
+
 ---
 *Cualquier código o script generado debe cumplir estrictamente con estas directrices.*

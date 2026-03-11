@@ -12,6 +12,17 @@ import { trackedAddDoc, trackedUpdateDoc } from './firestoreHelpers';
 import { db } from './firebase';
 import type { Cliente, Franquicia, Sucursal, Equipo, WorkOrder, User } from '../types';
 import { notificarNuevaOT, notificarTecnicoAsignacion, notificarAsignacionOT, notificarCambioOT } from './notificationService';
+import { addDoc as firestoreAddDoc } from 'firebase/firestore';
+
+const BASE_FAMILIAS = [
+    "Refrigeracion",
+    "Aires",
+    "Coccion",
+    "Agua",
+    "Restaurante",
+    "Cocina",
+    "Generadores"
+];
 
 export interface BitacoraEntry {
     id?: string;
@@ -107,10 +118,13 @@ export const saveCliente = async (cliente: Omit<Cliente, 'id'>, user: User, id?:
         });
 
         // REGLA DE NEGOCIO: Sembrar Catálogos Base (Globales) al nuevo cliente.
+        // EXCLUSIÓN CRÍTICA: Se filtran las categorías legacy 'Familia' para mantener la integridad de la BD.
         try {
             const qGlobal = query(collection(db, 'catalogos'), where('clienteId', '==', 'ADMIN'));
             const globalSnap = await getDocs(qGlobal);
-            const globalCatalogs = globalSnap.docs.map(doc => doc.data());
+            const globalCatalogs = globalSnap.docs
+                .map(doc => doc.data())
+                .filter(cat => cat.categoria !== 'Familia');
 
             const promises = globalCatalogs.map(cat => {
                 const newCat = { ...cat, clienteId: docRef.id };
@@ -118,8 +132,19 @@ export const saveCliente = async (cliente: Omit<Cliente, 'id'>, user: User, id?:
             });
             await Promise.all(promises);
             console.log(`Sembrados ${globalCatalogs.length} catálogos base para el nuevo cliente ${cliente.nombre}.`);
+
+            // REGLA DE NEGOCIO: Sembrar Familias Base (Nuevas)
+            const familyPromises = BASE_FAMILIAS.map(famName => {
+                return firestoreAddDoc(collection(db, 'familias'), {
+                    nombre: famName,
+                    clienteId: docRef.id,
+                    nomenclatura: famName
+                });
+            });
+            await Promise.all(familyPromises);
+            console.log(`Sembradas ${BASE_FAMILIAS.length} familias base para el nuevo cliente ${cliente.nombre}.`);
         } catch (error) {
-            console.error("Error al sembrar catálogos base para el cliente nuevo:", error);
+            console.error("Error al sembrar datos base para el cliente nuevo:", error);
         }
 
         return docRef.id;
@@ -150,17 +175,17 @@ export const getSucursales = async (targetClienteId?: string | null, franquiciaI
 };
 
 // --- Servicios de Equipos ---
-// FIX: Query con máximo 2 filtros Firestore (sucursalId + clienteId) para evitar
-// dependencia de índice compuesto de 3 campos. Familia se filtra client-side.
-export const getEquipos = async (sucursalId: string, familia?: string, targetClienteId?: string | null) => {
+export const getEquipos = async (sucursalId: string, familiaId?: string, targetClienteId?: string | null) => {
     let q = query(collection(db, 'equipos'), where('sucursalId', '==', sucursalId));
     if (targetClienteId && targetClienteId !== 'ADMIN') {
         q = query(q, where('clienteId', '==', targetClienteId));
     }
     const snapshot = await getDocs(q);
     let results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Equipo));
-    if (familia) {
-        results = results.filter(e => e.familia === familia);
+    
+    // Filtrado inteligente: Priorizar por familiaId (Migration Safe)
+    if (familiaId) {
+        results = results.filter(e => e.familiaId === familiaId || e.familia === familiaId);
     }
     return results;
 };

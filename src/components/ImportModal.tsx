@@ -27,8 +27,9 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, type,
     const [catalogs, setCatalogs] = useState<{
         clientes: Cliente[],
         franquicias: Franquicia[],
-        sucursales: Sucursal[]
-    }>({ clientes: [], franquicias: [], sucursales: [] });
+        sucursales: Sucursal[],
+        familias: any[]
+    }>({ clientes: [], franquicias: [], sucursales: [], familias: [] });
     const { showNotification } = useNotification();
 
     const { user, activeClienteId } = useAuth();
@@ -41,16 +42,18 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, type,
                 ? activeClienteId
                 : (user?.rol !== 'Admin General' ? user?.clienteId : undefined);
 
-            const [cSnap, fSnap, sSnap] = await Promise.all([
+            const [cSnap, fSnap, sSnap, famSnap] = await Promise.all([
                 getClientes(targetClienteId),
                 // Important: getDocs with tenantQuery needs a valid user object. If not, fallback to regular collection
                 user ? getDocs(tenantQuery('franquicias', user)) : getDocs(collection(db, 'franquicias')),
-                user ? getDocs(tenantQuery('sucursales', user)) : getDocs(collection(db, 'sucursales'))
+                user ? getDocs(tenantQuery('sucursales', user)) : getDocs(collection(db, 'sucursales')),
+                user ? getDocs(tenantQuery('familias', user)) : getDocs(collection(db, 'familias'))
             ]);
             setCatalogs({
                 clientes: cSnap,
                 franquicias: fSnap.docs.map(d => ({ id: d.id, ...d.data() } as Franquicia)),
-                sucursales: sSnap.docs.map(d => ({ id: d.id, ...d.data() } as Sucursal))
+                sucursales: sSnap.docs.map(d => ({ id: d.id, ...d.data() } as Sucursal)),
+                familias: famSnap.docs.map(d => ({ id: d.id, ...d.data() } as any))
             });
         } catch (error) {
             console.error("Error fetching catalogs:", error);
@@ -165,6 +168,21 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, type,
                     errors.push(`Sucursal "${rawSucursalRef}" no existe para el cliente ${resolvedClient.nombre}`);
                 }
             }
+
+            const rawFamilia = String(row.FAMILIA || '').trim();
+            if (!rawFamilia) {
+                errors.push("Familia ausente (Ej: ESP_REFRIGERACION)");
+            } else {
+                const f = currentCatalogs.familias.find(fam => 
+                    fam.id === rawFamilia || 
+                    normalizeText(fam.nombre) === normalizeText(rawFamilia) || 
+                    normalizeText(fam.nomenclatura) === normalizeText(rawFamilia)
+                );
+                if (!f) {
+                    errors.push(`Familia "${rawFamilia}" no encontrada en el catálogo Maestro`);
+                }
+            }
+
             if (!row.NOMBRE_EQUIPO) errors.push("Nombre equipo ausente");
         }
 
@@ -345,14 +363,21 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, type,
                         )
                     );
 
-                    if (!resolvedSucursal) return;
+                    const resolvedFamilia = catalogs.familias.find(fam => 
+                        fam.id === String(row.FAMILIA) || 
+                        normalizeText(fam.nombre) === normalizeText(String(row.FAMILIA)) || 
+                        normalizeText(fam.nomenclatura) === normalizeText(String(row.FAMILIA))
+                    );
+
+                    if (!resolvedSucursal || !resolvedFamilia) return;
 
                     const docRef = doc(colRef);
                     batch.set(docRef, {
                         clienteId: resolvedClient.id,
                         sucursalId: resolvedSucursal.id,
                         franquiciaId: resolvedFranchise.id,
-                        familia: String(row.FAMILIA || 'Local'),
+                        familiaId: resolvedFamilia.id,
+                        familia: resolvedFamilia.nombre || resolvedFamilia.nomenclatura || String(row.FAMILIA),
                         nombre: String(row.NOMBRE_EQUIPO),
                         createdAt: new Date().toISOString()
                     });

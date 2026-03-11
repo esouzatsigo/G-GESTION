@@ -50,6 +50,7 @@ export interface Equipo {
     sucursalId: string;
     franquiciaId?: string; // ID de la franquicia vinculada
     familia: string;
+    familiaId?: string; // Nuevo ID interno del catálogo/familia
     nombre: string;
 }
 

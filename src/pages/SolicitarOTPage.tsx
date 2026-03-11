@@ -7,7 +7,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { tenantStoragePath } from '../services/tenantContext';
 import { CameraModal } from '../components/CameraModal';
 import { useNotification } from '../context/NotificationContext';
-import { getCatalogos } from '../services/dataService';
+import { getCatalogos, getFamilias, getSucursales, getEquipos } from '../services/dataService';
 import type { Equipo, WorkOrder, Sucursal } from '../types';
 
 export const SolicitarOTPage: React.FC = () => {
@@ -20,72 +20,98 @@ export const SolicitarOTPage: React.FC = () => {
     const [lastOTNumber, setLastOTNumber] = useState<number | null>(null);
 
     // Form State
-    const [familia, setFamilia] = useState<Equipo['familia'] | ''>('');
+    const [familiaId, setFamiliaId] = useState<string>('');
     const [equipoId, setEquipoId] = useState('');
     const [descripcionFalla, setDescripcionFalla] = useState('');
     const [justificacion, setJustificacion] = useState('');
     const [tempFiles, setTempFiles] = useState<File[]>([]);
     const [previewUrls, setPreviewUrls] = useState<string[]>([]);
-    const [selectedKardexPhotos, setSelectedKardexPhotos] = useState<string[]>([]);
+    const [selectedKardexPhotos] = useState<string[]>([]);
     const [sucursales, setSucursales] = useState<Sucursal[]>([]);
     const [selectedSucursalId, setSelectedSucursalId] = useState('');
     const [isCameraOpen, setIsCameraOpen] = useState(false);
     const [familiasCatalogo, setFamiliasCatalogo] = useState<any[]>([]);
 
-    // Cargar Catálogos (Familias)
+    // Cargar Catálogos (Familias) - SOPORTE DUAL (LEGACY + NUEVO)
     useEffect(() => {
-        if (!user) return;
+        if (!user?.clienteId) return;
         const loadCats = async () => {
-            const { getFamilias } = await import('../services/dataService');
-            const [cats, fams] = await Promise.all([
-                getCatalogos(user.clienteId),
-                getFamilias(user.clienteId)
-            ]);
+            try {
+                // Consulta paralela para máxima compatibilidad
+                const [cats, fams] = await Promise.all([
+                    getCatalogos(user.clienteId),
+                    getFamilias(user.clienteId)
+                ]);
 
-            // Unir catálogos antiguos (con categoria Familia) y la nueva colección familias
-            const legacyFams = cats.filter(c => c.categoria === 'Familia');
-            const allFams = [...legacyFams, ...fams];
+                // 1. Filtrar familias de catálogos antiguos
+                const legacyFams = cats.filter(c => c.categoria === 'Familia');
 
-            setFamiliasCatalogo(allFams.sort((a, b) => a.nombre.localeCompare(b.nombre)));
+                // 2. Unir con la nueva colección 'familias'
+                const allFams = [...legacyFams, ...fams];
+
+                // 3. De-duplicación inteligente por nombre o nomenclatura
+                // PRIORIDAD: La colección 'familias' (Standard) sobrescribe a 'catalogos' (Legacy)
+                const uniqueFamsMap = new Map();
+                
+                // Primero cargamos legacy, luego standard para que standard gane en el Map
+                allFams.forEach(f => {
+                    const name = f.nombre || f.nomenclatura;
+                    if (name) {
+                        uniqueFamsMap.set(name, f);
+                    }
+                });
+
+                const finalFams = Array.from(uniqueFamsMap.values());
+                console.log(`Cargadas ${finalFams.length} familias (Hybrid Logic)`);
+                setFamiliasCatalogo(finalFams.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '')));
+            } catch (err) {
+                console.error("Error al cargar familias:", err);
+            }
         };
         loadCats();
-    }, [user]);
+    }, [user?.clienteId]);
 
     // Cargar Sucursales Permitidas
     useEffect(() => {
-        if (!user) return;
+        if (!user?.clienteId) return;
         const loadSucs = async () => {
-            const { getSucursales } = await import('../services/dataService');
-            const data = await getSucursales(user.clienteId);
+            try {
+                const data = await getSucursales(user.clienteId);
 
-            // Si el usuario no es Admin/Coord de TODAS, filtrar por las que tiene permitidas
-            const permitidas = user.sucursalesPermitidas || [];
-            if (permitidas.includes('TODAS')) {
-                setSucursales(data);
-                if (data.length > 0) setSelectedSucursalId(data[0].id);
-            } else {
-                const filtered = data.filter(s => permitidas.includes(s.id));
-                setSucursales(filtered);
-                if (filtered.length > 0) setSelectedSucursalId(filtered[0].id);
+                // Si el usuario no es Admin/Coord de TODAS, filtrar por las que tiene permitidas
+                const permitidas = user.sucursalesPermitidas || [];
+                if (permitidas.includes('TODAS')) {
+                    setSucursales(data);
+                    if (data.length > 0 && !selectedSucursalId) setSelectedSucursalId(data[0].id);
+                } else {
+                    const filtered = data.filter(s => permitidas.includes(s.id));
+                    setSucursales(filtered);
+                    if (filtered.length > 0 && !selectedSucursalId) setSelectedSucursalId(filtered[0].id);
+                }
+            } catch (err) {
+                console.error("Error al cargar sucursales:", err);
             }
         };
         loadSucs();
-    }, [user]);
+    }, [user?.clienteId]);
 
     // Cargar Equipos Filtrados
     useEffect(() => {
-        if (familia && selectedSucursalId) {
+        if (familiaId && selectedSucursalId && user?.clienteId) {
             setLoading(true);
             const loadEq = async () => {
-                const { getEquipos } = await import('../services/dataService');
-                const data = await getEquipos(selectedSucursalId, familia, user?.clienteId);
-                setEquipos(data);
+                try {
+                    const data = await getEquipos(selectedSucursalId, familiaId, user.clienteId);
+                    setEquipos(data);
+                } catch (err) {
+                    console.error("Error al cargar equipos:", err);
+                }
             }
             loadEq().finally(() => setLoading(false));
         } else {
             setEquipos([]);
         }
-    }, [familia, selectedSucursalId, user?.clienteId]);
+    }, [familiaId, selectedSucursalId, user?.clienteId]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
@@ -106,7 +132,7 @@ export const SolicitarOTPage: React.FC = () => {
         if (!user) return;
 
         // VALIDACIÓN DE CAMPOS MANDATORIOS
-        if (!familia) {
+        if (!familiaId) {
             showNotification("Seleccione una familia de equipo.", "warning");
             return;
         }
@@ -127,7 +153,7 @@ export const SolicitarOTPage: React.FC = () => {
             return;
         }
 
-        console.log("Iniciando envío de solicitud OT...", { equipoId, familia });
+        console.log("Iniciando envío de solicitud OT...", { equipoId, familiaId });
         setSubmitting(true);
 
         try {
@@ -164,7 +190,7 @@ export const SolicitarOTPage: React.FC = () => {
 
             // Reset Form
             setSubmitting(false);
-            setFamilia('');
+            setFamiliaId('');
             setEquipoId('');
             setDescripcionFalla('');
             setJustificacion('');
@@ -205,12 +231,12 @@ export const SolicitarOTPage: React.FC = () => {
                     <div>
                         <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '600' }}>Familia de Equipo *</label>
                         <select
-                            value={familia} onChange={e => { setFamilia(e.target.value as any); setEquipoId(''); }} required
+                            value={familiaId} onChange={e => { setFamiliaId(e.target.value); setEquipoId(''); }} required
                             style={{ width: '100%', padding: '0.875rem', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontWeight: '600' }}
                         >
                             <option value="">Seleccione Familia...</option>
                             {familiasCatalogo.map(f => (
-                                <option key={f.id} value={f.nomenclatura || f.nombre} style={{ color: 'black' }}>
+                                <option key={f.id} value={f.id} style={{ color: 'black' }}>
                                     {f.nombre}
                                 </option>
                             ))}
@@ -220,7 +246,7 @@ export const SolicitarOTPage: React.FC = () => {
                         <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '600' }}>Equipo Específico *</label>
                         <select
                             value={equipoId} onChange={e => setEquipoId(e.target.value)} required
-                            disabled={!familia || loading}
+                            disabled={!familiaId || loading}
                             style={{ width: '100%', padding: '0.875rem', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
                         >
                             <option value="">{loading ? 'Cargando...' : 'Seleccione Equipo...'}</option>

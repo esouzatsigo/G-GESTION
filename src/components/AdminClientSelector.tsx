@@ -11,7 +11,7 @@ export const AdminClientSelector: React.FC = () => {
 
     // Only fetch and render for true Admin role AND specific HCelis identity
     // El selector debe ser visible si el usuario tiene rol Admin y es el dueño/maestro
-    const isHCelis = user?.email === 'hhcelis@hgestion.com' || (user?.rol === 'Admin General' && user?.clienteId === 'ADMIN');
+    const isHCelis = user?.email === 'hhcelis@hgestion.com' || user?.email === 'hcelis@tsigoglobal.com.mx' || (user?.rol === 'Admin General' && user?.clienteId === 'ADMIN');
 
     useEffect(() => {
         if (!isHCelis) return;

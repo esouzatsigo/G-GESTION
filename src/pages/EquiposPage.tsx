@@ -52,20 +52,23 @@ export const EquiposPage: React.FC = () => {
     const [familiasCollection, setFamiliasCollection] = useState<any[]>([]);
 
     const familias = React.useMemo(() => {
-        // Familias desde catálogos (Legacy)
-        const legacyFamilias = catalogos
-            .filter(c => c.categoria === 'Familia')
-            .map(c => ({ id: c.nomenclatura, name: c.nombre }));
+        // Unificar familias de catálogos y colección familias usando su ID real de Firestore
+        const allSources = [...catalogos.filter(c => c.categoria === 'Familia'), ...familiasCollection];
+        
+        const uniqueMap = new Map();
+        
+        // Cargar legacy primero, luego standard para que standard gane en el Map por nombre
+        allSources.forEach(f => {
+            const name = f.nombre || f.nomenclatura;
+            if (name) {
+                uniqueMap.set(name, { id: f.id, name });
+            }
+        });
 
-        // Familias desde colección 'familias' (Nuevo Standard)
-        const currentFamilias = familiasCollection.map(f => ({
-            id: f.nomenclatura || f.nombre,
-            name: f.nombre
-        }));
-
-        const allFamilias = [...legacyFamilias, ...currentFamilias];
-
-        if (allFamilias.length > 0) return allFamilias.sort((a, b) => a.name.localeCompare(b.name));
+        const result = Array.from(uniqueMap.values());
+        if (result.length > 0) return result.sort((a, b) => a.name.localeCompare(b.name));
+        
+        // Fallback a estáticos solo si no hay nada en la DB
         return defaultFamilias;
     }, [catalogos, familiasCollection]);
 
@@ -127,7 +130,7 @@ export const EquiposPage: React.FC = () => {
             setClienteId(equipo.clienteId || '');
             setFranquiciaId(equipo.franquiciaId || '');
             setSucursalId(equipo.sucursalId || '');
-            setFamilia(equipo.familia);
+            setFamilia(equipo.familiaId || equipo.familia);
             setNombre(equipo.nombre);
         } else {
             setEditingEquipo(null);
@@ -169,7 +172,8 @@ export const EquiposPage: React.FC = () => {
             clienteId,
             franquiciaId,
             sucursalId,
-            familia,
+            familiaId: familia, // Guardamos el ID en el nuevo campo
+            familia: getFamiliaName(familia), // Mantenemos el texto por compatibilidad de reportes legacy
             nombre: nombre.trim()
         };
 
@@ -216,7 +220,7 @@ export const EquiposPage: React.FC = () => {
         const matchCliente = !filterCliente || e.clienteId === filterCliente;
         const matchFranquicia = !filterFranquiciaId || e.franquiciaId === filterFranquiciaId;
         const matchSucursal = !filterSucursalId || e.sucursalId === filterSucursalId;
-        const matchFamilia = !filterFamilia || e.familia === filterFamilia;
+        const matchFamilia = !filterFamilia || e.familiaId === filterFamilia || e.familia === filterFamilia;
 
         return matchSearch && matchCliente && matchFranquicia && matchSucursal && matchFamilia;
     });
@@ -400,7 +404,7 @@ export const EquiposPage: React.FC = () => {
                                                     margin: '0 0 0.3rem 0'
                                                 }}>{equipo.nombre}</h3>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                                    <span style={{ fontSize: '0.6rem', fontWeight: '900', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{getFamiliaName(equipo.familia)}</span>
+                                                    <span style={{ fontSize: '0.6rem', fontWeight: '900', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{getFamiliaName(equipo.familiaId || equipo.familia)}</span>
                                                     {equipo.franquiciaId && (
                                                         <>
                                                             <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--text-muted)', flexShrink: 0, display: 'inline-block' }}></span>

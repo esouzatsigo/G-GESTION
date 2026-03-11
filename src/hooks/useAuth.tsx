@@ -219,7 +219,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    const isSuperAdminUser = ((user?.rol === 'Admin General' || user?.rol === 'Admin' || user?.rol === 'ROL_ADMIN_GENERAL' || user?.rol === 'ROL_ADMIN') && user?.clienteId === 'ADMIN') || user?.email === 'hhcelis@hgestion.com';
+    const isSuperAdminUser = ((user?.rol === 'Admin General' || user?.rol === 'Admin' || user?.rol === 'ROL_ADMIN_GENERAL' || user?.rol === 'ROL_ADMIN') && user?.clienteId === 'ADMIN') || user?.email === 'hhcelis@hgestion.com' || user?.email === 'hcelis@tsigoglobal.com.mx';
 
     const activeUser = React.useMemo(() => {
         if (!user) return null;
