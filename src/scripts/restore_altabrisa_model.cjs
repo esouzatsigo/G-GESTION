@@ -2,12 +2,12 @@ const { initializeApp } = require("firebase/app");
 const { getFirestore, doc, setDoc, serverTimestamp } = require("firebase/firestore");
 
 const firebaseConfig = {
-    apiKey: "AIzaSyCmQL7Tw4EcoAw2eLX1JlvhfXbiHm7UQaw",
-    authDomain: "h-gestion-dev.firebaseapp.com",
-    projectId: "h-gestion-dev",
-    storageBucket: "h-gestion-dev.firebasestorage.app",
-    messagingSenderId: "198928689880",
-    appId: "1:198928689880:web:7f90dcd33e710fcc7505ad",
+    apiKey: "AIzaSyDkeNR7V2PKZaF5cDjhaUiPfU47PTwRwSM",
+    authDomain: "h-gestion-testbpt.firebaseapp.com",
+    projectId: "h-gestion-testbpt",
+    storageBucket: "h-gestion-testbpt.firebasestorage.app",
+    messagingSenderId: "385439061540",
+    appId: "1:385439061540:web:95c1461abd46400724eab1",
 };
 
 const app = initializeApp(firebaseConfig);
@@ -81,8 +81,8 @@ const EQUIPOS_DATA = [
 
 async function restoreAltabrisa() {
     console.log("🚑 INICIANDO RESTAURACIÓN DE EMERGENCIA - BOSTON'S ALTABRISA 🛡️");
-    const sucursalId = 'Azbef4Og1nABbWAQdQvJ';
-    const clienteId = 'kWRmv16DNfMUlSF1Yqiv';
+    const sucursalId = 'HuwoZsAHef5kCZwCFirU';
+    const clienteId = '3de6K2GeasZhN2GIQWXw';
 
     let count = 0;
     for (const eq of EQUIPOS_DATA) {

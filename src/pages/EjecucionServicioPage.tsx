@@ -307,20 +307,21 @@ export const EjecucionServicioPage: React.FC = () => {
 
     const PhotoInput = ({ label, url, field, required }: any) => (
         <div style={{ width: '100%', flex: 'none' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '1.55rem', fontWeight: '600' }}>
+            <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '1.65rem', fontWeight: '700', color: 'var(--primary)' }}>
                 {label} {required && <span style={{ color: 'var(--priority-alta)' }}>*</span>}
             </label>
             <div style={{
                 overflow: 'hidden',
                 position: 'relative',
                 background: 'var(--bg-input)',
-                borderRadius: '12px',
-                border: '1px solid var(--glass-border)',
+                borderRadius: '16px',
+                border: '2px solid var(--glass-border)',
                 aspectRatio: url ? 'auto' : '16/9',
-                minHeight: '280px',
+                minHeight: '320px',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center'
+                justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
             }}>
                 {isUploading[field] ? (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '2rem' }}>
@@ -374,8 +375,8 @@ export const EjecucionServicioPage: React.FC = () => {
                             background: 'transparent', border: 'none', color: 'var(--text-main)', opacity: isLocked ? 0.5 : 1
                         }}
                     >
-                        <Camera size={40} color="var(--primary)" />
-                        <span style={{ fontSize: '1.15rem', marginTop: '8px', fontWeight: '800' }}>TOMAR FOTO</span>
+                        <Camera size={54} color="var(--primary)" />
+                        <span style={{ fontSize: '1.35rem', marginTop: '12px', fontWeight: '900', letterSpacing: '1px' }}>TOMAR FOTO</span>
                     </button>
                 )}
             </div>
@@ -384,19 +385,21 @@ export const EjecucionServicioPage: React.FC = () => {
 
     return (
         <div className="animate-fade mobile-view">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
-                <button onClick={() => navigate('/mis-servicios')} style={{ background: 'transparent', border: 'none', color: 'var(--text-main)' }}><ChevronLeft size={36} /></button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: '2.5rem' }}>
+                <button onClick={() => navigate('/mis-servicios')} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: '12px', width: '56px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <ChevronLeft size={44} />
+                </button>
                 <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <h1 style={{ fontSize: '2.2rem', fontWeight: '800' }}>Atender {ot.tipo === 'Preventivo' ? `OT P-${ot.numero}` : `OT #${ot.numero}`}</h1>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                        <h1 style={{ fontSize: '2.4rem', fontWeight: '800', lineHeight: 1.1 }}>Atender {ot.tipo === 'Preventivo' ? `OT P-${ot.numero}` : `OT #${ot.numero}`}</h1>
                         <span style={{
-                            borderRadius: '6px', padding: '0.3rem 0.75rem', fontSize: '1.15rem', fontWeight: '700',
+                            borderRadius: '8px', padding: '0.4rem 1rem', fontSize: '1.2rem', fontWeight: '800',
                             background: `var(--status-${ot.estatus.toLowerCase().replace(/ /g, '')})`, color: '#ffffff'
                         }}>
                             {ot.estatus}
                         </span>
                     </div>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '1.4rem' }}>{equipo?.nombre}</p>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '1.6rem', marginTop: '0.25rem', fontWeight: '500' }}>{equipo?.nombre}</p>
                 </div>
             </div>
 
@@ -423,13 +426,7 @@ export const EjecucionServicioPage: React.FC = () => {
                         value={descripcionTecnica} onChange={e => setDescripcionTecnica(e.target.value)} required
                         disabled={isLocked}
                         placeholder="Detalla las acciones tomadas para corregir la falla..."
-                        onBlur={() => {
-                            setTimeout(() => {
-                                repuestosRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                repuestosRef.current?.focus();
-                            }, 200);
-                        }}
-                        style={{ width: '100%', padding: '1rem', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', minHeight: '100px', fontSize: '1.4rem', opacity: isLocked ? 0.6 : 1 }}
+                        style={{ width: '100%', padding: '1.5rem', borderRadius: '16px', border: '2px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', minHeight: '140px', fontSize: '1.5rem', opacity: isLocked ? 0.6 : 1, lineHeight: '1.5' }}
                     />
                 </div>
 
@@ -441,15 +438,7 @@ export const EjecucionServicioPage: React.FC = () => {
                         value={repuestosUtilizados} onChange={e => setRepuestosUtilizados(e.target.value)}
                         disabled={isLocked}
                         placeholder="Lista de componentes reemplazados (opcional)..."
-                        onBlur={() => {
-                            setTimeout(() => {
-                                const fotoDespuesEl = document.getElementById('foto-despues-container');
-                                if (fotoDespuesEl) {
-                                    fotoDespuesEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                }
-                            }, 200);
-                        }}
-                        style={{ width: '100%', padding: '1rem', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', minHeight: '60px', fontSize: '1.4rem', opacity: isLocked ? 0.6 : 1 }}
+                        style={{ width: '100%', padding: '1.5rem', borderRadius: '16px', border: '2px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', minHeight: '80px', fontSize: '1.5rem', opacity: isLocked ? 0.6 : 1, lineHeight: '1.5' }}
                     />
                 </div>
 
@@ -478,8 +467,7 @@ export const EjecucionServicioPage: React.FC = () => {
                             type="button"
                             className="btn btn-primary"
                             onClick={handleTecnicoClosure}
-                            disabled={submitting || !fotoAntesUrl || !fotoDespuesUrl || !firmaTecnico || !descripcionTecnica.trim()}
-                            style={{ padding: '1.5rem', marginTop: '0.5rem', background: 'var(--status-iniciada)', fontSize: '1.4rem' }}
+                            style={{ padding: '1.8rem', marginTop: '1rem', background: 'var(--status-iniciada)', fontSize: '1.6rem', height: 'auto', borderRadius: '20px' }}
                         >
                             {submitting ? 'Registrando...' : 'CONCLUIR SERVICIO Y FIRMAR'}
                             {!submitting && <CheckCircle2 size={28} />}
@@ -507,7 +495,7 @@ export const EjecucionServicioPage: React.FC = () => {
                                 value={comentariosCliente} onChange={e => setComentariosCliente(e.target.value)}
                                 disabled={ot.estatus === 'Concluida' || ot.estatus === 'Finalizada'}
                                 placeholder="Escriba aquí los comentarios del cliente sobre el servicio recibido..."
-                                style={{ width: '100%', padding: '1rem', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', minHeight: '80px', marginBottom: '1rem', fontSize: '1.4rem' }}
+                                style={{ width: '100%', padding: '1.5rem', borderRadius: '16px', border: '2px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', minHeight: '100px', marginBottom: '1.5rem', fontSize: '1.5rem', lineHeight: '1.5' }}
                             />
                             <SignaturePad
                                 id="firma-cliente"

@@ -34,10 +34,14 @@ export const LoginPage: React.FC = () => {
             } else {
                 // BYPASS "LIGHT"
                 if (password === '12345678') {
-                    const success = await loginLight(email);
-                    if (success) {
+                    const status = await loginLight(email);
+                    if (status === 'success') {
                         navigate('/');
                         return; // Exito
+                    } else if (status === 'swapping') {
+                        setError('Redireccionando a tu entorno de datos...');
+                        // No apagamos el loading ni navegamos. El setTimeout del useAuth apagará la PWA.
+                        return;
                     } else {
                         setError('El usuario no existe en la base de datos para acceso rápido.');
                         return;

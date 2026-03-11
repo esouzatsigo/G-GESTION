@@ -17,7 +17,7 @@ const db = getFirestore(app);
 async function fixEquiposSucursal() {
     console.log(`🚀 CORRIGIENDO SUCURSAL DE EQUIPOS ALTABRISA (TEST BPT) 🛡️`);
 
-    const SUCURSAL_ALTABRISA_REAL = "HocVkOhJBlw3JAulA0Gb";
+    const SUCURSAL_ALTABRISA_REAL = "HuwoZsAHef5kCZwCFirU";
     const CLIENTE_TEST_BPT = "3de6K2GeasZhN2GIQWXw";
 
     const q = query(collection(db, 'equipos'), where('clienteId', '==', CLIENTE_TEST_BPT));

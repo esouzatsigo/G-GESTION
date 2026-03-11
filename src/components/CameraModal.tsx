@@ -174,130 +174,120 @@ export const CameraModal: React.FC<CameraModalProps> = ({ onCapture, onClose, ti
 
             {/* UI Layer */}
             <div style={{ position: 'relative', zIndex: 1, height: '100%', display: 'flex', flexDirection: 'column' }}>
-                {/* TOP MASK (RECORTADO ARRIBA) + CONTROLES */}
+                {/* TOP HEADER */}
+                <div style={{
+                    background: 'linear-gradient(to bottom, rgba(0,0,0,0.95), transparent)',
+                    padding: '1rem',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                }}>
+                    <span style={{ fontSize: '1.2rem', fontWeight: '900', color: 'white', textTransform: 'uppercase', letterSpacing: '1px' }}>{title}</span>
+                    <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', cursor: 'pointer', width: '44px', height: '44px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <X size={28} />
+                    </button>
+                </div>
+
+                {/* VISOR CENTRAL (ÁREA LIBRE) */}
+                <div style={{ flex: 1, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+                    {!capturedImage && (
+                        <div style={{
+                            border: '2px dashed rgba(255,255,255,0.4)',
+                            width: '90%', height: '70%',
+                            borderRadius: '24px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}>
+                        </div>
+                    )}
+                </div>
+
+                {/* BOTTOM CONTROLS - "ZONA SEGURA" ELEVADA */}
                 <div style={{
                     background: 'rgba(0,0,0,0.85)',
-                    padding: '0.5rem 0',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    borderBottom: '2px solid rgba(255,255,255,0.1)'
+                    padding: '2rem 1rem calc(2rem + env(safe-area-inset-bottom)) 1rem',
+                    borderTop: '1px solid rgba(255,255,255,0.1)',
+                    backdropFilter: 'blur(10px)'
                 }}>
-                    {/* Header Tiny */}
-                    <div style={{ padding: '0.5rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.7rem', fontWeight: '900', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }}>{title}</span>
-                        <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', cursor: 'pointer', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <X size={18} />
-                        </button>
-                    </div>
-
-                    {/* CONTROLES PRINCIPALES - "ENCERRADOS" EN EL MARCO SUPERIOR */}
                     <div style={{
-                        padding: '1rem 0 2rem 0',
+                        maxWidth: '400px',
+                        margin: '0 auto',
                         display: 'flex',
                         justifyContent: 'center',
                         alignItems: 'center',
-                        gap: '2rem'
+                        gap: '2.5rem'
                     }}>
                         {!capturedImage ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '2.5rem' }}>
+                            <>
                                 <button
                                     onClick={switchCamera}
                                     style={{
-                                        background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', color: 'white',
-                                        width: '48px', height: '48px', borderRadius: '50%',
+                                        background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', color: 'white',
+                                        width: '60px', height: '60px', borderRadius: '50%',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center'
                                     }}
                                 >
-                                    <SwitchCamera size={22} />
+                                    <SwitchCamera size={28} />
                                 </button>
 
                                 <button
                                     onClick={takePhoto}
                                     style={{
-                                        width: '90px', height: '90px', borderRadius: '50%', border: '4px solid white',
-                                        background: 'transparent', padding: '6px', display: 'flex',
-                                        boxShadow: '0 0 30px rgba(255,255,255,0.3)', position: 'relative'
+                                        width: '100px', height: '100px', borderRadius: '50%', border: '6px solid white',
+                                        background: 'transparent', padding: '8px', display: 'flex',
+                                        boxShadow: '0 0 40px rgba(255,255,255,0.2)', position: 'relative'
                                     }}
                                 >
                                     <div style={{ flex: 1, background: 'white', borderRadius: '50%' }} />
-                                    <div style={{ position: 'absolute', bottom: '-22px', left: '50%', transform: 'translateX(-50%)', whiteSpace: 'nowrap', fontSize: '0.75rem', fontWeight: '950', color: 'white', textShadow: '0 2px 4px black' }}>CAPTURAR</div>
+                                    <div style={{ position: 'absolute', bottom: '-28px', left: '50%', transform: 'translateX(-50%)', whiteSpace: 'nowrap', fontSize: '0.9rem', fontWeight: '900', color: 'white', textShadow: '0 2px 6px black' }}>CAPTURAR</div>
                                 </button>
 
                                 <label
                                     style={{
                                         background: 'rgba(59,130,246,0.3)', border: '1px solid rgba(59,130,246,0.5)', color: 'white',
-                                        width: '48px', height: '48px', borderRadius: '50%',
+                                        width: '60px', height: '60px', borderRadius: '50%',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                                         cursor: 'pointer'
                                     }}
                                 >
-                                    <Upload size={20} />
+                                    <Upload size={28} />
                                     <input type="file" accept="image/*" hidden onChange={handleFileUpload} />
                                 </label>
-                            </div>
+                            </>
                         ) : (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '3rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4rem' }}>
                                 <button
                                     onClick={() => setCapturedImage(null)}
-                                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', background: 'transparent', border: 'none', color: 'white' }}
+                                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', background: 'transparent', border: 'none', color: 'white' }}
                                 >
                                     <div style={{
-                                        width: '60px', height: '60px', borderRadius: '50%',
-                                        background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444',
+                                        width: '70px', height: '70px', borderRadius: '50%',
+                                        background: 'rgba(239, 68, 68, 0.25)', color: '#ef4444',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        border: '2px solid #ef4444'
+                                        border: '3px solid #ef4444'
                                     }}>
-                                        <RotateCcw size={26} />
+                                        <RotateCcw size={32} />
                                     </div>
-                                    <span style={{ fontSize: '0.75rem', fontWeight: '900' }}>REINTENTAR</span>
+                                    <span style={{ fontSize: '0.9rem', fontWeight: '900' }}>REPETIR</span>
                                 </button>
 
                                 <button
                                     onClick={confirmPhoto}
-                                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', background: 'transparent', border: 'none', color: 'white' }}
+                                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', background: 'transparent', border: 'none', color: 'white' }}
                                 >
                                     <div style={{
-                                        width: '90px', height: '90px', borderRadius: '50%',
+                                        width: '100px', height: '100px', borderRadius: '50%',
                                         background: '#22c55e', color: 'white',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        boxShadow: '0 0 40px rgba(34, 197, 94, 0.6)',
-                                        border: '4px solid white'
+                                        boxShadow: '0 0 50px rgba(34, 197, 94, 0.4)',
+                                        border: '6px solid white'
                                     }}>
-                                        <Check size={48} />
+                                        <Check size={56} />
                                     </div>
-                                    <span style={{ fontSize: '1rem', fontWeight: '950', color: '#4ade80', textShadow: '0 2px 4px black' }}>ACEPTAR FOTO</span>
+                                    <span style={{ fontSize: '1.1rem', fontWeight: '950', color: '#4ade80', textShadow: '0 2px 6px black' }}>LISTO!</span>
                                 </button>
                             </div>
                         )}
                     </div>
-                </div>
-
-                {/* VISOR CENTRAL (ÁREA LIBRE) */}
-                <div style={{ flex: 1, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {!capturedImage && (
-                        <div style={{
-                            border: '1px dashed rgba(255,255,255,0.3)',
-                            width: '80%', height: '60%',
-                            borderRadius: '20px',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center'
-                        }}>
-                            <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.7rem', fontWeight: '700', textTransform: 'uppercase' }}>FOTO AQUÍ</span>
-                        </div>
-                    )}
-                </div>
-
-                {/* BOTTOM MASK (RECORTADO ABAJO) - ESTO EMPUJA TODO HACIA ARRIBA CON FUERZA */}
-                <div style={{
-                    background: 'rgba(0,0,0,0.92)',
-                    padding: '3rem 1rem 35vh 1rem', // 35% del alto de la pantalla libre abajo
-                    textAlign: 'center',
-                    borderTop: '2px solid rgba(255,255,255,0.1)'
-                }}>
-                    {!capturedImage && (
-                        <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.7rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                            Toca el visor para capturar
-                        </span>
-                    )}
                 </div>
             </div>
         </div>

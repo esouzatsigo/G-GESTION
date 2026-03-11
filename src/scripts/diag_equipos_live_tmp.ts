@@ -3,7 +3,7 @@ import { db } from '../services/firebase';
 
 async function diagEquipos() {
     const clienteId = "3de6K2GeasZhN2GIQWXw"; // TEST BPT
-    const sucursalId = "HocVkOhJBlw3JAulA0Gb"; // Altabrisa (Fixed ID)
+    const sucursalId = "HuwoZsAHef5kCZwCFirU"; // Altabrisa (Fixed ID)
 
     console.log(`🔍 Buscando equipos para Cliente: ${clienteId} y Sucursal: ${sucursalId}`);
 

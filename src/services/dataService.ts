@@ -6,6 +6,8 @@ import {
     query,
     where,
     runTransaction,
+    updateDoc,
+    writeBatch,
     deleteDoc
 } from 'firebase/firestore';
 import { trackedAddDoc, trackedUpdateDoc } from './firestoreHelpers';
@@ -281,11 +283,11 @@ export interface UndoImpactResult {
 
 export const checkUndoImpact = (collectionName: string, campo: string): UndoImpactResult => {
 
-    // ── REGLA 1: clienteId es SIEMPRE bloqueado en CUALQUIER colección ──
-    if (campo === 'clienteId') {
+    // ── REGLA 1: clienteId, sucursalId y franquiciaId son SIEMPRE bloqueados ──
+    if (['clienteId', 'sucursalId', 'franquiciaId'].includes(campo)) {
         return {
             level: 'blocked',
-            message: `❌ BLOQUEADO: Revertir el campo "clienteId" en "${collectionName}" violaría el aislamiento de datos entre empresas (Multi-Tenant). Esta operación está permanentemente bloqueada por seguridad.`
+            message: `❌ BLOQUEADO: Revertir el campo "${campo}" en "${collectionName}" violaría la integridad de la infraestructura de sucursales. Esta operación está permanentemente bloqueada por seguridad.`
         };
     }
 
@@ -1232,4 +1234,98 @@ export const importPreventivoPlan = async (newData: Omit<PreventivoPlanEntry, 'i
         valorAnterior: clearExisting ? 'Plan Anterior (Borrado)' : 'Plan Existente',
         valorNuevo: `Importados ${newData.length} registros`
     });
+};
+
+// ==========================================
+// SALVAVIDAS: AUTO-REPARADOR DE IDS FANTASMA (CLEAN SLATE ENFORCER)
+// ==========================================
+
+/**
+ * Escanea y repara el entorno del usuario actual buscando IDs legados (Ghosts) 
+ * que estén causando bloqueos o fugas de información.
+ */
+export const triggerAutoRepair = async (clienteId: string, userId: string, fireBaseUser: any) => {
+    try {
+        console.warn("🛠️ INICIANDO PROTOCOLO SALVAVIDAS (AUTO-REPAIR) 🛠️");
+        
+        const isBptGroup = clienteId === 'HXIjyDoFvWl00Qs29QPw';
+        const OFICIAL_ID = isBptGroup ? 'mBGfKcTdcjsHeAX8X7Hz' : 'HuwoZsAHef5kCZwCFirU';
+        const LEGACY_IDS = ['fmIQBqzkElTEY6nnj0c0', 'HocVkOhJBlw3JAulA0Gb', 'BA', 'Azbef4Og1nABbWAQdQvJ'];
+
+        let usersFixed = false;
+        let equiposFixed = 0;
+
+        // 1. Ejecutar Limpieza en el Usuario Actual
+        if (fireBaseUser?.sucursalesPermitidas && Array.isArray(fireBaseUser.sucursalesPermitidas)) {
+            let permitidasRaw = [...fireBaseUser.sucursalesPermitidas];
+            let needsUserUpdate = false;
+            
+            for (const ghost of LEGACY_IDS) {
+                if (permitidasRaw.includes(ghost)) {
+                    permitidasRaw = permitidasRaw.filter(id => id !== ghost);
+                    needsUserUpdate = true;
+                }
+            }
+            
+            if (needsUserUpdate && !permitidasRaw.includes(OFICIAL_ID) && !permitidasRaw.includes('TODAS')) {
+                permitidasRaw.push(OFICIAL_ID);
+            }
+
+            if (needsUserUpdate) {
+                await updateDoc(doc(db, 'usuarios', userId), {
+                    sucursalesPermitidas: permitidasRaw,
+                    lastRepairedBySystem: new Date().toISOString()
+                });
+                usersFixed = true;
+                console.log("✅ Perfil de Usuario purgado de IDs fantasma.");
+            }
+        }
+
+        // 2. Barrido de Contención Fuerte en Equipos del Cliente Actual
+        for (const ghostId of LEGACY_IDS) {
+            const qEq = query(collection(db, 'equipos'), where('sucursalId', '==', ghostId));
+            const snapEq = await getDocs(qEq);
+            
+            if (!snapEq.empty) {
+                // Filtrar en memoria por clienteId para doble seguridad
+                const equiposAfectados = snapEq.docs.filter(d => d.data().clienteId === clienteId);
+                
+                if (equiposAfectados.length > 0) {
+                    const batchEq = writeBatch(db);
+                    equiposAfectados.forEach(d => {
+                        batchEq.update(doc(db, 'equipos', d.id), {
+                            sucursalId: OFICIAL_ID,
+                            repairedFromGhost: ghostId,
+                            repairDate: new Date().toISOString()
+                        });
+                        equiposFixed++;
+                    });
+                    await batchEq.commit();
+                }
+            }
+        }
+
+        // 3. Auditoría del Salvavidas
+        if (usersFixed || equiposFixed > 0) {
+            await logBitacora({
+                clienteId: clienteId,
+                otId: 'SYS_REPAIR',
+                otNumero: 999999,
+                fecha: new Date().toISOString(),
+                usuarioId: userId,
+                usuarioNombre: fireBaseUser?.nombre || 'SISTEMA',
+                accion: 'Auto-Reparación de Entorno (Salvavidas)',
+                campo: 'system_integrity',
+                valorAnterior: 'Entorno Contaminado (Legacy IDs)',
+                valorNuevo: `Reparados: Usuario (${usersFixed}), Equipos (${equiposFixed}) asignados a ${OFICIAL_ID}`
+            });
+            console.log(`✅ Reparación profunda completada: ${equiposFixed} equipos rescatados.`);
+        }
+
+        return { success: true, usersFixed, equiposFixed };
+
+    } catch (e: any) {
+        console.error("❌ ERROR CRÍTICO EN SALVAVIDAS:", e);
+        throw new Error(e.message || "Fallo en el sistema de Auto-Reparación");
+    }
 };

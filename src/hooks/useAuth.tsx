@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { auth, db } from '../services/firebase';
+import { auth, db, switchFirebaseProject, getActiveProjectKey } from '../services/firebase';
+import { resolveProjectForEmail } from '../services/projectRouter';
 import type { User } from '../types';
 
 interface AuthContextType {
@@ -11,8 +12,8 @@ interface AuthContextType {
     isAdmin: boolean;
     isCoordinador: boolean;
     isGerente: boolean;
-    isGerenteBA: boolean;
-    isGerenteSucursal: boolean;
+    isMultiBranchGerente: boolean;
+    isSingleBranchGerente: boolean;
     isSupervisor: boolean;
     isTecnico: boolean;
     isAdminCliente: boolean;
@@ -20,9 +21,7 @@ interface AuthContextType {
     activeClienteId: string | null;
     activeClienteNombre: string | null;
     setActiveClienteId: (id: string | null, name?: string | null) => void;
-    loginAsRole: (role: string) => void;
-    loginAsRoleCorpo: (role: string) => void;
-    loginLight: (email: string) => Promise<boolean>;
+    loginLight: (email: string) => Promise<'success' | 'swapping' | 'not_found' | 'error'>;
     logout: () => void;
 }
 
@@ -33,8 +32,8 @@ const AuthContext = createContext<AuthContextType>({
     isAdmin: false,
     isCoordinador: false,
     isGerente: false,
-    isGerenteBA: false,
-    isGerenteSucursal: false,
+    isMultiBranchGerente: false,
+    isSingleBranchGerente: false,
     isSupervisor: false,
     isTecnico: false,
     isAdminCliente: false,
@@ -42,9 +41,7 @@ const AuthContext = createContext<AuthContextType>({
     activeClienteId: null,
     activeClienteNombre: null,
     setActiveClienteId: () => { },
-    loginAsRole: () => { },
-    loginAsRoleCorpo: () => { },
-    loginLight: async () => false,
+    loginLight: async () => 'error',
     logout: () => { },
 });
 
@@ -77,11 +74,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem('hgestion_light_user');
         localStorage.removeItem('hgestion_active_cliente');
         localStorage.removeItem('hgestion_active_cliente_name');
+        
+        // Destruir persistencia del Multi-proyecto y devolver el router interno al default
+        localStorage.setItem('hgestion_project_key', 'BPT_GROUP');
+
         auth.signOut();
         setUser(null);
         setActiveClienteIdState(null);
         setActiveClienteNombreState(null);
         setLoading(false);
+        
+        // Forzar recarga fría para purgar Vite Cache y Firebase en el cierre de sesión si se cambió de DB
+        window.location.replace('/T-GESTION-Lite/login');
     };
 
     useEffect(() => {
@@ -89,36 +93,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const savedLightUser = localStorage.getItem('hgestion_light_user');
             if (savedLightUser) {
                 setUser(JSON.parse(savedLightUser));
-                setLoading(false);
-                return;
-            }
-
-            const savedRole = localStorage.getItem('mockRole');
-            if (savedRole) {
-                // ... (existing mock logic)
-                const allMockUsers: Record<string, User> = {
-                    Gerente: { id: 'Gerente.BA', nombre: 'GERENTE BA', email: 'gerente.ba@bpt.com', rol: 'Gerente', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'] },
-                    Coordinador: { id: 'Coord.IvanGo', nombre: 'Coordinador BPT', email: 'ivango@bpt.com', rol: 'Coordinador', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['TODAS'] },
-                    Tecnico: { id: 'Tecnico.BA', nombre: 'TECNICO BA', email: 'tecnico.ba@bpt.com', rol: 'Tecnico', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'], coordinadorId: 'Coord.IvanGo', supervisorId: 'Supervisor.BA' },
-                    Admin: { id: 'hcelis', nombre: 'HCelis', email: 'hhcelis@hgestion.com', rol: 'Admin General', clienteId: 'ADMIN', clienteNombre: 'H-GESTION GLOBAL', sucursalesPermitidas: ['TODAS'] },
-                    'Admin General': { id: 'hcelis', nombre: 'HCelis', email: 'hhcelis@hgestion.com', rol: 'Admin General', clienteId: 'ADMIN', clienteNombre: 'H-GESTION GLOBAL', sucursalesPermitidas: ['TODAS'] },
-                    Supervisor: { id: 'Supervisor.BA', nombre: 'SUPERVISOR BA', email: 'supervisor.ba@bpt.com', rol: 'Supervisor', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'] },
-                    TecnicoSitio1: { id: 'dz2sNRXMNHyQ4dYSUt4S', nombre: 'Tecnico Altabrisa', email: 'tecnico.altabrisa@hgestion.com', rol: 'Tecnico', clienteId: 'kWRmv16DNfMUlSF1Yqiv', clienteNombre: 'COMERCIALIZADORA NACIONAL', sucursalesPermitidas: ['Azbef4Og1nABbWAQdQvJ'], coordinadorId: 'iYQnJvdhChK1TLCbPoCD' },
-                    QA_Gerente: { id: 'empiiN18VlLXZlXq45i4', nombre: 'Gerente BP Altabrisa', email: 'Ger.Altabrisa@BP.com', rol: 'Gerente', clienteId: 'kWRmv16DNfMUlSF1Yqiv', clienteNombre: 'COMERCIALIZADORA NACIONAL', sucursalesPermitidas: ['Azbef4Og1nABbWAQdQvJ'] },
-                    QA_Coordinador: { id: 'iYQnJvdhChK1TLCbPoCD', nombre: 'Coordinador Gral', email: 'coord.bpt@t-sigo.com', rol: 'Coordinador', clienteId: 'kWRmv16DNfMUlSF1Yqiv', clienteNombre: 'COMERCIALIZADORA NACIONAL', sucursalesPermitidas: ['TODAS'] },
-                    QA_Tecnico: { id: 'dz2sNRXMNHyQ4dYSUt4S', nombre: 'Tecnico Altabrisa', email: 'tecnico.altabrisa@hgestion.com', rol: 'Tecnico', clienteId: 'kWRmv16DNfMUlSF1Yqiv', clienteNombre: 'COMERCIALIZADORA NACIONAL', sucursalesPermitidas: ['Azbef4Og1nABbWAQdQvJ'], coordinadorId: 'iYQnJvdhChK1TLCbPoCD' },
-                    QA_Especialista: { id: 'fpgjGMjstt5W13HGHvGG', nombre: 'Especialista Coccion', email: 'esp.coccion@t-sigo.com', rol: 'TecnicoExterno', clienteId: 'kWRmv16DNfMUlSF1Yqiv', clienteNombre: 'COMERCIALIZADORA NACIONAL', sucursalesPermitidas: ['TODAS'], especialidad: 'Coccion', coordinadorId: 'iYQnJvdhChK1TLCbPoCD' },
-                    TecExternoAires: { id: 'XectHhoF0iBuykxXdhsO', nombre: 'Tecnico Externo AIRES', email: 'tec.aires@esterno.com', rol: 'TecnicoExterno', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'], especialidad: 'ESP_AIRES', coordinadorId: 'Coord.IvanGo', supervisorId: 'Supervisor.BA' },
-                    TecExternoRef: { id: 'ZQUVYuQ4AvNjWwXfucb6', nombre: 'Tecnico Externo REF', email: 'tec.ref@esterno.com', rol: 'TecnicoExterno', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'], especialidad: 'Refrigeracion', coordinadorId: 'Coord.IvanGo', supervisorId: 'Supervisor.BA' },
-                    TecnicoAdBA: { id: 'Tecnico.Site1', nombre: 'Tecnico Ad BA', email: 'tec.ad@BA', rol: 'Tecnico', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'], coordinadorId: 'Coord.IvanGo', supervisorId: 'Supervisor.BA' }
-                };
-
-                const userFound = allMockUsers[savedRole];
-                if (userFound) {
-                    setUser(userFound);
-                } else {
-                    localStorage.removeItem('mockRole');
-                }
                 setLoading(false);
                 return;
             }
@@ -146,58 +120,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         init();
     }, []);
 
-    const setMockUser = (role: string) => {
-        setLoading(true);
-        const standardUsers: Record<string, User> = {
-            Gerente: { id: 'Gerente.BA', nombre: 'GERENTE BA', email: 'gerente.ba@bpt.com', rol: 'Gerente', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'] },
-            Coordinador: { id: 'Coord.IvanGo', nombre: 'Coordinador BPT', email: 'ivango@bpt.com', rol: 'Coordinador', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['TODAS'] },
-            Tecnico: { id: 'Tecnico.BA', nombre: 'TECNICO BA', email: 'tecnico.ba@bpt.com', rol: 'Tecnico', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'], coordinadorId: 'Coord.IvanGo', supervisorId: 'Supervisor.BA' },
-            Admin: { id: 'hcelis', nombre: 'HCelis', email: 'hhcelis@hgestion.com', rol: 'Admin General', clienteId: 'ADMIN', clienteNombre: 'H-GESTION GLOBAL', sucursalesPermitidas: ['TODAS'] },
-            'Admin General': { id: 'hcelis', nombre: 'HCelis', email: 'hhcelis@hgestion.com', rol: 'Admin General', clienteId: 'ADMIN', clienteNombre: 'H-GESTION GLOBAL', sucursalesPermitidas: ['TODAS'] },
-            Supervisor: { id: 'Supervisor.BA', nombre: 'SUPERVISOR BA', email: 'supervisor.ba@bpt.com', rol: 'Supervisor', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'] },
-            TecnicoSitio1: { id: 'dz2sNRXMNHyQ4dYSUt4S', nombre: 'Tecnico Altabrisa', email: 'tecnico.altabrisa@hgestion.com', rol: 'Tecnico', clienteId: 'kWRmv16DNfMUlSF1Yqiv', clienteNombre: 'COMERCIALIZADORA NACIONAL', sucursalesPermitidas: ['Azbef4Og1nABbWAQdQvJ'], coordinadorId: 'iYQnJvdhChK1TLCbPoCD' },
-            TecExternoAires: { id: 'XectHhoF0iBuykxXdhsO', nombre: 'Tecnico Externo AIRES', email: 'tec.aires@esterno.com', rol: 'TecnicoExterno', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'], especialidad: 'ESP_AIRES', coordinadorId: 'Coord.IvanGo', supervisorId: 'Supervisor.BA' },
-            TecExternoRef: { id: 'ZQUVYuQ4AvNjWwXfucb6', nombre: 'Tecnico Externo REF', email: 'tec.ref@esterno.com', rol: 'TecnicoExterno', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'], especialidad: 'Refrigeracion', coordinadorId: 'Coord.IvanGo', supervisorId: 'Supervisor.BA' },
-            TecnicoAdBA: { id: 'Tecnico.Site1', nombre: 'Tecnico Ad BA', email: 'tec.ad@BA', rol: 'Tecnico', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'], coordinadorId: 'Coord.IvanGo', supervisorId: 'Supervisor.BA' }
-        };
-        const m = standardUsers[role];
-        if (m) {
-            localStorage.setItem('mockRole', role);
-            if (m.clienteId && m.clienteId !== 'ADMIN') {
-                setActiveClienteId(m.clienteId, m.clienteNombre);
-            } else {
-                setActiveClienteId('ADMIN', 'H-GESTION GLOBAL');
-            }
-            setUser(m);
-        }
-        setLoading(false);
-    };
-
-    const setMockCorpoUser = (role: string) => {
-        setLoading(true);
-        const corpoUsers: Record<string, User> = {
-            QA_Gerente: { id: 'empiiN18VlLXZlXq45i4', nombre: 'Gerente BP Altabrisa', email: 'Ger.Altabrisa@BP.com', rol: 'Gerente', clienteId: 'kWRmv16DNfMUlSF1Yqiv', clienteNombre: 'COMERCIALIZADORA NACIONAL', sucursalesPermitidas: ['Azbef4Og1nABbWAQdQvJ'] },
-            QA_Coordinador: { id: 'iYQnJvdhChK1TLCbPoCD', nombre: 'Coordinador Gral', email: 'coord.bpt@t-sigo.com', rol: 'Coordinador', clienteId: 'kWRmv16DNfMUlSF1Yqiv', clienteNombre: 'COMERCIALIZADORA NACIONAL', sucursalesPermitidas: ['TODAS'] },
-            QA_Tecnico: { id: 'dz2sNRXMNHyQ4dYSUt4S', nombre: 'Tecnico Altabrisa', email: 'tecnico.altabrisa@hgestion.com', rol: 'Tecnico', clienteId: 'kWRmv16DNfMUlSF1Yqiv', clienteNombre: 'COMERCIALIZADORA NACIONAL', sucursalesPermitidas: ['Azbef4Og1nABbWAQdQvJ'], coordinadorId: 'iYQnJvdhChK1TLCbPoCD' },
-            QA_Especialista: { id: 'fpgjGMjstt5W13HGHvGG', nombre: 'Especialista Coccion', email: 'esp.coccion@t-sigo.com', rol: 'TecnicoExterno', clienteId: 'kWRmv16DNfMUlSF1Yqiv', clienteNombre: 'COMERCIALIZADORA NACIONAL', sucursalesPermitidas: ['TODAS'], especialidad: 'Coccion', coordinadorId: 'iYQnJvdhChK1TLCbPoCD' },
-            TecnicoAdBA: { id: 'Tecnico.Site1', nombre: 'Tecnico Ad BA', email: 'tec.ad@BA', rol: 'Tecnico', clienteId: '3de6K2GeasZhN2GIQWXw', clienteNombre: 'TEST BPT', sucursalesPermitidas: ['BA'], coordinadorId: 'Coord.IvanGo', supervisorId: 'Supervisor.BA' }
-        };
-        const m = corpoUsers[role];
-        if (m) {
-            localStorage.setItem('mockRole', role);
-            if (m.clienteId) {
-                setActiveClienteId(m.clienteId, m.clienteNombre);
-            }
-            setUser(m);
-        }
-        setLoading(false);
-    };
-
-    const loginLight = async (email: string) => {
+    const loginLight = async (email: string): Promise<'success' | 'swapping' | 'not_found' | 'error'> => {
         setLoading(true);
         try {
+            const safeEmail = email.trim();
+            // 1. LOBBY ROUTING (Encontrar proyecto físico destino)
+            const targetProject = resolveProjectForEmail(safeEmail);
+            const currentProject = getActiveProjectKey();
+
+            // 2. HOT-SWAP (Cambiar proyecto y recargar si es diferente)
+            if (targetProject !== currentProject) {
+                console.log(`[LOBBY] Enrutando usuario a proyecto físico: ${targetProject}...`);
+                // Guarda temporalmente el email para auto-login post-reload
+                localStorage.setItem('hgestion_pending_login', safeEmail);
+                switchFirebaseProject(targetProject);
+                return 'swapping'; // La recarga física ocurrirá en 300ms, bloquear UI.
+            }
+
+            // 3. AUTH NORMAL (Ya estamos en el proyecto correcto)
             const usersRef = collection(db, 'usuarios');
-            const q = query(usersRef, where('email', '==', email.trim()));
+            const q = query(usersRef, where('email', '==', safeEmail));
             const snapshot = await getDocs(q);
 
             if (!snapshot.empty) {
@@ -208,16 +150,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 if (userData.clienteId && userData.clienteId !== 'ADMIN') {
                     setActiveClienteId(userData.clienteId, userData.clienteNombre);
                 }
-                return true;
+                return 'success';
             }
-            return false;
+            return 'not_found';
         } catch (err) {
             console.error('Error Login Light:', err);
-            return false;
+            return 'error';
         } finally {
             setLoading(false);
         }
     };
+
+    // Auto-Login Post-Reload
+    useEffect(() => {
+        const pendingEmail = localStorage.getItem('hgestion_pending_login');
+        if (pendingEmail) {
+            localStorage.removeItem('hgestion_pending_login');
+            // Dar tiempo extra para que Firebase / React terminen su mount inicial sin cache sucia
+            setTimeout(() => {
+                loginLight(pendingEmail);
+            }, 500);
+        }
+    }, []);
 
     const isSuperAdminUser = ((user?.rol === 'Admin General' || user?.rol === 'Admin' || user?.rol === 'ROL_ADMIN_GENERAL' || user?.rol === 'ROL_ADMIN') && user?.clienteId === 'ADMIN') || user?.email === 'hhcelis@hgestion.com' || user?.email === 'hcelis@tsigoglobal.com.mx';
 
@@ -242,8 +196,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAdmin: !!(user?.rol === 'Admin General' || user?.rol === 'Admin' || user?.rol?.startsWith('ROL_ADMIN')),
         isCoordinador: !!(user?.rol === 'Coordinador' || user?.rol === 'Coordinador CN' || user?.rol?.startsWith('ROL_COORD')),
         isGerente: !!(user?.rol === 'Gerente' || user?.rol?.startsWith('ROL_GERENTE')),
-        isGerenteBA: !!((user?.rol === 'Gerente' || user?.rol?.startsWith('ROL_GERENTE')) && (user?.nombre?.toUpperCase().includes('BA') || user?.sucursalesPermitidas?.includes('TODAS') || (user?.sucursalesPermitidas?.length || 0) > 1)),
-        isGerenteSucursal: !!((user?.rol === 'Gerente' || user?.rol?.startsWith('ROL_GERENTE')) && !(user?.nombre?.toUpperCase().includes('BA') || user?.sucursalesPermitidas?.includes('TODAS') || (user?.sucursalesPermitidas?.length || 0) > 1)),
+        isMultiBranchGerente: !!((user?.rol === 'Gerente' || user?.rol?.startsWith('ROL_GERENTE')) && (user?.sucursalesPermitidas?.includes('TODAS') || (user?.sucursalesPermitidas?.length || 0) > 1)),
+        isSingleBranchGerente: !!((user?.rol === 'Gerente' || user?.rol?.startsWith('ROL_GERENTE')) && !(user?.sucursalesPermitidas?.includes('TODAS') || (user?.sucursalesPermitidas?.length || 0) > 1)),
         isSupervisor: !!(user?.rol === 'Supervisor' || user?.rol?.startsWith('ROL_SUPERVISOR')),
         isTecnico: !!(user?.rol === 'Tecnico' || user?.rol === 'TecnicoExterno' || user?.rol?.startsWith('ROL_TECNICO')),
         isAdminCliente: !!((user?.rol === 'Admin General' || user?.rol === 'Admin' || user?.rol?.startsWith('ROL_ADMIN')) && user?.clienteId !== 'ADMIN'),
@@ -251,8 +205,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         activeClienteId: isSuperAdminUser ? (activeClienteId || 'ADMIN') : activeClienteId,
         activeClienteNombre,
         setActiveClienteId,
-        loginAsRole: setMockUser,
-        loginAsRoleCorpo: setMockCorpoUser,
         loginLight,
         logout
     };

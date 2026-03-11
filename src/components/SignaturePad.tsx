@@ -38,9 +38,9 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ label, onSave, requi
             const rect = canvas.parentElement?.getBoundingClientRect();
             if (rect) {
                 canvas.width = rect.width;
-                canvas.height = 220;
+                canvas.height = 280; // Agradar área de firma para dedos
                 ctx.strokeStyle = '#000000';
-                ctx.lineWidth = 2.5;
+                ctx.lineWidth = 3.5; // Trazo un poco más grueso
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
                 drawStoredImage();
@@ -125,17 +125,17 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ label, onSave, requi
     };
 
     return (
-        <div id={id} style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '1.55rem', fontWeight: '600' }}>
+        <div id={id} style={{ marginBottom: '1.5rem' }}>
+            <label style={{ display: 'block', marginBottom: '0.75rem', fontSize: '1.65rem', fontWeight: '700', color: 'var(--primary)' }}>
                 {label.toUpperCase()} {required && <span style={{ color: 'var(--priority-alta)' }}>*</span>}
             </label>
             <div style={{
                 position: 'relative',
-                background: '#ffffff', // White background (Digital Paper) for black ink consistency
-                borderRadius: '12px',
-                border: '1px solid var(--glass-border)',
+                background: '#ffffff', 
+                borderRadius: '16px',
+                border: '2px solid var(--glass-border)',
                 overflow: 'hidden',
-                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)'
+                boxShadow: 'inset 0 4px 8px rgba(0,0,0,0.05)'
             }}>
                 <canvas
                     ref={canvasRef}
@@ -153,10 +153,10 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ label, onSave, requi
                     <div style={{
                         position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
                         pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center',
-                        opacity: 0.3, color: '#64748b' // Darker grey for visibility on white background
+                        opacity: 0.2, color: '#000' 
                     }}>
-                        <PenTool size={32} />
-                        <span style={{ fontSize: '0.7rem', marginTop: '4px' }}>{disabled ? 'Sin firma' : 'Firme aquí'}</span>
+                        <PenTool size={48} />
+                        <span style={{ fontSize: '1.2rem', marginTop: '8px', fontWeight: '800' }}>{disabled ? 'Sin firma' : 'FIRME AQUÍ'}</span>
                     </div>
                 )}
 
@@ -165,11 +165,14 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({ label, onSave, requi
                         type="button"
                         onClick={clear}
                         style={{
-                            position: 'absolute', bottom: '8px', right: '8px', padding: '6px',
-                            background: 'rgba(0,0,0,0.05)', border: 'none', borderRadius: '6px', color: '#64748b', cursor: 'pointer'
+                            position: 'absolute', bottom: '12px', right: '12px', padding: '12px',
+                            background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', 
+                            borderRadius: '12px', color: '#ef4444', cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', gap: '8px'
                         }}
                     >
-                        <RotateCcw size={16} />
+                        <RotateCcw size={24} />
+                        <span style={{fontWeight: '900', fontSize: '0.9rem'}}>LIMPIAR</span>
                     </button>
                 )}
             </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Send, X, AlertCircle, UploadCloud, CheckCircle, Clock, Camera } from 'lucide-react';
+import { Send, X, AlertCircle, UploadCloud, CheckCircle, Clock, Camera, Loader2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { createOT } from '../services/dataService';
 import { storage } from '../services/firebase';
@@ -7,7 +7,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { tenantStoragePath } from '../services/tenantContext';
 import { CameraModal } from '../components/CameraModal';
 import { useNotification } from '../context/NotificationContext';
-import { getCatalogos, getFamilias, getSucursales, getEquipos } from '../services/dataService';
+import { getCatalogos, getFamilias, getSucursales, getEquipos, triggerAutoRepair } from '../services/dataService';
 import type { Equipo, WorkOrder, Sucursal } from '../types';
 
 export const SolicitarOTPage: React.FC = () => {
@@ -16,6 +16,7 @@ export const SolicitarOTPage: React.FC = () => {
     const [equipos, setEquipos] = useState<Equipo[]>([]);
     const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [isRepairing, setIsRepairing] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [lastOTNumber, setLastOTNumber] = useState<number | null>(null);
 
@@ -207,8 +208,29 @@ export const SolicitarOTPage: React.FC = () => {
     return (
         <div className="animate-fade" style={{ maxWidth: '800px', margin: '0 auto', position: 'relative' }}>
             <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-                <div style={{ display: 'inline-flex', padding: '1rem', borderRadius: '50%', background: 'rgba(37, 99, 235, 0.1)', color: 'var(--primary)', marginBottom: '1rem' }}>
-                    <AlertCircle size={32} />
+                <div 
+                    onClick={(e) => {
+                        // Secret Salvavidas Trigger: Shift + Click
+                        if (e.shiftKey && user) {
+                            setIsRepairing(true);
+                            triggerAutoRepair(user.clienteId, user.id, user)
+                                .then(res => {
+                                    showNotification(`Auto-Reparación Completada. Re-vinculados: ${res.equiposFixed} equipos. Recargando...`, 'success');
+                                    setTimeout(() => window.location.reload(), 2000);
+                                })
+                                .catch(err => {
+                                    showNotification(err.message, 'error');
+                                    setIsRepairing(false);
+                                });
+                        }
+                    }}
+                    style={{ 
+                        display: 'inline-flex', padding: '1rem', borderRadius: '50%', 
+                        background: 'rgba(37, 99, 235, 0.1)', color: 'var(--primary)', 
+                        marginBottom: '1rem', cursor: 'pointer', transition: 'all 0.3s'
+                    }}
+                >
+                    {isRepairing ? <Loader2 size={32} className="animate-spin" /> : <AlertCircle size={32} />}
                 </div>
                 <h1 style={{ fontSize: '1.75rem', fontWeight: '800' }}>Solicitar OT Correctiva</h1>
                 <p style={{ color: 'var(--text-muted)' }}>Describe la falla y anexa evidencia fotográfica para asignación de técnico.</p>

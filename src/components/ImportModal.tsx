@@ -166,6 +166,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose, type,
                 );
                 if (!s) {
                     errors.push(`Sucursal "${rawSucursalRef}" no existe para el cliente ${resolvedClient.nombre}`);
+                } else if (['BA', 'HocVkOhJBlw3JAulA0Gb', 'Azbef4Og1nABbWAQdQvJ', 'fmIQBqzkElTEY6nnj0c0'].includes(s.id)) {
+                    errors.push(`ID Sucursal "${s.id}" BLOQUEADO (Legacy). Use Altabrisa Oficial.`);
                 }
             }
 

@@ -1,35 +1,39 @@
-
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, getDocs } from 'firebase/firestore';
 
-const firebaseConfig = {
+const configDev = {
     apiKey: "AIzaSyCmQL7Tw4EcoAw2eLX1JlvhfXbiHm7UQaw",
     authDomain: "h-gestion-dev.firebaseapp.com",
     projectId: "h-gestion-dev",
-    storageBucket: "h-gestion-dev.firebasestorage.app",
-    messagingSenderId: "198928689880",
-    appId: "1:198928689880:web:7f90dcd33e710fcc7505ad",
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const configTestBpt = {
+    apiKey: "AIzaSyDkeNR7V2PKZaF5cDjhaUiPfU47PTwRwSM",
+    authDomain: "h-gestion-testbpt.firebaseapp.com",
+    projectId: "h-gestion-testbpt",
+};
 
-async function verify() {
-  const snapshot = await getDocs(collection(db, 'equipos'));
-  let total = snapshot.size;
-  let withId = 0;
-  let withoutId = 0;
+async function verifyFinalIsolation() {
+    const clients = [
+        { name: 'BPT_GROUP (h-gestion-dev)', config: configDev },
+        { name: 'TEST_BPT (h-gestion-testbpt)', config: configTestBpt }
+    ];
 
-  snapshot.forEach(doc => {
-    if (doc.data().familiaId) withId++;
-    else withoutId++;
-  });
-
-  console.log(`TOTAL EQUIPOS: ${total}`);
-  console.log(`CON familiaId: ${withId}`);
-  console.log(`SIN familiaId: ${withoutId}`);
-  
-  process.exit(0);
+    for (const c of clients) {
+        console.log(`\nVerificando ${c.name}...`);
+        const app = initializeApp(c.config, c.name);
+        const db = getFirestore(app);
+        
+        const snapshot = await getDocs(collection(db, 'clientes'));
+        const activeClients = snapshot.docs.map(doc => ({ id: doc.id, nombre: doc.data().nombre }));
+        
+        console.log(`   Clientes activos: ${activeClients.length}`);
+        activeClients.forEach(client => console.log(`   - [${client.id}] ${client.nombre}`));
+        
+        const usuariosSnap = await getDocs(collection(db, 'usuarios'));
+        console.log(`   Total usuarios: ${usuariosSnap.size}`);
+    }
+    process.exit(0);
 }
 
-verify();
+verifyFinalIsolation();

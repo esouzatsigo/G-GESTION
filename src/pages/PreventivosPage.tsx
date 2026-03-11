@@ -80,69 +80,69 @@ ChartJS.register(
 // Datos Estáticos del Plan BPT 2026 (Proporcionados por el Usuario)
 const PLAN_2026 = [
     // ENERO
-    { mes: 0, fechas: '12', sucursalId: 'tmQHKne6BlMFqdICP3DI', txtPDF: 'MB Dzityá' },
-    { mes: 0, fechas: '20', sucursalId: 'MBIpcrIvTAbPHNvyypTN', txtPDF: 'Camp Bostons' },
+    { mes: 0, fechas: '12', txtPDF: 'MB Dzityá' },
+    { mes: 0, fechas: '20', txtPDF: 'Camp Bostons' },
     // FEBRERO
-    { mes: 1, fechas: '3', sucursalId: 'X8Mb8ee1zg3HmobPeUOt', txtPDF: 'B Gran Plaza' },
-    { mes: 1, fechas: '5 - 6', sucursalId: 'QasVH9RAZKlSuaCYZw6N', txtPDF: 'Parr. City' },
-    { mes: 1, fechas: '12', sucursalId: 'HocVkOhJBlw3JAulA0Gb', txtPDF: 'B Altabrisa' },
-    { mes: 1, fechas: '18', sucursalId: 'Y9Cu0FxR5NA8deNTm0D3', txtPDF: 'Panadería' },
-    { mes: 1, fechas: '19', sucursalId: 'TpJoq0yMVvsrPNfKSBBr', txtPDF: 'Camp Parroquia' },
+    { mes: 1, fechas: '3', txtPDF: 'B Gran Plaza' },
+    { mes: 1, fechas: '5 - 6', txtPDF: 'Parr. City' },
+    { mes: 1, fechas: '12', txtPDF: 'B Altabrisa' },
+    { mes: 1, fechas: '18', txtPDF: 'Panadería' },
+    { mes: 1, fechas: '19', txtPDF: 'Camp Parroquia' },
     // MARZO
-    { mes: 2, fechas: '3', sucursalId: '4GipsUh9rTx391J6RM6A', txtPDF: 'B Pens' },
-    { mes: 2, fechas: '5', sucursalId: 'Y9Cu0FxR5NA8deNTm0D3', txtPDF: 'Comisariato' },
-    { mes: 2, fechas: '6', sucursalId: 'BA', txtPDF: 'B Altabrisa' },
-    { mes: 2, fechas: '11', sucursalId: 'G8uSICvhYBN5e7C5aXvj', txtPDF: 'B Caucel' },
-    { mes: 2, fechas: '18 - 19', sucursalId: 'MHe8zggUNx0ByyURbG71', txtPDF: 'Parr. Caucel' },
-    { mes: 2, fechas: '23', sucursalId: 'VRJSUXdXepBLyi6PjD1n', txtPDF: 'MB Xcanatún' },
+    { mes: 2, fechas: '3', txtPDF: 'B Pens' },
+    { mes: 2, fechas: '5', txtPDF: 'Comisariato' },
+    { mes: 2, fechas: '6', txtPDF: 'B Altabrisa' },
+    { mes: 2, fechas: '11', txtPDF: 'B Caucel' },
+    { mes: 2, fechas: '18 - 19', txtPDF: 'Parr. Caucel' },
+    { mes: 2, fechas: '23', txtPDF: 'MB Xcanatún' },
     // ABRIL
-    { mes: 3, fechas: '7', sucursalId: 'qnj7AHjSOkpTYq73KX5t', txtPDF: 'Camp Sushi' },
-    { mes: 3, fechas: '20', sucursalId: 'tmQHKne6BlMFqdICP3DI', txtPDF: 'MB Dzityá' },
-    { mes: 3, fechas: '21', sucursalId: 'MBIpcrIvTAbPHNvyypTN', txtPDF: 'Camp Bostons' },
+    { mes: 3, fechas: '7', txtPDF: 'Camp Sushi' },
+    { mes: 3, fechas: '20', txtPDF: 'MB Dzityá' },
+    { mes: 3, fechas: '21', txtPDF: 'Camp Bostons' },
     // MAYO
-    { mes: 4, fechas: '5', sucursalId: 'X8Mb8ee1zg3HmobPeUOt', txtPDF: 'B Gran Plaza' },
-    { mes: 4, fechas: '11', sucursalId: 'QasVH9RAZKlSuaCYZw6N', txtPDF: 'P. City' },
-    { mes: 4, fechas: '14', sucursalId: 'HocVkOhJBlw3JAulA0Gb', txtPDF: 'B Altabrisa' },
-    { mes: 4, fechas: '19', sucursalId: 'Y9Cu0FxR5NA8deNTm0D3', txtPDF: 'Panadería' },
-    { mes: 4, fechas: '20', sucursalId: 'TpJoq0yMVvsrPNfKSBBr', txtPDF: 'Camp Parroquia' },
+    { mes: 4, fechas: '5', txtPDF: 'B Gran Plaza' },
+    { mes: 4, fechas: '11', txtPDF: 'P. City' },
+    { mes: 4, fechas: '14', txtPDF: 'B Altabrisa' },
+    { mes: 4, fechas: '19', txtPDF: 'Panadería' },
+    { mes: 4, fechas: '20', txtPDF: 'Camp Parroquia' },
     // JUNIO
-    { mes: 5, fechas: '2', sucursalId: '4GipsUh9rTx391J6RM6A', txtPDF: 'B Pens' },
-    { mes: 5, fechas: '8', sucursalId: 'Y9Cu0FxR5NA8deNTm0D3', txtPDF: 'Comisariato' },
-    { mes: 5, fechas: '10', sucursalId: 'G8uSICvhYBN5e7C5aXvj', txtPDF: 'B Caucel' },
-    { mes: 5, fechas: '17', sucursalId: 'MHe8zggUNx0ByyURbG71', txtPDF: 'Parr. Caucel' },
-    { mes: 5, fechas: '22', sucursalId: 'VRJSUXdXepBLyi6PjD1n', txtPDF: 'MB Xcanatún' },
+    { mes: 5, fechas: '2', txtPDF: 'B Pens' },
+    { mes: 5, fechas: '8', txtPDF: 'Comisariato' },
+    { mes: 5, fechas: '10', txtPDF: 'B Caucel' },
+    { mes: 5, fechas: '17', txtPDF: 'Parr. Caucel' },
+    { mes: 5, fechas: '22', txtPDF: 'MB Xcanatún' },
     // JULIO
-    { mes: 6, fechas: '7', sucursalId: 'qnj7AHjSOkpTYq73KX5t', txtPDF: 'Camp Sushi' },
-    { mes: 6, fechas: '13', sucursalId: 'tmQHKne6BlMFqdICP3DI', txtPDF: 'MB Dzityá' },
-    { mes: 6, fechas: '20', sucursalId: 'MBIpcrIvTAbPHNvyypTN', txtPDF: 'Camp Bostons' },
+    { mes: 6, fechas: '7', txtPDF: 'Camp Sushi' },
+    { mes: 6, fechas: '13', txtPDF: 'MB Dzityá' },
+    { mes: 6, fechas: '20', txtPDF: 'Camp Bostons' },
     // AGOSTO
-    { mes: 7, fechas: '4', sucursalId: 'X8Mb8ee1zg3HmobPeUOt', txtPDF: 'B Gran Plaza' },
-    { mes: 7, fechas: '10 - 11', sucursalId: 'QasVH9RAZKlSuaCYZw6N', txtPDF: 'Parr. City' },
-    { mes: 7, fechas: '13', sucursalId: 'HocVkOhJBlw3JAulA0Gb', txtPDF: 'B Altabrisa' },
-    { mes: 7, fechas: '18', sucursalId: 'Y9Cu0FxR5NA8deNTm0D3', txtPDF: 'Panadería' },
-    { mes: 7, fechas: '19', sucursalId: 'TpJoq0yMVvsrPNfKSBBr', txtPDF: 'Camp Parroquia' },
+    { mes: 7, fechas: '4', txtPDF: 'B Gran Plaza' },
+    { mes: 7, fechas: '10 - 11', txtPDF: 'Parr. City' },
+    { mes: 7, fechas: '13', txtPDF: 'B Altabrisa' },
+    { mes: 7, fechas: '18', txtPDF: 'Panadería' },
+    { mes: 7, fechas: '19', txtPDF: 'Camp Parroquia' },
     // SEPTIEMBRE
-    { mes: 8, fechas: '1', sucursalId: '4GipsUh9rTx391J6RM6A', txtPDF: 'B Pens' },
-    { mes: 8, fechas: '7', sucursalId: 'Y9Cu0FxR5NA8deNTm0D3', txtPDF: 'Comisariato' },
-    { mes: 8, fechas: '9', sucursalId: 'G8uSICvhYBN5e7C5aXvj', txtPDF: 'B Caucel' },
-    { mes: 8, fechas: '17 - 18', sucursalId: 'MHe8zggUNx0ByyURbG71', txtPDF: 'Parr. Caucel' },
-    { mes: 8, fechas: '21', sucursalId: 'VRJSUXdXepBLyi6PjD1n', txtPDF: 'MB Xcanatún' },
+    { mes: 8, fechas: '1', txtPDF: 'B Pens' },
+    { mes: 8, fechas: '7', txtPDF: 'Comisariato' },
+    { mes: 8, fechas: '9', txtPDF: 'B Caucel' },
+    { mes: 8, fechas: '17 - 18', txtPDF: 'Parr. Caucel' },
+    { mes: 8, fechas: '21', txtPDF: 'MB Xcanatún' },
     // OCTUBRE
-    { mes: 9, fechas: '7', sucursalId: 'qnj7AHjSOkpTYq73KX5t', txtPDF: 'Camp Sushi' },
-    { mes: 9, fechas: '12', sucursalId: 'tmQHKne6BlMFqdICP3DI', txtPDF: 'MB Dzityá' },
-    { mes: 9, fechas: '19', sucursalId: 'MBIpcrIvTAbPHNvyypTN', txtPDF: 'Camp Bostons' },
+    { mes: 9, fechas: '7', txtPDF: 'Camp Sushi' },
+    { mes: 9, fechas: '12', txtPDF: 'MB Dzityá' },
+    { mes: 9, fechas: '19', txtPDF: 'Camp Bostons' },
     // NOVIEMBRE
-    { mes: 10, fechas: '3', sucursalId: 'X8Mb8ee1zg3HmobPeUOt', txtPDF: 'B Gran Plaza' },
-    { mes: 10, fechas: '9 - 10', sucursalId: 'QasVH9RAZKlSuaCYZw6N', txtPDF: 'Parr. City' },
-    { mes: 10, fechas: '12', sucursalId: 'HocVkOhJBlw3JAulA0Gb', txtPDF: 'B Altabrisa' },
-    { mes: 10, fechas: '18', sucursalId: 'Y9Cu0FxR5NA8deNTm0D3', txtPDF: 'Panadería' },
-    { mes: 10, fechas: '19', sucursalId: 'TpJoq0yMVvsrPNfKSBBr', txtPDF: 'Camp Parroquia' },
+    { mes: 10, fechas: '3', txtPDF: 'B Gran Plaza' },
+    { mes: 10, fechas: '9 - 10', txtPDF: 'Parr. City' },
+    { mes: 10, fechas: '12', txtPDF: 'B Altabrisa' },
+    { mes: 10, fechas: '18', txtPDF: 'Panadería' },
+    { mes: 10, fechas: '19', txtPDF: 'Camp Parroquia' },
     // DICIEMBRE
-    { mes: 11, fechas: '1', sucursalId: '4GipsUh9rTx391J6RM6A', txtPDF: 'B Pens' },
-    { mes: 11, fechas: '7', sucursalId: 'Y9Cu0FxR5NA8deNTm0D3', txtPDF: 'Comisariato' },
-    { mes: 11, fechas: '9', sucursalId: 'G8uSICvhYBN5e7C5aXvj', txtPDF: 'B Caucel' },
-    { mes: 11, fechas: '17 - 18', sucursalId: 'MHe8zggUNx0ByyURbG71', txtPDF: 'Parr. Caucel' },
-    { mes: 11, fechas: '21', sucursalId: 'VRJSUXdXepBLyi6PjD1n', txtPDF: 'MB Xcanatún' }
+    { mes: 11, fechas: '1', txtPDF: 'B Pens' },
+    { mes: 11, fechas: '7', txtPDF: 'Comisariato' },
+    { mes: 11, fechas: '9', txtPDF: 'B Caucel' },
+    { mes: 11, fechas: '17 - 18', txtPDF: 'Parr. Caucel' },
+    { mes: 11, fechas: '21', txtPDF: 'MB Xcanatún' }
 ];
 
 const MESES = [
@@ -281,11 +281,23 @@ export const PreventivosPage: React.FC = () => {
             setWorkOrders(otData);
 
             if (planData.length === 0 && PLAN_2026.length > 0) {
-                // Auto-migración si la DB está vacía
+                // Auto-migración inteligente: Vincula los eventos a las sucursales reales de este cliente
                 setIsMigrating(true);
+                const sData = sucSnap.docs.map(d => ({ id: d.id, ...d.data() } as Sucursal));
+                
                 const batchPromises = PLAN_2026.map(item => {
-                    // Inject clienteId automatically to default seeded entries
-                    return trackedAddDoc(collection(db, 'planPreventivo2026'), { ...item, clienteId: user.clienteId });
+                    // Buscar coincidencia por nombre/nomenclatura (Normalizado)
+                    const cleanItemName = item.txtPDF.toLowerCase().replace("b ", "").replace("mb ", "").trim();
+                    const matchedSuc = sData.find(s => {
+                        const sName = s.nombre.toLowerCase();
+                        return sName.includes(cleanItemName) || cleanItemName.includes(sName);
+                    });
+
+                    return trackedAddDoc(collection(db, 'planPreventivo2026'), { 
+                        ...item, 
+                        sucursalId: matchedSuc ? matchedSuc.id : '', 
+                        clienteId: user.clienteId 
+                    });
                 });
                 await Promise.all(batchPromises);
                 const freshSnap = await getDocs(tenantQuery('planPreventivo2026', user));

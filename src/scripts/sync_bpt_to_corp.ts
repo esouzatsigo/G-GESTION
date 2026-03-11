@@ -13,7 +13,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-const CORP_ID = 'kWRmv16DNfMUlSF1Yqiv';
+const CORP_ID = '3de6K2GeasZhN2GIQWXw';
 const BPT_ID = '3de6K2GeasZhN2GIQWXw';
 
 async function syncFromBPTtoCorp() {

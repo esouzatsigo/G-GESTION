@@ -17,7 +17,7 @@ const db = getFirestore(app);
 async function repairFinalAuditItems() {
     console.log(`🚀 SANEAMIENTO FINAL DE INTEGRIDAD (FORENSE) 🛡️`);
 
-    const CORPORATIVO_ID = "kWRmv16DNfMUlSF1Yqiv";
+    const CORPORATIVO_ID = "3de6K2GeasZhN2GIQWXw";
 
     const USERS_TO_FIX = [
         '4SW3JjD9h7dVQXc5f0v0pTuM7QT2', 'AckxHhddONey3RXmXFjW3JdRvED2',

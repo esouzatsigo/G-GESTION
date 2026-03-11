@@ -11,8 +11,8 @@ interface AuthContextType {
     isAdmin: boolean;
     isCoordinador: boolean;
     isGerente: boolean;
-    isGerenteBA: boolean;
-    isGerenteSucursal: boolean;
+    isMultiBranchGerente: boolean;
+    isSingleBranchGerente: boolean;
     isSupervisor: boolean;
     isTecnico: boolean;
     isAdminCliente: boolean;
@@ -29,8 +29,8 @@ const AuthContext = createContext<AuthContextType>({
     isAdmin: false,
     isCoordinador: false,
     isGerente: false,
-    isGerenteBA: false,
-    isGerenteSucursal: false,
+    isMultiBranchGerente: false,
+    isSingleBranchGerente: false,
     isSupervisor: false,
     isTecnico: false,
     isAdminCliente: false,
@@ -183,8 +183,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAdmin: user?.rol === 'Admin General',
         isCoordinador: user?.rol === 'Coordinador',
         isGerente: user?.rol === 'Gerente',
-        isGerenteBA: user?.rol === 'Gerente' && (user?.nombre?.toUpperCase().includes('BA') || user?.sucursalesPermitidas?.includes('TODAS') || (user?.sucursalesPermitidas?.length || 0) > 1),
-        isGerenteSucursal: user?.rol === 'Gerente' && !(user?.nombre?.toUpperCase().includes('BA') || user?.sucursalesPermitidas?.includes('TODAS') || (user?.sucursalesPermitidas?.length || 0) > 1),
+        isMultiBranchGerente: user?.rol === 'Gerente' && (user?.sucursalesPermitidas?.includes('TODAS') || (user?.sucursalesPermitidas?.length || 0) > 1),
+        isSingleBranchGerente: user?.rol === 'Gerente' && !(user?.sucursalesPermitidas?.includes('TODAS') || (user?.sucursalesPermitidas?.length || 0) > 1),
         isSupervisor: user?.rol === 'Supervisor',
         isTecnico: user?.rol === 'Tecnico' || user?.rol === 'TecnicoExterno',
         isAdminCliente: user?.rol === 'Admin General' && user?.clienteId !== 'ADMIN',

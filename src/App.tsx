@@ -1,7 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { RoleSelectionPage } from './pages/RoleSelectionPage';
-import { RoleSelectionCorpoPage } from './pages/RoleSelectionCorpoPage';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { usePanelPrefs } from './hooks/usePanelPrefs';
 import { MainLayout } from './components/MainLayout';
@@ -266,7 +264,7 @@ const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     </div>
   );
 
-  if (!user) return <Navigate to="/seleccion-rol" />;
+  if (!user) return <Navigate to="/login" replace />;
 
   return <MainLayout>{children}</MainLayout>;
 };
@@ -278,8 +276,6 @@ function App() {
         <Router basename="/T-GESTION-Lite">
           <Routes>
             {/* Public/Selection Routes */}
-            <Route path="/seleccion-rol" element={<RoleSelectionPage />} />
-            <Route path="/roles-corpo" element={<RoleSelectionCorpoPage />} />
             <Route path="/login" element={<LoginPage />} />
 
             {/* Protected Routes */}

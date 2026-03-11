@@ -2,12 +2,12 @@ const { initializeApp } = require("firebase/app");
 const { getFirestore, doc, setDoc, getDoc, collection, getDocs, query, where, serverTimestamp } = require("firebase/firestore");
 
 const firebaseConfig = {
-    apiKey: "AIzaSyCmQL7Tw4EcoAw2eLX1JlvhfXbiHm7UQaw",
-    authDomain: "h-gestion-dev.firebaseapp.com",
-    projectId: "h-gestion-dev",
-    storageBucket: "h-gestion-dev.firebasestorage.app",
-    messagingSenderId: "198928689880",
-    appId: "1:198928689880:web:7f90dcd33e710fcc7505ad",
+    apiKey: "AIzaSyDkeNR7V2PKZaF5cDjhaUiPfU47PTwRwSM",
+    authDomain: "h-gestion-testbpt.firebaseapp.com",
+    projectId: "h-gestion-testbpt",
+    storageBucket: "h-gestion-testbpt.firebasestorage.app",
+    messagingSenderId: "385439061540",
+    appId: "1:385439061540:web:95c1461abd46400724eab1",
 };
 
 const app = initializeApp(firebaseConfig);
@@ -17,12 +17,12 @@ async function ensureData() {
     console.log("🛠️ INYECTANDO DATOS CRÍTICOS QA 🛠️");
 
     // 1. Asegurar Sucursal Boston's Altabrisa
-    const sucursalId = 'Azbef4Og1nABbWAQdQvJ';
+    const sucursalId = 'HuwoZsAHef5kCZwCFirU';
     const sucRef = doc(db, 'sucursales', sucursalId);
     await setDoc(sucRef, {
         nombre: "Boston's Altabrisa",
         direccion: "Plaza Altabrisa, Merida, Yucatan",
-        clienteId: 'kWRmv16DNfMUlSF1Yqiv',
+        clienteId: '3de6K2GeasZhN2GIQWXw',
         activo: true
     }, { merge: true });
     console.log("✅ Sucursal Altabrisa Asegurada.");
@@ -34,7 +34,7 @@ async function ensureData() {
         nombre: 'BA-Camara Congelacion Walk-in',
         familia: 'Refrigeracion',
         sucursalId: sucursalId,
-        clienteId: 'kWRmv16DNfMUlSF1Yqiv',
+        clienteId: '3de6K2GeasZhN2GIQWXw',
         idInterno: 'EQ-BA-REF-001',
         activo: true,
         lastUpdate: serverTimestamp()
@@ -55,7 +55,7 @@ async function ensureData() {
             console.log(`⚠️ Actor faltante: ${actor.email}. Creando...`);
             await setDoc(doc(collection(db, 'usuarios')), {
                 ...actor,
-                clienteId: 'kWRmv16DNfMUlSF1Yqiv',
+                clienteId: '3de6K2GeasZhN2GIQWXw',
                 sucursalesPermitidas: [sucursalId],
                 activo: true
             });

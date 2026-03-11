@@ -168,6 +168,14 @@ export const EquiposPage: React.FC = () => {
             return;
         }
 
+        // BARRERA DE SEGURIDAD: Impedir IDs Legados o de Sincronización Errónea
+        const LEGACY_IDS = ['BA', 'HocVkOhJBlw3JAulA0Gb', 'Azbef4Og1nABbWAQdQvJ', 'fmIQBqzkElTEY6nnj0c0'];
+        if (LEGACY_IDS.includes(sucursalId)) {
+            showNotification("ID de Sucursal Inválido (Legacy). Contacte a Soporte para Saneamiento.", "error");
+            console.error(`Bloqueado intento de guardar equipo con ID legado: ${sucursalId}`);
+            return;
+        }
+
         const data = {
             clienteId,
             franquiciaId,
