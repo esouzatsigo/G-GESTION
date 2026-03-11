@@ -402,22 +402,21 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
                         {/* REGLA DE HIERRO: Identidad Veraz en Header */}
                         {(() => {
-                            const displayClient = user?.clienteNombre || activeClienteNombre;
-                            if (!displayClient) return null;
+                            const displayClient = user?.clienteNombre || activeClienteNombre || "H-GESTION GLOBAL";
                             return (
                                 <div style={{
                                     fontSize: '1.4rem',
                                     fontWeight: '900',
                                     color: '#10b981',
                                     textTransform: 'uppercase',
-                                    letterSpacing: '0.1em',
+                                    letterSpacing: '0.15em',
                                     marginBottom: '4px',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '8px',
-                                    textShadow: '0 0 20px rgba(16, 185, 129, 0.3)'
+                                    gap: '10px',
+                                    textShadow: '0 0 25px rgba(16, 185, 129, 0.4)'
                                 }}>
-                                    <Store size={20} /> {displayClient.toUpperCase()}
+                                    <Store size={22} /> {displayClient.toUpperCase()}
                                 </div>
                             );
                         })()}
