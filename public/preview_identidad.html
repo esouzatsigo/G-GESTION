@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preview Identidad H-GESTION</title>
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --bg-main: #0a0a0c;
+            --text-muted: #94a3b8;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background: #111;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .container {
+            display: flex;
+            gap: 40px;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 40px;
+        }
+        .card {
+            background: var(--bg-main);
+            padding: 60px;
+            border-radius: 24px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            max-width: 400px;
+        }
+        .logo-box {
+            display: inline-flex;
+            padding: 24px;
+            border-radius: 24px;
+            background: rgba(59, 130, 246, 0.05);
+            border: 1px solid rgba(255,255,255,0.05);
+            margin-bottom: 24px;
+        }
+        .flame {
+            fill: var(--primary);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.9; }
+            50% { transform: scale(1.05); opacity: 1; }
+        }
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 900;
+            letter-spacing: -0.05em;
+            margin: 0;
+        }
+        p {
+            color: var(--text-muted);
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: 2px;
+            margin-top: 10px;
+        }
+        .label {
+            margin-bottom: 20px;
+            font-weight: 800;
+            color: var(--primary);
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="label">Diseño Final de Identidad: TRABAJO EFICIENTE</div>
+    <div class="container">
+        <!-- VISTA SPLASH / LOGIN -->
+        <div class="card" id="splash">
+            <div class="logo-box">
+                <svg viewBox="0 0 100 100" width="120" height="120">
+                    <!-- Tuerca Industrial Trazado Grueso -->
+                    <path d="M50 5 L90 27.5 L90 72.5 L50 95 L10 72.5 L10 27.5 Z" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="3"/>
+                    <!-- Flama de Precisión Centrada -->
+                    <path class="flame" d="M50 85C50 85 30 70 30 50C30 35 40 25 45 20C45 20 40 35 40 45C40 55 50 65 50 65C50 65 60 55 60 45C60 35 55 20 55 20C55 20 70 35 70 50C70 70 50 85 50 85Z" />
+                </svg>
+            </div>
+            <h1 style="color: white; font-size: 2.8rem;">H-GESTION</h1>
+            <p style="color: #3b82f6; font-size: 1.1rem; letter-spacing: 5px;">TRABAJO EFICIENTE</p>
+            
+            <div style="margin-top: 40px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px;">
+                <div class="label" style="font-size: 0.6rem; color: #666;">Interacción del Técnico</div>
+                <div style="display: flex; gap: 8px; justify-content: center;">
+                    <span style="background: rgba(16, 185, 129, 0.2); color: #10b981; padding: 6px 12px; border-radius: 8px; font-weight: 900; font-size: 11px;">HOY</span>
+                    <span style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; padding: 6px 12px; border-radius: 8px; font-weight: 900; font-size: 11px;">MAÑANA</span>
+                    <span style="background: rgba(59, 130, 246, 0.2); color: #3b82f6; padding: 6px 12px; border-radius: 8px; font-weight: 900; font-size: 11px;">+5 DÍAS</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

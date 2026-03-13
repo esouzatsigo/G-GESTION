@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">T-GESTION</string>
+    <string name="title_activity_main">T-GESTION</string>
+    <string name="package_name">com.bpt.hgestion</string>
+    <string name="custom_url_scheme">com.bpt.hgestion</string>
+</resources>

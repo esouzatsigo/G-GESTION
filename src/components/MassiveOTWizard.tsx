@@ -126,6 +126,13 @@ export const MassiveOTWizard: React.FC<Props> = ({
     // --- Helpers ---
     const normalize = (s: string | undefined) => s?.trim().toLowerCase() || '';
     const parseDaysFromEvent = (fechas: string): number[] => {
+        const lower = fechas.trim().toLowerCase();
+        if (lower === 'mañana' || lower === 'manana') {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            return [tomorrow.getDate()];
+        }
+
         if (fechas.includes('-')) {
             const [start, end] = fechas.split('-').map(s => parseInt(s.trim()));
             if (!isNaN(start) && !isNaN(end)) {

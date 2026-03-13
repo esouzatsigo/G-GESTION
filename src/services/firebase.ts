@@ -112,9 +112,9 @@ export const switchFirebaseProject = /* async */ (newProjectKey: string) => {
            console.log("[Firebase] Storage limpiado, recargando en 300ms...");
            
            setTimeout(() => {
-               // Forzar la recarga limpia en la ruta raíz para evitar fallos de router
-               window.location.href = '/T-GESTION-Lite/'; 
-           }, 300);
+            // Recarga limpia para Capacitor/Web
+            window.location.reload(); 
+        }, 300);
        }
    }
 };

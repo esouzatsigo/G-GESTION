@@ -3,20 +3,21 @@ import {
     getDocs,
     where
 } from 'firebase/firestore';
+import { getActiveProjectKey } from '../services/firebase';
 import { tenantQuery } from '../services/tenantContext';
 import { updateOTStatus } from '../services/dataService';
 import { useAuth } from '../hooks/useAuth';
 import {
-    MapPin,
     Calendar,
     ChevronDown,
     ChevronUp,
     Camera,
     CheckCircle,
     Search,
-    X,
     List,
-    LayoutDashboard
+    LayoutDashboard,
+    Navigation,
+    Phone
 } from 'lucide-react';
 import { useNotification } from '../context/NotificationContext';
 import type { WorkOrder, Sucursal, Equipo } from '../types';
@@ -27,78 +28,146 @@ export const MisServiciosPage: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const { showNotification } = useNotification();
-    const [ots, setOts] = useState<WorkOrder[]>([]);
-    const [sucursales, setSucursales] = useState<Sucursal[]>([]);
-    const [equipos, setEquipos] = useState<Equipo[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [expandedDates, setExpandedDates] = useState<string[]>([]);
-    const [showCompleted, setShowCompleted] = useState(false);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
+    const [ots, setOts] = useState<WorkOrder[]>(() => {
+        try { return JSON.parse(sessionStorage.getItem('ms_ots_cache') || '[]'); } catch { return []; }
+    });
+    const [sucursales, setSucursales] = useState<Sucursal[]>(() => {
+        try { return JSON.parse(sessionStorage.getItem('ms_suc_cache') || '[]'); } catch { return []; }
+    });
+    const [equipos, setEquipos] = useState<Equipo[]>(() => {
+        try { return JSON.parse(sessionStorage.getItem('ms_eq_cache') || '[]'); } catch { return []; }
+    });
+    // Solo mostrar spinner si no hay NADA en el caché de sesión
+    const [loading, setLoading] = useState(() => {
+        const cached = sessionStorage.getItem('ms_ots_cache');
+        return !cached || cached === '[]';
+    });
+    
+    // Estado Persistente para que al volver todo esté como se dejó
+    const [expandedDates, setExpandedDates] = useState<string[]>(() => {
+        const saved = localStorage.getItem('ms_expanded_dates');
+        return saved ? JSON.parse(saved) : [];
+    });
+    const [searchTerm, setSearchTerm] = useState(() => localStorage.getItem('ms_search') || '');
+    const [viewMode, setViewMode] = useState<'calendar' | 'list'>(() => 
+        (localStorage.getItem('ms_view_mode') as 'calendar' | 'list') || 'calendar'
+    );
+    const [showCompleted, setShowCompleted] = useState(() => localStorage.getItem('ms_show_completed') === 'true');
 
     const fetchData = useCallback(async () => {
         if (!user) return;
-        setLoading(true);
+        
+        // 1. CARGA INSTANTÁNEA DESDE CACHÉ CON VERIFICACIÓN DE PROYECTO
+        const currentProject = getActiveProjectKey();
+        const lastProject = localStorage.getItem('ms_last_project');
+        
+        // Si cambiamos de proyecto (ej: BPT -> TEST), ignoramos la caché vieja
+        const isSameProject = currentProject === lastProject;
+
+        const cachedOTs = isSameProject ? sessionStorage.getItem('ms_ots_cache') : null;
+        const cachedSucs = isSameProject ? sessionStorage.getItem('ms_suc_cache') : null;
+        const cachedEqs = isSameProject ? sessionStorage.getItem('ms_eq_cache') : null;
+
+        if (cachedOTs && cachedSucs && cachedEqs) {
+            setOts(JSON.parse(cachedOTs));
+            setSucursales(JSON.parse(cachedSucs));
+            setEquipos(JSON.parse(cachedEqs));
+            setLoading(false);
+        } else {
+            setLoading(true);
+        }
+
         try {
-            // Calcular fecha hace 30 días
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
             const minDate = thirtyDaysAgo.toISOString();
 
-            // Consulta base: Solo este técnico
-            const q = tenantQuery('ordenesTrabajo', user,
-                where('tecnicoId', '==', user.id)
+            // 2. CONSULTA A FIREBASE
+            const qOts = tenantQuery('ordenesTrabajo', user,
+                where('tecnicoId', '==', user.id),
+                where('fechas.solicitada', '>=', minDate)
             );
-            const [otSnap, sucSnap, eqSnap] = await Promise.all([
-                getDocs(q),
-                getDocs(tenantQuery('sucursales', user)),
-                getDocs(tenantQuery('equipos', user))
-            ]);
 
-            let fetchedOts = otSnap.docs.map(d => ({ id: d.id, ...d.data() } as WorkOrder));
+            const promises: any[] = [getDocs(qOts)];
+            if (!cachedSucs) promises.push(getDocs(tenantQuery('sucursales', user)));
+            if (!cachedEqs) promises.push(getDocs(tenantQuery('equipos', user)));
 
-            // Filtro local de 30 días y estados según el toggle
-            fetchedOts = fetchedOts.filter(ot => {
-                const isRecent = ot.fechas.solicitada >= minDate;
-                const status = ot.estatus;
-
-                // Si hay búsqueda, ignorar el filtro de 30 días y ver si coincide el número
-                if (searchTerm.trim() !== '') {
-                    const otDisplay = ot.tipo === 'Preventivo' ? `P-${ot.numero}` : `#${ot.numero}`;
-                    return otDisplay.toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
-                        ot.numero.toString().includes(searchTerm.trim());
-                }
-
+            const results = await Promise.all(promises);
+            
+            // 3. PROCESAMIENTO CON FILTRO FLEXIBLE
+            const allFetched = results[0].docs.map((d: any) => ({ id: d.id, ...d.data() } as WorkOrder));
+            
+            const fetchedOts = allFetched.filter((ot: WorkOrder) => {
                 if (showCompleted) {
-                    // Mostrar SOLO Concluidas y finalizadas
-                    return isRecent && (status === 'Concluida' || status === 'Finalizada');
+                    // Terminadas: Solo lo que el Coordinador ya cerró
+                    return ot.estatus === 'Finalizada' || ot.estatus === 'CANCELADA';
                 } else {
-                    // Mostrar SOLO Activas (Asignada, Llegada, Iniciada, Pendiente Firma)
-                    return isRecent && (
-                        status === 'Asignada' ||
-                        status === 'Llegada a Sitio' ||
-                        status === 'Iniciada' ||
-                        status === 'Concluida. Pendiente Firma Cliente'
-                    );
+                    // Pendientes: Todo lo demás (incluyendo las que esperan firma o están en curso)
+                    return ot.estatus !== 'Finalizada' && ot.estatus !== 'CANCELADA';
                 }
             });
 
             setOts(fetchedOts);
-            setSucursales(sucSnap.docs.map(d => ({ id: d.id, ...d.data() } as Sucursal)));
-            setEquipos(eqSnap.docs.map(d => ({ id: d.id, ...d.data() } as Equipo)));
+            sessionStorage.setItem('ms_ots_cache', JSON.stringify(allFetched));
+            
+            if (!cachedSucs && results[1]) {
+                const freshSuc = results[1].docs.map((d: any) => ({ id: d.id, ...d.data() } as Sucursal));
+                setSucursales(freshSuc);
+                sessionStorage.setItem('ms_suc_cache', JSON.stringify(freshSuc));
+            }
+            
+            const eqIndex = !cachedSucs ? 2 : 1;
+            if (!cachedEqs && results[eqIndex]) {
+                const freshEq = results[eqIndex].docs.map((d: any) => ({ id: d.id, ...d.data() } as Equipo));
+                setEquipos(freshEq);
+                sessionStorage.setItem('ms_eq_cache', JSON.stringify(freshEq));
+            }
+
+            localStorage.setItem('ms_last_project', currentProject);
+
         } catch (error) {
-            console.error(error);
+            console.error("Error fetching data:", error);
         } finally {
             setLoading(false);
         }
-    }, [user, showCompleted, searchTerm]);
+    }, [user, showCompleted]);
 
     useEffect(() => {
         fetchData();
-    }, [user, showCompleted, searchTerm]);
+    }, [fetchData]);
 
-    // Agrupar OTs por fecha programada
-    const groupedOTs = ots.reduce((acc: Record<string, WorkOrder[]>, ot) => {
+    useEffect(() => {
+        localStorage.setItem('ms_expanded_dates', JSON.stringify(expandedDates));
+    }, [expandedDates]);
+
+    useEffect(() => {
+        localStorage.setItem('ms_search', searchTerm);
+    }, [searchTerm]);
+
+    useEffect(() => {
+        localStorage.setItem('ms_view_mode', viewMode);
+    }, [viewMode]);
+
+    useEffect(() => {
+        localStorage.setItem('ms_show_completed', showCompleted.toString());
+    }, [showCompleted]);
+
+    // Filtrado Local Instantáneo (Sin Red)
+    const filteredOts = ots.filter(ot => {
+        if (!searchTerm.trim()) return true;
+        const search = searchTerm.toLowerCase().trim();
+        const otDisplay = ot.tipo === 'Preventivo' ? `P-${ot.numero}` : `#${ot.numero}`;
+        const suc = sucursales.find(s => s.id === ot.sucursalId)?.nombre?.toLowerCase() || '';
+        const eq = equipos.find(e => e.id === ot.equipoId)?.nombre?.toLowerCase() || '';
+        
+        return otDisplay.toLowerCase().includes(search) || 
+               ot.numero.toString().includes(search) ||
+               suc.includes(search) ||
+               eq.includes(search);
+    });
+
+    // Agrupar OTs por fecha programada (Usando la data filtrada localmente)
+    const groupedOTs = filteredOts.reduce((acc: Record<string, WorkOrder[]>, ot) => {
         const date = ot.fechas.programada?.split('T')[0] || 'Sin Fecha';
         if (!acc[date]) acc[date] = [];
         acc[date].push(ot);
@@ -113,7 +182,7 @@ export const MisServiciosPage: React.FC = () => {
 
     const handleLlegada = async (otId: string) => {
         if (!navigator.geolocation) {
-            showNotification("GPS no soportado en este dispositivo.", "error");
+            showNotification("Tu dispositivo no tiene GPS disponible, pero puedes continuar sin problema. 😊", "info");
             return;
         }
 
@@ -124,102 +193,104 @@ export const MisServiciosPage: React.FC = () => {
                         coordsLlegada: { lat: pos.coords.latitude, lng: pos.coords.longitude },
                         'fechas.llegada': new Date().toISOString()
                     });
+
+                    // ACTUALIZACIÓN DE ESTADO LOCAL INMEDIATA
+                    setOts(prev => prev.map(ot => 
+                        ot.id === otId ? { ...ot, estatus: 'Llegada a Sitio' } : ot
+                    ));
+                    
+                    showNotification("¡Llegada registrada! Que te vaya excelente en este servicio. 👍", "success");
                 }
-                fetchData();
-                showNotification("Llegada registrada exitosamente.", "success");
             } catch {
-                showNotification("Error al validar ubicación.", "error");
+                showNotification("Ups, algo salió mal. Intenta de nuevo en un momento.", "info");
             }
         }, () => {
-            // Fallback: Registrar sin coordenadas o con mensaje
-            showNotification("No se pudo obtener el GPS. Se registrará la llegada basada en antena/red.", "warning");
+            showNotification("Registramos tu llegada.", "info");
             if (user) {
                 updateOTStatus(otId, 'Llegada a Sitio', user, {
                     'fechas.llegada': new Date().toISOString()
-                }).then(() => fetchData());
+                }).then(() => {
+                    setOts(prev => prev.map(ot => 
+                        ot.id === otId ? { ...ot, estatus: 'Llegada a Sitio' } : ot
+                    ));
+                });
             }
         });
     };
 
     return (
-        <div className="animate-fade mobile-view" style={{ paddingBottom: '4rem' }}>
-            <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                    <h1 style={{ fontSize: '2.5rem', fontWeight: '800' }}>Mis Servicios</h1>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '1.7rem' }}>Listado de OTs asignadas para atención.</p>
-                </div>
+        <div className="animate-fade mobile-view" style={{ paddingBottom: '4rem', padding: '0 0.5rem' }}>
+            <div style={{ marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                        <h1 style={{ fontSize: '1.4rem', fontWeight: '950', letterSpacing: '-0.02em', color: 'var(--text-main)', margin: 0 }}>
+                            Mis Servicios
+                        </h1>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: '600', margin: 0 }}>
+                            {user?.nombre}, <span style={{ color: 'var(--primary-light)' }}>{ots.length} Pendientes</span>
+                        </p>
+                    </div>
 
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button
-                        onClick={() => setViewMode('calendar')}
-                        style={{
-                            padding: '0.4rem', borderRadius: '8px', border: '1px solid var(--glass-border)',
-                            background: viewMode === 'calendar' ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
-                            color: viewMode === 'calendar' ? 'white' : 'var(--text-muted)', cursor: 'pointer'
-                        }}
-                    >
-                        <LayoutDashboard size={32} />
-                    </button>
-                    <button
-                        onClick={() => setViewMode('list')}
-                        style={{
-                            padding: '0.4rem', borderRadius: '8px', border: '1px solid var(--glass-border)',
-                            background: viewMode === 'list' ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
-                            color: viewMode === 'list' ? 'white' : 'var(--text-muted)', cursor: 'pointer'
-                        }}
-                    >
-                        <List size={32} />
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.4rem' }}>
+                        <button
+                            onClick={() => setViewMode('calendar')}
+                            style={{
+                                padding: '0.4rem', borderRadius: '8px', border: '1px solid var(--glass-border)',
+                                background: viewMode === 'calendar' ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
+                                color: viewMode === 'calendar' ? 'white' : 'var(--text-muted)', cursor: 'pointer'
+                            }}
+                        >
+                            <LayoutDashboard size={20} />
+                        </button>
+                        <button
+                            onClick={() => setViewMode('list')}
+                            style={{
+                                padding: '0.4rem', borderRadius: '8px', border: '1px solid var(--glass-border)',
+                                background: viewMode === 'list' ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
+                                color: viewMode === 'list' ? 'white' : 'var(--text-muted)', cursor: 'pointer'
+                            }}
+                        >
+                            <List size={20} />
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', gap: '0.3rem', marginBottom: '0.5rem' }}>
                 <div style={{ flex: 1, position: 'relative' }}>
-                    <Search size={28} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                    <Search size={16} style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                     <input
                         type="text"
                         placeholder="Buscar OT..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         style={{
-                            width: '100%', padding: '1rem 1.25rem 1rem 3rem', borderRadius: '12px',
+                            width: '100%', padding: '0.4rem 0.5rem 0.4rem 1.8rem', borderRadius: '8px',
                             border: '1px solid var(--glass-border)', background: 'var(--bg-input)',
-                            color: 'var(--text-main)', fontSize: '1.6rem'
+                            color: 'var(--text-main)', fontSize: '0.8rem'
                         }}
                     />
-                    {searchTerm && (
-                        <button
-                            onClick={() => setSearchTerm('')}
-                            style={{
-                                position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
-                                background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer'
-                            }}
-                        >
-                            <X size={26} />
-                        </button>
-                    )}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-input)', padding: '0.5rem 0.75rem', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
-                    <span style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--text-main)' }}>FINALIZADAS</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', background: 'var(--bg-input)', padding: '0.2rem 0.4rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+                    <span style={{ fontSize: '0.6rem', fontWeight: '800', color: 'var(--text-main)' }}>FIN</span>
                     <button
                         onClick={() => setShowCompleted(!showCompleted)}
                         style={{
-                            width: '34px', height: '18px', borderRadius: '20px', background: showCompleted ? 'var(--primary)' : 'var(--bg-switch)',
+                            width: '24px', height: '12px', borderRadius: '10px', background: showCompleted ? 'var(--primary)' : 'var(--bg-switch)',
                             border: '1px solid var(--glass-border)', position: 'relative', cursor: 'pointer'
                         }}
                     >
                         <div style={{
-                            width: '12px', height: '12px', borderRadius: '50%', background: '#ffffff',
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
-                            position: 'absolute', top: '2px', left: showCompleted ? '19px' : '3px', transition: 'all 0.3s'
+                            width: '8px', height: '8px', borderRadius: '50%', background: '#ffffff',
+                            position: 'absolute', top: '1px', left: showCompleted ? '13px' : '1px', transition: 'all 0.3s'
                         }} />
                     </button>
                 </div>
             </div>
 
-            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
-                <span style={{ fontSize: '1.2rem', color: 'var(--text-muted)', fontWeight: '600' }}>
-                    Mostrando {ots.length} servicio(s) con los filtros actuales
+            <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '600' }}>
+                    Mostrando {ots.length} servicio(s)
                 </span>
             </div>
 
@@ -232,99 +303,129 @@ export const MisServiciosPage: React.FC = () => {
                         <p>No se encontraron servicios.</p>
                     </div>
                 ) : viewMode === 'calendar' ? (
-                    <div className="scrollable-x custom-scrollbar force-min-width" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingBottom: '1rem' }}>
+                    <div className="custom-scrollbar" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingBottom: '1rem', maxWidth: '700px', margin: '0 auto', width: '100%' }}>
                         {sortedDates.map(date => (
                             <div key={date} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                 <button
                                     onClick={() => toggleDate(date)}
                                     style={{
                                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                                        width: '100%', padding: '1rem', background: 'var(--bg-glass)',
-                                        border: '1px solid var(--glass-border)', borderRadius: '12px', color: 'var(--text-main)',
-                                        fontWeight: '600', fontSize: '1.6rem', cursor: 'pointer'
+                                        width: '100%', padding: '0.75rem', background: 'var(--bg-glass)',
+                                        border: '1px solid var(--glass-border)', borderRadius: '10px', color: 'var(--text-main)',
+                                        fontWeight: '700', fontSize: '1rem', cursor: 'pointer'
                                     }}
                                 >
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                        <Calendar size={28} color="var(--primary)" />
-                                        {new Date(date).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <Calendar size={18} color="var(--primary)" />
+                                        {date === 'Sin Fecha'
+                                            ? 'SIN FECHA'
+                                            : new Date(date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).toUpperCase()}
                                     </div>
-                                    {expandedDates.includes(date) || searchTerm.trim() !== '' ? <ChevronUp size={32} /> : <ChevronDown size={32} />}
+                                    {expandedDates.includes(date) || searchTerm.trim() !== '' ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                                 </button>
 
                                 {(expandedDates.includes(date) || searchTerm.trim() !== '') && groupedOTs[date].map((ot: WorkOrder) => {
                                     const suc = sucursales.find(s => s.id === ot.sucursalId);
                                     const eq = equipos.find(e => e.id === ot.equipoId);
-                                    const isLlegadaEnSitio = ot.estatus === 'Llegada a Sitio' || ot.estatus === 'Iniciada';
+
+                                    // Lógica de navegación mejorada
+                                    const destination = suc?.coordenadas?.lat && suc?.coordenadas?.lng 
+                                        ? `${suc.coordenadas.lat},${suc.coordenadas.lng}`
+                                        : `${suc?.nombre || ''} ${suc?.direccion || ''}`;
+                                    const mapLink = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`;
 
                                     return (
-                                        <div key={ot.id} className="glass-card animate-fade" style={{ borderLeft: `4px solid var(--status-${ot.estatus.toLowerCase().replace(/ /g, '')})` }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                                        <div key={ot.id} className="glass-card animate-fade" style={{ padding: '0.4rem 0.5rem', borderLeft: `4px solid var(--status-${ot.estatus.toLowerCase().split(' ')[0]})`, marginBottom: '0.4rem', position: 'relative' }}>
+                                            {/* Header Super Compacto */}
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.2rem', gap: '0.3rem' }}>
                                                 <button
-                                                    onClick={() => window.open(`/kardex?ot=${ot.numero}`, '_blank')}
-                                                    style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', fontSize: '1.4rem', fontWeight: '800', color: 'var(--text-muted)', textDecoration: 'underline' }}
+                                                    onClick={() => navigate(`/ejecutar-servicio/${ot.id}`)}
+                                                    style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', fontSize: '0.8rem', fontWeight: '950', color: 'var(--primary)', textDecoration: 'underline' }}
                                                 >
-                                                    {ot.tipo === 'Preventivo' ? `P-${ot.numero}` : `OT #${ot.numero}`}
+                                                    {ot.tipo === 'Preventivo' ? `P-${ot.numero}` : `#${ot.numero}`}
                                                 </button>
-                                                <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+
+                                                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                                    <button
+                                                        onClick={e => { e.stopPropagation(); window.open(mapLink, '_blank'); }}
+                                                        style={{ background: '#3b82f615', color: '#3b82f6', border: '1px solid #3b82f640', width: '32px', height: '32px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                    >
+                                                        <Navigation size={16} />
+                                                    </button>
+                                                    
+                                                    <button
+                                                        onClick={e => { e.stopPropagation(); window.open(`tel:${suc?.telefono || ''}`, '_self'); }}
+                                                        style={{ background: '#22c55e15', color: '#22c55e', border: '1px solid #22c55e40', width: '32px', height: '32px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                    >
+                                                        <Phone size={16} />
+                                                    </button>
+
                                                     {ot.prioridad && (
-                                                        <span style={{
-                                                            fontSize: '1.3rem', fontWeight: '800', padding: '0.3rem 0.6rem',
-                                                            borderRadius: '6px', background: ot.prioridad === 'ALTA' ? '#ef444420' : '#F59E0B20', color: ot.prioridad === 'ALTA' ? '#ef4444' : '#F59E0B'
-                                                        }}>
+                                                        <span style={{ fontSize: '0.6rem', fontWeight: '900', padding: '2px 6px', borderRadius: '4px', background: ot.prioridad === 'ALTA' ? '#ef4444' : '#F59E0B', color: 'white' }}>
                                                             {ot.prioridad}
                                                         </span>
                                                     )}
-                                                    <span style={{
-                                                        fontSize: '1.3rem', fontWeight: '700', padding: '0.3rem 0.6rem',
-                                                        borderRadius: '6px', background: `var(--status-${ot.estatus.toLowerCase().replace(/ /g, '')})`, color: 'white'
+                                                    <span style={{ 
+                                                        fontSize: '0.6rem', 
+                                                        fontWeight: '900', 
+                                                        padding: '2px 6px', 
+                                                        borderRadius: '4px', 
+                                                        background: ot.estatus === 'Llegada a Sitio' ? 'var(--status-llegada)' :
+                                                                    ot.estatus === 'Iniciada' ? 'var(--status-iniciada)' :
+                                                                    ot.estatus === 'Concluida. Pendiente Firma Cliente' ? 'var(--status-concluida)' : 
+                                                                    ot.estatus === 'Asignada' ? 'var(--status-asignada)' : 'var(--primary)',
+                                                        color: 'white',
+                                                        border: '1px solid rgba(255,255,255,0.2)',
+                                                        textTransform: 'uppercase'
                                                     }}>
-                                                        {ot.estatus}
+                                                        {ot.estatus === 'Llegada a Sitio' ? 'LLEGADA A SITIO' : ot.estatus.split('.')[0].toUpperCase()}
                                                     </span>
                                                 </div>
                                             </div>
 
-                                            <h3 style={{ fontSize: '2rem', fontWeight: '700', marginBottom: '0.25rem' }}>{suc?.nombre}</h3>
-                                            <p style={{ fontSize: '1.6rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>{suc?.direccion}</p>
-                                            <p style={{ fontSize: '1.7rem', fontWeight: '600', color: 'var(--accent)' }}>{eq?.nombre}</p>
+                                            {/* Info de Sucursal y Equipo */}
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                <h3 style={{ fontSize: '0.9rem', fontWeight: '900', margin: 0, color: 'var(--text-main)', lineHeight: '1.2' }}>{suc?.nombre}</h3>
+                                                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0, lineHeight: '1.4' }}>{suc?.direccion}</p>
+                                                <p style={{ fontSize: '0.85rem', fontWeight: '900', color: 'var(--accent)', marginTop: '2px' }}>{eq?.nombre}</p>
+                                            </div>
+
                                             {ot.descripcionFalla && (
-                                                <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: 'var(--bg-glass)', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
-                                                    <p style={{ fontSize: '1.3rem', fontWeight: '800', color: 'var(--primary-light)', marginBottom: '0.25rem', textTransform: 'uppercase' }}>Descripción de la Falla:</p>
-                                                    <p style={{ fontSize: '1.6rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>{ot.descripcionFalla}</p>
+                                                <div style={{ marginTop: '0.4rem', padding: '0.5rem', background: 'rgba(59, 130, 246, 0.03)', borderRadius: '6px', border: '1px solid var(--glass-border)' }}>
+                                                    <p style={{ fontSize: '0.82rem', color: 'var(--text-main)', margin: 0, lineHeight: '1.3', fontStyle: 'italic' }}>"{ot.descripcionFalla}"</p>
                                                 </div>
                                             )}
 
-                                            <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid var(--glass-border)', display: 'flex', gap: '0.75rem' }}>
-                                                {ot.estatus === 'Concluida' || ot.estatus === 'Finalizada' ? (
+                                            {/* Acción principal compacta */}
+                                            <div style={{ marginTop: '0.4rem' }}>
+                                                {ot.estatus === 'Asignada' ? (
                                                     <button
-                                                        className="btn" style={{ flex: 1, padding: '1.25rem', fontSize: '1.5rem', background: 'var(--bg-glass)', color: 'var(--text-muted)', border: '1px solid var(--glass-border)' }}
-                                                        onClick={() => navigate(`/ejecutar-servicio/${ot.id}`)}
-                                                    >
-                                                        <Search size={28} />
-                                                        CONSULTAR SERVICIO
-                                                    </button>
-                                                ) : ot.estatus === 'Concluida. Pendiente Firma Cliente' ? (
-                                                    <button
-                                                        className="btn btn-primary" style={{ flex: 1, padding: '1.25rem', fontSize: '1.5rem', background: 'var(--status-concluidapendientefirmacliente)' }}
-                                                        onClick={() => navigate(`/ejecutar-servicio/${ot.id}`)}
-                                                    >
-                                                        <CheckCircle size={28} />
-                                                        FIRMA CLIENTE
-                                                    </button>
-                                                ) : !isLlegadaEnSitio ? (
-                                                    <button
-                                                        className="btn btn-primary" style={{ flex: 1, padding: '1.25rem', fontSize: '1.5rem' }}
+                                                        className="btn"
+                                                        style={{ 
+                                                            width: '100%', padding: '0.75rem', fontSize: '1rem', fontWeight: '900', borderRadius: '8px',
+                                                            background: 'var(--status-asignada)', color: 'white', boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                                                        }}
                                                         onClick={() => handleLlegada(ot.id)}
                                                     >
-                                                        <MapPin size={28} />
-                                                        LLEGADA A SITIO
+                                                        MARCAR LLEGADA
                                                     </button>
                                                 ) : (
                                                     <button
-                                                        className="btn btn-primary" style={{ flex: 1, padding: '1.25rem', fontSize: '1.5rem', background: 'var(--status-iniciada)' }}
+                                                        className="btn"
+                                                        style={{ 
+                                                            width: '100%', padding: '0.75rem', fontSize: '1rem', fontWeight: '900', borderRadius: '8px',
+                                                            background: ot.estatus.toLowerCase().includes('llegada') ? 'var(--status-llegada)' :
+                                                                        ot.estatus.toLowerCase().includes('iniciada') ? 'var(--status-iniciada)' :
+                                                                        ot.estatus.toLowerCase().includes('concluida') ? 'var(--status-concluida)' :
+                                                                        ot.estatus.toLowerCase().includes('finalizada') ? 'var(--status-finalizada)' :
+                                                                        'var(--status-asignada)',
+                                                            color: 'white', boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                                                        }}
                                                         onClick={() => navigate(`/ejecutar-servicio/${ot.id}`)}
                                                     >
-                                                        <Camera size={28} />
-                                                        CONTINUAR SERVICIO
+                                                        <Camera size={20} />
+                                                        {ot.estatus === 'Llegada a Sitio' ? 'INICIAR SERVICIO' : 
+                                                         (ot.estatus === 'Concluida' || ot.estatus === 'Finalizada') ? 'VER REPORTE' : 'CONTINUAR'}
                                                     </button>
                                                 )}
                                             </div>
@@ -355,7 +456,7 @@ export const MisServiciosPage: React.FC = () => {
                                             <tr key={ot.id} style={{ borderBottom: '1px solid var(--glass-border)', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
                                                 <td style={{ padding: '1rem' }}>
                                                     <button
-                                                        onClick={() => window.open(`/kardex?ot=${ot.numero}`, '_blank')}
+                                                        onClick={() => navigate(`/ejecutar-servicio/${ot.id}`)}
                                                         style={{
                                                             background: 'transparent',
                                                             border: 'none',

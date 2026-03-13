@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Send, X, AlertCircle, UploadCloud, CheckCircle, Clock, Users, Calendar, Camera } from 'lucide-react';
+import { Send, X, AlertCircle, UploadCloud, CheckCircle, Clock, Camera, Loader2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { getEquipos, createOT } from '../services/dataService';
+import { createOT } from '../services/dataService';
 import { storage } from '../services/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { tenantStoragePath } from '../services/tenantContext';
 import { CameraModal } from '../components/CameraModal';
 import { useNotification } from '../context/NotificationContext';
-import type { Equipo, WorkOrder } from '../types';
+import { getCatalogos, getFamilias, getSucursales, getEquipos, triggerAutoRepair } from '../services/dataService';
+import type { Equipo, WorkOrder, Sucursal } from '../types';
+import { VoiceInput } from '../components/VoiceInput';
 
 export const SolicitarOTPage: React.FC = () => {
     const { user } = useAuth();
@@ -14,26 +17,104 @@ export const SolicitarOTPage: React.FC = () => {
     const [equipos, setEquipos] = useState<Equipo[]>([]);
     const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [isRepairing, setIsRepairing] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [lastOTNumber, setLastOTNumber] = useState<number | null>(null);
 
     // Form State
-    const [familia, setFamilia] = useState<Equipo['familia'] | ''>('');
+    const [familiaId, setFamiliaId] = useState<string>('');
     const [equipoId, setEquipoId] = useState('');
     const [descripcionFalla, setDescripcionFalla] = useState('');
     const [justificacion, setJustificacion] = useState('');
+    const [prioridad, setPrioridad] = useState<WorkOrder['prioridad']>('MEDIA');
     const [tempFiles, setTempFiles] = useState<File[]>([]);
     const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+    const [selectedKardexPhotos] = useState<string[]>([]);
+    const [sucursales, setSucursales] = useState<Sucursal[]>([]);
+    const [selectedSucursalId, setSelectedSucursalId] = useState('');
     const [isCameraOpen, setIsCameraOpen] = useState(false);
+    const [familiasCatalogo, setFamiliasCatalogo] = useState<any[]>([]);
 
-    const familias: Equipo['familia'][] = ['Aires', 'Coccion', 'Refrigeracion', 'Cocina', 'Restaurante', 'Local'];
-
+    // Cargar Catálogos (Familias) - SOPORTE DUAL (LEGACY + NUEVO)
     useEffect(() => {
-        if (familia && user?.sucursalesPermitidas[0]) {
+        if (!user?.clienteId) return;
+        const loadCats = async () => {
+            try {
+                // Consulta paralela para máxima compatibilidad
+                const [cats, fams] = await Promise.all([
+                    getCatalogos(user.clienteId),
+                    getFamilias(user.clienteId)
+                ]);
+
+                // 1. Filtrar familias de catálogos antiguos
+                const legacyFams = cats.filter(c => c.categoria === 'Familia');
+
+                // 2. Unir con la nueva colección 'familias'
+                const allFams = [...legacyFams, ...fams];
+
+                // 3. De-duplicación inteligente por nombre o nomenclatura
+                // PRIORIDAD: La colección 'familias' (Standard) sobrescribe a 'catalogos' (Legacy)
+                const uniqueFamsMap = new Map();
+                
+                // Primero cargamos legacy, luego standard para que standard gane en el Map
+                allFams.forEach(f => {
+                    const name = f.nombre || f.nomenclatura;
+                    if (name) {
+                        uniqueFamsMap.set(name, f);
+                    }
+                });
+
+                const finalFams = Array.from(uniqueFamsMap.values());
+                console.log(`Cargadas ${finalFams.length} familias (Hybrid Logic)`);
+                setFamiliasCatalogo(finalFams.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '')));
+            } catch (err) {
+                console.error("Error al cargar familias:", err);
+            }
+        };
+        loadCats();
+    }, [user?.clienteId]);
+
+    // Cargar Sucursales Permitidas
+    useEffect(() => {
+        if (!user?.clienteId) return;
+        const loadSucs = async () => {
+            try {
+                const data = await getSucursales(user.clienteId);
+
+                // Si el usuario no es Admin/Coord de TODAS, filtrar por las que tiene permitidas
+                const permitidas = user.sucursalesPermitidas || [];
+                if (permitidas.includes('TODAS')) {
+                    setSucursales(data);
+                    if (data.length > 0 && !selectedSucursalId) setSelectedSucursalId(data[0].id);
+                } else {
+                    const filtered = data.filter(s => permitidas.includes(s.id));
+                    setSucursales(filtered);
+                    if (filtered.length > 0 && !selectedSucursalId) setSelectedSucursalId(filtered[0].id);
+                }
+            } catch (err) {
+                console.error("Error al cargar sucursales:", err);
+            }
+        };
+        loadSucs();
+    }, [user?.clienteId]);
+
+    // Cargar Equipos Filtrados
+    useEffect(() => {
+        if (familiaId && selectedSucursalId && user?.clienteId) {
             setLoading(true);
-            getEquipos(user.sucursalesPermitidas[0], familia).then(setEquipos).finally(() => setLoading(false));
+            const loadEq = async () => {
+                try {
+                    const data = await getEquipos(selectedSucursalId, familiaId, user.clienteId);
+                    setEquipos(data);
+                } catch (err) {
+                    console.error("Error al cargar equipos:", err);
+                }
+            }
+            loadEq().finally(() => setLoading(false));
+        } else {
+            setEquipos([]);
         }
-    }, [familia, user]);
+    }, [familiaId, selectedSucursalId, user?.clienteId]);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
@@ -54,7 +135,7 @@ export const SolicitarOTPage: React.FC = () => {
         if (!user) return;
 
         // VALIDACIÓN DE CAMPOS MANDATORIOS
-        if (!familia) {
+        if (!familiaId) {
             showNotification("Seleccione una familia de equipo.", "warning");
             return;
         }
@@ -70,19 +151,21 @@ export const SolicitarOTPage: React.FC = () => {
             showNotification("Debe incluir una justificación para el servicio.", "warning");
             return;
         }
-        if (tempFiles.length === 0) {
-            showNotification("Debe adjuntar al menos una fotografía de evidencia.", "warning");
-            return;
+        if (tempFiles.length === 0 && selectedKardexPhotos.length === 0) {
+            const isSure = window.confirm("¡ATENCIÓN! Está enviando la solicitud SIN evidencia fotográfica de la falla. Esto puede retrasar el diagnóstico preventivo. ¿Está completamente seguro de continuar sin adjuntar fotos?");
+            if (!isSure) {
+                return;
+            }
         }
 
-        console.log("Iniciando envío de solicitud OT...", { equipoId, familia });
+        console.log("Iniciando envío de solicitud OT...", { equipoId, familiaId });
         setSubmitting(true);
 
         try {
             // 1. Subir fotos a Firebase Storage
             console.log(`Subiendo ${tempFiles.length} fotos de evidencia...`);
             const photoUrls = await Promise.all(tempFiles.map(async (file, index) => {
-                const storageRef = ref(storage, `evidencia_gerente/${Date.now()}_${index}_${file.name}`);
+                const storageRef = ref(storage, tenantStoragePath(user, `evidencia_gerente/${Date.now()}_${index}_${file.name}`));
                 const snapshot = await uploadBytes(storageRef, file);
                 const url = await getDownloadURL(snapshot.ref);
                 return url;
@@ -96,15 +179,16 @@ export const SolicitarOTPage: React.FC = () => {
                     solicitada: new Date().toISOString()
                 },
                 solicitanteId: user.id,
-                clienteId: user.clientId,
-                sucursalId: user.sucursalesPermitidas?.[0] || 'SIN_SUCURSAL',
+                clienteId: user.clienteId,
+                sucursalId: selectedSucursalId,
                 equipoId,
                 descripcionFalla,
                 justificacion,
-                fotosGerente: photoUrls
+                prioridad,
+                fotosGerente: [...selectedKardexPhotos, ...photoUrls]
             };
 
-            const result = await createOT(newOT);
+            const result = await createOT(newOT, user);
             console.log("Orden de Trabajo creada exitosamente:", result);
 
             setLastOTNumber(result.numero);
@@ -112,7 +196,7 @@ export const SolicitarOTPage: React.FC = () => {
 
             // Reset Form
             setSubmitting(false);
-            setFamilia('');
+            setFamiliaId('');
             setEquipoId('');
             setDescripcionFalla('');
             setJustificacion('');
@@ -129,30 +213,67 @@ export const SolicitarOTPage: React.FC = () => {
     return (
         <div className="animate-fade" style={{ maxWidth: '800px', margin: '0 auto', position: 'relative' }}>
             <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-                <div style={{ display: 'inline-flex', padding: '1rem', borderRadius: '50%', background: 'rgba(37, 99, 235, 0.1)', color: 'var(--primary)', marginBottom: '1rem' }}>
-                    <AlertCircle size={32} />
+                <div 
+                    onClick={(e) => {
+                        // Secret Salvavidas Trigger: Shift + Click
+                        if (e.shiftKey && user) {
+                            setIsRepairing(true);
+                            triggerAutoRepair(user.clienteId, user.id, user)
+                                .then(res => {
+                                    showNotification(`Auto-Reparación Completada. Re-vinculados: ${res.equiposFixed} equipos. Recargando...`, 'success');
+                                    setTimeout(() => window.location.reload(), 2000);
+                                })
+                                .catch(err => {
+                                    showNotification(err.message, 'error');
+                                    setIsRepairing(false);
+                                });
+                        }
+                    }}
+                    style={{ 
+                        display: 'inline-flex', padding: '1rem', borderRadius: '50%', 
+                        background: 'rgba(37, 99, 235, 0.1)', color: 'var(--primary)', 
+                        marginBottom: '1rem', cursor: 'pointer', transition: 'all 0.3s'
+                    }}
+                >
+                    {isRepairing ? <Loader2 size={32} className="animate-spin" /> : <AlertCircle size={32} />}
                 </div>
                 <h1 style={{ fontSize: '1.75rem', fontWeight: '800' }}>Solicitar OT Correctiva</h1>
                 <p style={{ color: 'var(--text-muted)' }}>Describe la falla y anexa evidencia fotográfica para asignación de técnico.</p>
             </div>
 
             <form onSubmit={handleSubmit} className="glass-card" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                    <div>
+                        <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '600' }}>Sucursal *</label>
+                        <select
+                            value={selectedSucursalId}
+                            onChange={e => { setSelectedSucursalId(e.target.value); setEquipoId(''); }}
+                            required
+                            style={{ width: '100%', padding: '0.875rem', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
+                        >
+                            <option value="">Seleccione Sucursal...</option>
+                            {sucursales.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+                        </select>
+                    </div>
                     <div>
                         <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '600' }}>Familia de Equipo *</label>
                         <select
-                            value={familia} onChange={e => { setFamilia(e.target.value as any); setEquipoId(''); }} required
-                            style={{ width: '100%', padding: '0.875rem', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
+                            value={familiaId} onChange={e => { setFamiliaId(e.target.value); setEquipoId(''); }} required
+                            style={{ width: '100%', padding: '0.875rem', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', fontWeight: '600' }}
                         >
                             <option value="">Seleccione Familia...</option>
-                            {familias.map(f => <option key={f} value={f}>{f}</option>)}
+                            {familiasCatalogo.map(f => (
+                                <option key={f.id} value={f.id} style={{ color: 'black' }}>
+                                    {f.nombre}
+                                </option>
+                            ))}
                         </select>
                     </div>
                     <div>
                         <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: '600' }}>Equipo Específico *</label>
                         <select
                             value={equipoId} onChange={e => setEquipoId(e.target.value)} required
-                            disabled={!familia || loading}
+                            disabled={!familiaId || loading}
                             style={{ width: '100%', padding: '0.875rem', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }}
                         >
                             <option value="">{loading ? 'Cargando...' : 'Seleccione Equipo...'}</option>
@@ -167,8 +288,11 @@ export const SolicitarOTPage: React.FC = () => {
                         value={descripcionFalla} onChange={e => setDescripcionFalla(e.target.value)}
                         placeholder="Ej: El refrigerador no enfría adecuadamente, se escucha un ruido extraño..."
                         maxLength={250} required
-                        style={{ width: '100%', padding: '1rem', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', minHeight: '100px', resize: 'vertical' }}
+                        style={{ width: '100%', boxSizing: 'border-box', padding: '1rem', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', minHeight: '100px', resize: 'vertical' }}
                     />
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-45px', marginRight: '10px', position: 'relative', zIndex: 10 }}>
+                        <VoiceInput onResult={(text) => setDescripcionFalla(prev => prev + (prev ? ' ' : '') + text)} />
+                    </div>
                 </div>
 
                 <div>
@@ -177,16 +301,41 @@ export const SolicitarOTPage: React.FC = () => {
                         value={justificacion} onChange={e => setJustificacion(e.target.value)}
                         placeholder="Ej: Afecta directamente la conservación de insumos críticos..."
                         required
-                        style={{ width: '100%', padding: '1rem', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', minHeight: '80px', resize: 'vertical' }}
+                        style={{ width: '100%', boxSizing: 'border-box', padding: '1rem', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', minHeight: '80px', resize: 'vertical' }}
                     />
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-45px', marginRight: '10px', position: 'relative', zIndex: 10 }}>
+                        <VoiceInput onResult={(text) => setJustificacion(prev => prev + (prev ? ' ' : '') + text)} />
+                    </div>
                 </div>
 
                 <div>
-                    <label style={{ display: 'block', marginBottom: '1rem', fontSize: '0.875rem', fontWeight: '600' }}>Evidencia Fotográfica * (Mínimo 1)</label>
+                    <label style={{ display: 'block', marginBottom: '1rem', fontSize: '0.9rem', fontWeight: '950', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>PRIORIDAD DEL SERVICIO</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+                        {(['ALTA', 'MEDIA', 'BAJA'] as WorkOrder['prioridad'][]).map(p => (
+                            <button
+                                key={p} type="button"
+                                onClick={() => setPrioridad(p)}
+                                style={{
+                                    padding: '1.25rem 0.5rem', borderRadius: '14px', fontSize: '0.85rem', fontWeight: '900', border: '2px solid transparent',
+                                    background: prioridad === p ? (p === 'ALTA' ? 'var(--priority-alta)' : p === 'MEDIA' ? 'var(--priority-media)' : 'var(--priority-baja)') : 'rgba(255,255,255,0.05)',
+                                    color: prioridad === p ? '#ffffff' : 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    boxShadow: prioridad === p ? '0 8px 24px rgba(0,0,0,0.3)' : 'none',
+                                    transform: prioridad === p ? 'scale(1.02)' : 'scale(1)',
+                                    borderColor: prioridad === p ? 'rgba(255,255,255,0.3)' : 'transparent'
+                                }}
+                            >
+                                {p}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div style={{ marginTop: '1rem' }}>
+                    <label style={{ display: 'block', marginBottom: '1.5rem', fontSize: '1.55rem', fontWeight: '600' }}>EVIDENCIA DOCUMENTAL</label>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
                         {previewUrls.map((url, i) => (
                             <div key={i} style={{ position: 'relative', aspectRatio: '1', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--glass-border)' }}>
-                                <img src={url} alt="Evidencia" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                <img src={url} alt="Evidencia" style={{ width: '100%', height: '100%', objectFit: 'cover', imageOrientation: 'from-image' }} />
                                 <button
                                     type="button" onClick={() => removeFile(i)}
                                     style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.5)', border: 'none', color: 'white', borderRadius: '50%', padding: '4px', cursor: 'pointer' }}
@@ -238,59 +387,73 @@ export const SolicitarOTPage: React.FC = () => {
             {showSuccessModal && (
                 <div style={{
                     position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    background: 'rgba(15, 23, 42, 0.9)', backdropFilter: 'blur(10px)',
-                    zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem'
+                    background: 'rgba(5, 5, 5, 0.95)', backdropFilter: 'blur(20px)',
+                    zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem'
                 }}>
                     <div className="glass-card animate-scale-up" style={{
-                        maxWidth: '550px', width: '100%', textAlign: 'center', padding: '3rem',
-                        border: '1px solid var(--accent)', boxShadow: '0 0 50px rgba(37, 99, 235, 0.2)'
+                        maxWidth: '600px', width: '100%', textAlign: 'center', padding: '4rem 3rem',
+                        border: '2px solid var(--accent)', boxShadow: '0 0 80px rgba(37, 99, 235, 0.4)',
+                        position: 'relative', overflow: 'hidden'
                     }}>
-                        <div style={{ color: '#22c55e', marginBottom: '1.5rem' }}>
-                            <CheckCircle size={80} style={{ margin: '0 auto' }} />
+                        {/* Efecto de fondo premium */}
+                        <div style={{ position: 'absolute', top: '-50%', left: '-50%', width: '200%', height: '200%', background: 'radial-gradient(circle, rgba(37,99,235,0.1) 0%, transparent 70%)', zIndex: -1 }}></div>
+
+                        <div className="animate-bounce-subtle" style={{ color: '#22c55e', marginBottom: '2rem' }}>
+                            <CheckCircle size={100} style={{ margin: '0 auto', filter: 'drop-shadow(0 0 20px rgba(34,197,94,0.5))' }} />
                         </div>
 
-                        <h2 style={{ fontSize: '2rem', fontWeight: '800', marginBottom: '1rem', color: 'white' }}>
-                            ¡ORDEN REGISTRADA!
+                        <h2 style={{ fontSize: '2.5rem', fontWeight: '900', marginBottom: '1.5rem', color: 'white', letterSpacing: '-1px' }}>
+                            ¡REPORTE EXITOSO!
                         </h2>
 
                         <div style={{
-                            background: 'rgba(37, 99, 235, 0.1)', padding: '1.5rem', borderRadius: '16px',
-                            marginBottom: '2rem', border: '1px solid rgba(37, 99, 235, 0.3)'
+                            background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.15) 0%, rgba(37, 99, 235, 0.05) 100%)',
+                            padding: '2.5rem', borderRadius: '24px',
+                            marginBottom: '2.5rem', border: '1px solid rgba(37, 99, 235, 0.4)',
+                            boxShadow: 'inset 0 0 20px rgba(0,0,0,0.2)'
                         }}>
-                            <p style={{ fontSize: '1.25rem', color: 'var(--accent)', fontWeight: '700', marginBottom: '0.5rem' }}>
-                                Orden de Trabajo #: {lastOTNumber}
+                            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '0.5rem', fontWeight: '600' }}>
+                                Folio de Seguimiento
                             </p>
-                            <p style={{ color: 'var(--text-muted)', fontSize: '1rem', lineHeight: '1.6' }}>
-                                Tu solicitud ha sido guardada correctamente en el sistema.
+                            <p style={{ fontSize: '3rem', color: 'var(--accent)', fontWeight: '900', marginBottom: '1rem', textShadow: '0 0 15px rgba(37,99,235,0.3)' }}>
+                                #{lastOTNumber}
+                            </p>
+                            <div style={{ height: '2px', background: 'rgba(255,255,255,0.1)', width: '60px', margin: '1.5rem auto' }}></div>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', lineHeight: '1.6', fontWeight: '500' }}>
+                                La solicitud ha sido registrada con éxito y ya es visible para el Coordinador.
                             </p>
                         </div>
 
-                        <div style={{ textAlign: 'left', background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '12px', marginBottom: '2.5rem' }}>
-                            <p style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem', color: '#fbbf24', fontWeight: '600' }}>
-                                <Clock size={20} /> NOTA IMPORTANTE:
+                        <div style={{ textAlign: 'left', background: 'rgba(245, 158, 11, 0.05)', padding: '2rem', borderRadius: '20px', marginBottom: '3rem', borderLeft: '5px solid #F59E0B' }}>
+                            <p style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem', color: '#F59E0B', fontWeight: '800', fontSize: '1.1rem' }}>
+                                <Clock size={24} /> PRÓXIMOS PASOS
                             </p>
-                            <p style={{ color: 'var(--text-muted)', fontSize: '0.925rem', lineHeight: '1.6' }}>
-                                Desde este momento, la orden aparecerá como <strong style={{ color: 'white' }}>PENDIENTE</strong> en el panel del Coordinador para su revisión.
-                            </p>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem', fontSize: '0.875rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
-                                    <Users size={16} /> Asignación de Técnico
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '1rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', color: 'rgba(255,255,255,0.7)' }}>
+                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#F59E0B' }}></div>
+                                    Validación de impacto operativo
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
-                                    <AlertCircle size={16} /> Definición de Prioridad
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', color: 'rgba(255,255,255,0.7)' }}>
+                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#F59E0B' }}></div>
+                                    Asignación de técnico especializado
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
-                                    <Calendar size={16} /> Fecha de Atención
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', color: 'rgba(255,255,255,0.7)' }}>
+                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#F59E0B' }}></div>
+                                    Notificación de visita programada
                                 </div>
                             </div>
                         </div>
 
                         <button
                             onClick={() => setShowSuccessModal(false)}
-                            className="btn btn-primary"
-                            style={{ width: '100%', padding: '1.25rem', fontSize: '1.1rem', fontWeight: '700', borderRadius: '16px' }}
+                            className="btn btn-primary animate-pulse-subtle"
+                            style={{
+                                width: '100%', padding: '1.5rem', fontSize: '1.25rem', fontWeight: '800',
+                                borderRadius: '20px', boxShadow: '0 10px 30px rgba(37, 99, 235, 0.4)',
+                                border: 'none', cursor: 'pointer', transition: 'all 0.3s'
+                            }}
                         >
-                            ACEPTAR Y CONTINUAR
+                            ENTENDIDO Y CERRAR
                         </button>
                     </div>
                 </div>

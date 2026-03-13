@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Edit2, Search, Save, X, HardDrive, FileSpreadsheet, Store, Download } from 'lucide-react';
+import { Plus, Edit2, Search, Save, X, FileSpreadsheet, Store, Download } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { downloadExcel, fileTimestamp } from '../utils/fileDownload';
 import { useNotification } from '../context/NotificationContext';
@@ -12,6 +12,7 @@ import { trackedAddDoc, trackedUpdateDoc } from '../services/firestoreHelpers';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useAuth } from '../hooks/useAuth';
 import type { Equipo, Cliente, Sucursal, Franquicia, CatalogoItem } from '../types';
+import { FamiliaIcon } from '../components/FamiliaIcon';
 
 export const EquiposPage: React.FC = () => {
     const [equipos, setEquipos] = useState<Equipo[]>([]);
@@ -394,7 +395,7 @@ export const EquiposPage: React.FC = () => {
                                                     return f?.logoUrl ? (
                                                         <img src={f.logoUrl} alt={f.nombre} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                                                     ) : (
-                                                        <HardDrive size={24} color="var(--accent)" />
+                                                        <FamiliaIcon familia={equipo.familiaId || equipo.familia} size={32} />
                                                     );
                                                 })()}
                                             </div>

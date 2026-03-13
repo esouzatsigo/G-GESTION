@@ -26,6 +26,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { usePanelPrefs } from '../hooks/usePanelPrefs';
 import { AdminClientSelector } from './AdminClientSelector';
 import { NotificationsPanel } from './NotificationsPanel';
+import { DraggableBackButton } from './DraggableBackButton';
 
 interface NavItemProps {
     icon: React.ElementType;
@@ -203,7 +204,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
             }} className="sidebar-container">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0 0.5rem' }}>
                     <div style={{ width: '32px', height: '32px', background: 'var(--primary)', borderRadius: '8px' }}></div>
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: '700' }}>H-GESTION</h2>
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: '700' }}>T-GESTION</h2>
                 </div>
 
                 <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1, overflowY: 'auto' }}>
@@ -346,24 +347,28 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
             <main style={{
                 flex: 1,
                 marginLeft: '0',
-                padding: '1.5rem',
+                padding: '0.5rem',
                 minHeight: '100vh',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                overflowX: 'hidden',
+                boxSizing: 'border-box',
+                width: '100%'
             }} className="main-content">
                 {/* Header - Mobile & Global Notifications */}
                 <header style={{
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    marginBottom: '2rem',
+                    marginBottom: '0.75rem',
                     background: 'var(--bg-card)',
-                    padding: '0.75rem 1.25rem',
-                    borderRadius: '16px',
+                    padding: '0.5rem 0.75rem',
+                    borderRadius: '12px',
                     backdropFilter: 'var(--glass-blur)',
                     border: '1px solid var(--glass-border)',
                     position: 'sticky',
                     top: '0',
-                    zIndex: 40
+                    zIndex: 40,
+                    gap: '0.5rem'
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                         <button
@@ -399,31 +404,35 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
                         )}
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', flex: 1, minWidth: 0 }}>
                         {/* REGLA DE HIERRO: Identidad Veraz en Header */}
                         {(() => {
-                            const displayClient = user?.clienteNombre || activeClienteNombre || "H-GESTION GLOBAL";
+                            const displayClient = user?.clienteNombre || activeClienteNombre || "T-GESTION GLOBAL";
                             return (
                                 <div style={{
-                                    fontSize: '1.4rem',
+                                    fontSize: '0.9rem',
                                     fontWeight: '900',
                                     color: '#10b981',
                                     textTransform: 'uppercase',
-                                    letterSpacing: '0.15em',
-                                    marginBottom: '4px',
+                                    letterSpacing: '0.05em',
+                                    marginBottom: '2px',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '10px',
+                                    gap: '4px',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    maxWidth: '130px',
                                     textShadow: '0 0 25px rgba(16, 185, 129, 0.4)'
                                 }}>
-                                    <Store size={22} /> {displayClient.toUpperCase()}
+                                    <Store size={14} /> {displayClient.toUpperCase()}
                                 </div>
                             );
                         })()}
-                        <div style={{ fontSize: '1.2rem', fontWeight: '800', letterSpacing: '0.02em', color: 'var(--primary-light)', lineHeight: '1.2' }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: '800', letterSpacing: '0.01em', color: 'var(--primary-light)', lineHeight: '1.2', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '130px' }}>
                             {user?.nombre?.toUpperCase()}
                         </div>
-                        <div style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: '2px' }}>
+                        <div style={{ fontSize: '0.7rem', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '2px' }}>
                             {user?.rol}
                         </div>
                     </div>
@@ -444,6 +453,11 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
 
                 {/* Content Rendered Here */}
                 {children}
+
+                {/* BOTÓN FLOTANTE DISCRETO ARRASTRABLE PARA VOLVER */}
+                {location.pathname !== '/' && (
+                    <DraggableBackButton />
+                )}
             </main>
 
             {/* Mobile Backdrop */}

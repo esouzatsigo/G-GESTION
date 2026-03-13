@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Bell, Check, CheckCheck, X, AlertCircle, Clipboard, Calendar, Pencil, Eye, EyeOff } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import {
     getNotificacionesNoLeidas,
@@ -51,9 +52,41 @@ const NotifCard: React.FC<{
     notif: Notificacion;
     onMarcarLeida: (id: string) => void;
     onExpandir: (notif: Notificacion) => void;
-}> = ({ notif, onMarcarLeida, onExpandir }) => {
+    onClosePanel?: () => void;
+}> = ({ notif, onMarcarLeida, onExpandir, onClosePanel }) => {
     const cfg = TIPO_CONFIG[notif.tipo] || TIPO_CONFIG.NUEVA_OT;
     const Icon = cfg.icon;
+
+    const renderTitulo = () => {
+        if (!notif.otNumero) return notif.titulo;
+        
+        // Buscamos si el título contiene el número de OT con el formato #1234
+        const target = `#${notif.otNumero}`;
+        if (!notif.titulo.includes(target)) return notif.titulo;
+
+        const parts = notif.titulo.split(target);
+        return (
+            <>
+                {parts[0]}
+                <Link
+                    to={`/kardex?ot=${notif.otNumero}`}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onClosePanel?.();
+                    }}
+                    style={{
+                        color: cfg.color,
+                        fontWeight: '800',
+                        textDecoration: 'underline',
+                        margin: '0 2px'
+                    }}
+                >
+                    {target}
+                </Link>
+                {parts[1]}
+            </>
+        );
+    };
 
     return (
         <div
@@ -91,7 +124,7 @@ const NotifCard: React.FC<{
                         color: 'var(--text-main)',
                         margin: 0,
                         lineHeight: 1.3
-                    }}>{notif.titulo}</p>
+                    }}>{renderTitulo()}</p>
                     <span style={{
                         fontSize: '0.6rem',
                         color: 'var(--text-muted)',
@@ -148,7 +181,8 @@ const NotifExpandida: React.FC<{
     onClose: () => void;
     onMarcarLeida: (id: string) => void;
     onFotoStateChange?: (isOpen: boolean) => void;
-}> = ({ notif, onClose, onMarcarLeida, onFotoStateChange }) => {
+    onClosePanel?: () => void;
+}> = ({ notif, onClose, onMarcarLeida, onFotoStateChange, onClosePanel }) => {
     const cfg = TIPO_CONFIG[notif.tipo] || TIPO_CONFIG.NUEVA_OT;
     const Icon = cfg.icon;
     const [fotoAbierta, setFotoAbierta] = React.useState<string | null>(null);
@@ -215,9 +249,18 @@ const NotifExpandida: React.FC<{
                 {/* Chips de metadata */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', marginBottom: '1.5rem' }}>
                     {notif.otNumero && (
-                        <div style={{ ...metaChipStyle, borderColor: cfg.color }}>
-                            <span style={{ fontWeight: '700', color: cfg.color }}>OT #{notif.otNumero}</span>
-                        </div>
+                        <Link 
+                            to={`/kardex?ot=${notif.otNumero}`}
+                            onClick={() => {
+                                onClose();
+                                onClosePanel?.();
+                            }}
+                            style={{ textDecoration: 'none' }}
+                        >
+                            <div style={{ ...metaChipStyle, borderColor: cfg.color, cursor: 'pointer', background: `${cfg.color}11` }}>
+                                <span style={{ fontWeight: '700', color: cfg.color }}>OT #{notif.otNumero}</span>
+                            </div>
+                        </Link>
                     )}
                     {notif.sucursalNombre && <div style={metaChipStyle}>📍 {notif.sucursalNombre}</div>}
                     {notif.equipoNombre && <div style={metaChipStyle}>🔧 {notif.equipoNombre}</div>}
@@ -603,6 +646,7 @@ export const NotificationsPanel: React.FC = () => {
                                             notif={n}
                                             onMarcarLeida={handleMarcarLeida}
                                             onExpandir={(notif) => { setExpandida(notif); }}
+                                            onClosePanel={() => setIsOpen(false)}
                                         />
                                     ))}
                                 </div>
@@ -619,6 +663,7 @@ export const NotificationsPanel: React.FC = () => {
                     onClose={() => setExpandida(null)}
                     onMarcarLeida={handleMarcarLeida}
                     onFotoStateChange={setFotoEnDetalleAbierta}
+                    onClosePanel={() => setIsOpen(false)}
                 />
             )}
 

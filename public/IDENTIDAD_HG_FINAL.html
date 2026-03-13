@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual de Identidad H-GESTION</title>
+    <style>
+        :root {
+            --bg-obsidian: #0a0a0c;
+            --primary-blue: #3b82f6;
+            --accent-yellow: #F59E0B;
+            --text-muted: #94a3b8;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background: #121214;
+            color: white;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        header {
+            padding: 40px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            width: 100%;
+            background: var(--bg-obsidian);
+        }
+        .section {
+            padding: 60px 20px;
+            width: 100%;
+            max-width: 1000px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .label {
+            color: var(--primary-blue);
+            font-weight: 800;
+            font-size: 0.8rem;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
+        .splash-preview {
+            background: var(--bg-obsidian);
+            width: 100%;
+            max-width: 500px;
+            padding: 80px 20px;
+            border-radius: 30px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+            margin-bottom: 40px;
+        }
+        .icons-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            width: 100%;
+        }
+        .icon-card {
+            background: var(--bg-obsidian);
+            padding: 30px 15px;
+            border-radius: 20px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .icon-card svg {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 15px;
+        }
+        .icon-card span {
+            display: block;
+            font-size: 0.7rem;
+            font-weight: 900;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+        }
+        .flame-dual {
+            filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.3));
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.9; }
+            50% { transform: scale(1.05); opacity: 1; }
+        }
+        .animate-pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1 style="margin:0; letter-spacing: -1px;">Identidad H-GESTION</h1>
+        <p style="color: grey; margin-top: 5px;">Sistema de Mantenimiento - Guía de Estilo</p>
+    </header>
+
+    <!-- SECCIÓN SPLASH -->
+    <div class="section">
+        <div class="label">01. Splash Screen Oficial</div>
+        <div class="splash-preview">
+            <svg viewBox="0 0 100 100" width="180" height="180" class="animate-pulse">
+                <path d="M50 5 L90 27.5 L90 72.5 L50 95 L10 72.5 L10 27.5 Z" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="3"/>
+                <path d="M50 85C50 85 30 70 30 50C30 35 40 25 45 20L40 35C40 55 50 65 50 65C50 65 60 55 60 45L55 20L70 50C70 70 50 85 50 85Z" fill="#3b82f6"/>
+            </svg>
+            <h1 style="color: white; margin-top: 30px; letter-spacing: 12px; font-weight: 900; font-size: 2.2rem;">H-GESTION</h1>
+            <p style="color: var(--primary-blue); letter-spacing: 6px; font-weight: 800; font-size: 0.9rem;">TRABAJO EFICIENTE</p>
+        </div>
+    </div>
+
+    <!-- SECCIÓN FAMILIAS -->
+    <div class="section">
+        <div class="label">02. Ilustraciones por Familia de Equipo</div>
+        <div class="icons-grid">
+            <!-- COCCIÓN -->
+            <div class="icon-card">
+                <svg viewBox="0 0 100 100" class="flame-dual">
+                    <path d="M50 90C70 90 82 70 82 50C82 30 60 10 50 5C40 10 18 30 18 50C18 70 30 90 50 90Z" fill="#F59E0B" opacity="0.6"/>
+                    <path d="M50 85C62 85 72 70 72 55C72 45 60 30 50 20C40 30 28 45 28 55C28 70 38 85 50 85Z" fill="#3B82F6"/>
+                </svg>
+                <span>COCCIÓN / FLAMA DUAL</span>
+            </div>
+            <!-- REFRIGERACIÓN -->
+            <div class="icon-card">
+                <svg viewBox="0 0 100 100" stroke="#60A5FA" stroke-width="4" fill="none">
+                    <path d="M50 10 L50 90 M10 50 L90 50 M25 25 L75 75 M75 25 L25 75"/>
+                    <circle cx="50" cy="50" r="12" fill="#60A5FA" fill-opacity="0.2"/>
+                    <circle cx="50" cy="50" r="4" fill="#60A5FA"/>
+                </svg>
+                <span>REFRIGERACIÓN</span>
+            </div>
+            <!-- LAVADO -->
+            <div class="icon-card">
+                <svg viewBox="0 0 100 100">
+                    <path d="M50 95C30 95 15 75 15 55C15 35 50 5 50 5C50 5 85 35 85 55C85 75 70 95 50 95Z" fill="#3B82F6"/>
+                    <path d="M35 55 Q50 40 65 55" stroke="white" stroke-width="5" fill="none" stroke-linecap="round"/>
+                </svg>
+                <span>LAVADO / AGUA</span>
+            </div>
+            <!-- ELÉCTRICO -->
+            <div class="icon-card">
+                <svg viewBox="0 0 100 100">
+                    <path d="M60 5 L25 55 L45 55 L40 95 L75 45 L55 45 Z" fill="#EAB308"/>
+                </svg>
+                <span>ELÉCTRICO / CONTROL</span>
+            </div>
+            <!-- MECÁNICO -->
+            <div class="icon-card">
+                <svg viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="20" fill="none" stroke="#94a3b8" stroke-width="8"/>
+                    <path d="M50 10 L50 25 M50 75 L50 90 M10 50 L25 50 M75 50 L90 50 M25 25 L35 35 M65 65 L75 75 M75 25 L65 35 M35 65 L25 75" stroke="#94a3b8" stroke-width="8" stroke-linecap="round"/>
+                </svg>
+                <span>MECÁNICO / MOTORES</span>
+            </div>
+        </div>
+    </div>
+
+    <div style="padding: 40px; font-size: 0.7rem; color: #444;">H-GESTION Identity Design v3.0 - Terrenal Edition</div>
+</body>
+</html>

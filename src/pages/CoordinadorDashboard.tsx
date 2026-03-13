@@ -449,19 +449,36 @@ export const CoordinadorDashboard: React.FC = () => {
                                 </div>
 
                                 <div>
-                                    <label style={{ display: 'block', marginBottom: '1rem', fontSize: '0.8rem', fontWeight: '950', color: 'var(--primary-light)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>3. PROGRAMACIÓN</label>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '1rem' }}>
-                                        <div>
-                                            <input
-                                                type="date" value={fechaProgramada} onChange={e => setFechaProgramada(e.target.value)} required
-                                                style={{ width: '100%', padding: '1.25rem', borderRadius: '16px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.4)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: '700' }}
-                                            />
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '1rem' }}>
+                                            <div style={{ position: 'relative' }}>
+                                                <input
+                                                    type="date" value={fechaProgramada} onChange={e => setFechaProgramada(e.target.value)} required
+                                                    style={{ width: '100%', padding: '1.25rem', borderRadius: '16px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.4)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: '700' }}
+                                                />
+                                            </div>
+                                            <div>
+                                                <input
+                                                    type="time" value={horaProgramada} onChange={e => setHoraProgramada(e.target.value)} required
+                                                    style={{ width: '100%', padding: '1.25rem', borderRadius: '16px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.4)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: '700' }}
+                                                />
+                                            </div>
                                         </div>
-                                        <div>
-                                            <input
-                                                type="time" value={horaProgramada} onChange={e => setHoraProgramada(e.target.value)} required
-                                                style={{ width: '100%', padding: '1.25rem', borderRadius: '16px', border: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.4)', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: '700' }}
-                                            />
+                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <button 
+                                                type="button" 
+                                                onClick={() => setFechaProgramada(new Date().toISOString().split('T')[0])}
+                                                style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', fontSize: '0.7rem', fontWeight: '700', color: 'var(--text-muted)', cursor: 'pointer' }}
+                                            >📅 HOY</button>
+                                            <button 
+                                                type="button" 
+                                                onClick={() => {
+                                                    const tomorrow = new Date();
+                                                    tomorrow.setDate(tomorrow.getDate() + 1);
+                                                    setFechaProgramada(tomorrow.toISOString().split('T')[0]);
+                                                }}
+                                                style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', fontSize: '0.7rem', fontWeight: '700', color: 'var(--text-muted)', cursor: 'pointer' }}
+                                            >📅 MAÑANA</button>
                                         </div>
                                     </div>
                                 </div>

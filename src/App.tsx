@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { usePanelPrefs } from './hooks/usePanelPrefs';
 import { MainLayout } from './components/MainLayout';
@@ -21,7 +21,9 @@ import { DashboardBIPage } from './pages/DashboardBIPage';
 import ConfigPage from './pages/ConfigPage';
 import { CatalogosGeneralesPage } from './pages/CatalogosGeneralesPage';
 import { NotificationProvider } from './context/NotificationContext';
-
+import { SplashScreen } from './components/SplashScreen';
+import { useAndroidBackButton } from './hooks/useAndroidBackButton';
+// Broadway
 import {
   ClipboardList,
   AlertCircle,
@@ -168,7 +170,7 @@ const PanelOperativo = () => {
         <h1 style={{ fontSize: '2rem', fontWeight: '900', letterSpacing: '-0.02em' }}>
           ¡Buen día, <span style={{ color: 'var(--primary)' }}>{user?.nombre}</span>!
         </h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>¿Qué deseas gestionar hoy en H-GESTION? (Arrastra los botones para reordenarlos)</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>¿Qué deseas gestionar hoy en T-GESTION? (Arrastra los botones para reordenarlos)</p>
       </div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
@@ -258,55 +260,59 @@ const PanelOperativo = () => {
 const AuthGuard: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
 
-  if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg-main)' }}>
-      <div style={{ color: 'var(--primary)', fontWeight: '600' }}>Cargando H-GESTION...</div>
-    </div>
-  );
+  if (loading) return <SplashScreen />;
 
   if (!user) return <Navigate to="/login" replace />;
 
   return <MainLayout>{children}</MainLayout>;
 };
 
+// Componente interno que vive DENTRO del Router para poder usar hooks de navegación
+const AppWithBackButton: React.FC = () => {
+  useAndroidBackButton();
+  return (
+    <Routes>
+      {/* Public/Selection Routes */}
+      <Route path="/login" element={<LoginPage />} />
+
+      {/* Protected Routes */}
+      <Route
+        path="/*"
+        element={
+          <AuthGuard>
+            <Routes>
+              <Route path="/" element={<PanelOperativo />} />
+              <Route path="/clientes" element={<ClientesPage />} />
+              <Route path="/franquicias" element={<FranquiciasPage />} />
+              <Route path="/sucursales" element={<SucursalesPage />} />
+              <Route path="/equipos" element={<EquiposPage />} />
+              <Route path="/usuarios" element={<UsuariosPage />} />
+              <Route path="/solicitar-ot" element={<SolicitarOTPage />} />
+              <Route path="/ots" element={<CoordinadorDashboard />} />
+              <Route path="/supervisar" element={<SupervisarPage />} />
+              <Route path="/mis-servicios" element={<MisServiciosPage />} />
+              <Route path="/ejecutar-servicio/:id" element={<EjecucionServicioPage />} />
+              <Route path="/kardex" element={<KardexPage />} />
+              <Route path="/preventivos" element={<PreventivosPage />} />
+              <Route path="/bitacora" element={<BitacoraPage />} />
+              <Route path="/bi-dashboard" element={<DashboardBIPage />} />
+              <Route path="/catalogos" element={<CatalogosGeneralesPage />} />
+              <Route path="/config" element={<ConfigPage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </AuthGuard>
+        }
+      />
+    </Routes>
+  );
+};
+
 function App() {
   return (
     <AuthProvider>
       <NotificationProvider>
-        <Router basename="/T-GESTION-Lite">
-          <Routes>
-            {/* Public/Selection Routes */}
-            <Route path="/login" element={<LoginPage />} />
-
-            {/* Protected Routes */}
-            <Route
-              path="/*"
-              element={
-                <AuthGuard>
-                  <Routes>
-                    <Route path="/" element={<PanelOperativo />} />
-                    <Route path="/clientes" element={<ClientesPage />} />
-                    <Route path="/franquicias" element={<FranquiciasPage />} />
-                    <Route path="/sucursales" element={<SucursalesPage />} />
-                    <Route path="/equipos" element={<EquiposPage />} />
-                    <Route path="/usuarios" element={<UsuariosPage />} />
-                    <Route path="/solicitar-ot" element={<SolicitarOTPage />} />
-                    <Route path="/ots" element={<CoordinadorDashboard />} />
-                    <Route path="/supervisar" element={<SupervisarPage />} />
-                    <Route path="/mis-servicios" element={<MisServiciosPage />} />
-                    <Route path="/ejecutar-servicio/:id" element={<EjecucionServicioPage />} />
-                    <Route path="/kardex" element={<KardexPage />} />
-                    <Route path="/preventivos" element={<PreventivosPage />} />
-                    <Route path="/bitacora" element={<BitacoraPage />} />
-                    <Route path="/bi-dashboard" element={<DashboardBIPage />} />
-                    <Route path="/catalogos" element={<CatalogosGeneralesPage />} />
-                    <Route path="/config" element={<ConfigPage />} />
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                  </Routes>
-                </AuthGuard>
-              }
-            />
-          </Routes>
+        <Router>
+          <AppWithBackButton />
         </Router>
       </NotificationProvider>
     </AuthProvider>

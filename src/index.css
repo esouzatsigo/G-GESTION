@@ -1,6 +1,31 @@
 /* H-GESTION - Core Design System */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&display=swap');
 
+/* Optimizaciones de Ancho para Móvil */
+@media (max-width: 768px) {
+  .main-content {
+    padding: 0 !important;
+  }
+
+  .glass-card {
+    margin-bottom: 0.35rem !important;
+    border-radius: 4px !important;
+    border-left: none !important;
+    border-right: none !important;
+    width: 100% !important;
+    border-top: 1px solid var(--glass-border);
+    border-bottom: 1px solid var(--glass-border);
+    padding: 0.65rem !important;
+  }
+
+  .mobile-view {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}
+
 :root {
   /* Color Palette - Premium Corporate Brand */
   --primary: #4f46e5;
@@ -32,25 +57,24 @@
 
   /* Status Colors: Refined Palette */
   --status-asignada: #64748b;
-  /* Slate 500 */
   --status-llegada: #0ea5e9;
-  /* Sky 500 */
   --status-iniciada: #f59e0b;
-  /* Amber 500 */
   --status-concluida: #10b981;
-  /* Emerald 500 */
   --status-concluidapendientefirmacliente: #06b6d4;
-  /* Cyan 500 */
   --status-finalizada: #8b5cf6;
-  /* Violet 500 */
 
-  /* Priority Colors: Semantic but Premium */
+  /* Fallbacks for status substrings */
+  --status-asignada: #64748b;
+  --status-llegada: #0ea5e9;
+  --status-iniciada: #f59e0b;
+  --status-concluida: #10b981;
+  --status-finalizada: #8b5cf6;
+  --status-atender: #4f46e5;
+
+  /* Priority Colors */
   --priority-alta: #ef4444;
-  /* Red 500 */
-  --priority-media: #f97316;
-  /* Orange 500 */
-  --priority-baja: #22c55e;
-  /* Green 500 */
+  --priority-media: #f59e0b;
+  --priority-baja: #10b981;
 }
 
 /* Light Theme Overrides: Clean Business Style */
@@ -165,12 +189,34 @@ h4,
   animation: fadeIn 0.4s ease forwards;
 }
 
-/* Mobile Specific Optimizations */
+/* Tablet Adjustments */
 @media (max-width: 768px) {
   .glass-card {
     padding: 1rem;
     border-radius: 12px;
   }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+    padding: 0.6rem 1rem;
+  }
+
+  h1 { font-size: 1.5rem !important; }
+  h2 { font-size: 1.25rem !important; }
+  h3 { font-size: 1.1rem !important; }
+
+  .btn {
+    padding: 0.6rem 1rem !important;
+    font-size: 0.9rem !important;
+  }
+}
+
+.mobile-view {
+  width: 100%;
+  max-width: 610px;
+  margin: 0 auto;
 }
 
 /* Universal Horizontal Scroll - Pucridad UX */
@@ -183,6 +229,29 @@ h4,
 }
 
 /* Custom Premium Scrollbar */
+/* Tipografía Responsiva Controlada */
+.mobile-label {
+  font-size: 1.15rem !important;
+  font-weight: 700 !important;
+  color: var(--primary) !important;
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+.mobile-input {
+  font-size: 1rem !important;
+  line-height: 1.4 !important;
+}
+
+@media (max-width: 480px) {
+  .mobile-label {
+    font-size: 0.95rem !important;
+  }
+  .mobile-input {
+    font-size: 0.9rem !important;
+  }
+}
+
 .custom-scrollbar::-webkit-scrollbar {
   height: 6px;
   width: 6px;

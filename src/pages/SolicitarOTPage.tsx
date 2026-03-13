@@ -9,6 +9,7 @@ import { CameraModal } from '../components/CameraModal';
 import { useNotification } from '../context/NotificationContext';
 import { getCatalogos, getFamilias, getSucursales, getEquipos, triggerAutoRepair } from '../services/dataService';
 import type { Equipo, WorkOrder, Sucursal } from '../types';
+import { VoiceInput } from '../components/VoiceInput';
 
 export const SolicitarOTPage: React.FC = () => {
     const { user } = useAuth();
@@ -25,6 +26,7 @@ export const SolicitarOTPage: React.FC = () => {
     const [equipoId, setEquipoId] = useState('');
     const [descripcionFalla, setDescripcionFalla] = useState('');
     const [justificacion, setJustificacion] = useState('');
+    const [prioridad, setPrioridad] = useState<WorkOrder['prioridad']>('MEDIA');
     const [tempFiles, setTempFiles] = useState<File[]>([]);
     const [previewUrls, setPreviewUrls] = useState<string[]>([]);
     const [selectedKardexPhotos] = useState<string[]>([]);
@@ -150,8 +152,16 @@ export const SolicitarOTPage: React.FC = () => {
             return;
         }
         if (tempFiles.length === 0 && selectedKardexPhotos.length === 0) {
-            showNotification("Debe adjuntar al menos una fotografía de evidencia (Cámara, Galería o Kardex).", "warning");
-            return;
+            const isSure = window.confirm("¡ATENCIÓN! Está enviando la solicitud SIN evidencia fotográfica de la falla. Esto puede retrasar el diagnóstico preventivo. ¿Está completamente seguro de continuar sin adjuntar fotos?");
+            if (!isSure) {
+                return;
+            }
+        }
+
+        // --- REGLA DE NEGOCIO: CONFIRMACIÓN DE ALERTA CRÍTICA ---
+        if (prioridad === 'ALTA') {
+            const confirmAlta = window.confirm("¡ADVERTENCIA! Al seleccionar prioridad ALTA, el COORDINADOR recibirá una ALERTA CRÍTICA en su celular de inmediato. ¿Está totalmente seguro de que este servicio requiere atención urgente?");
+            if (!confirmAlta) return;
         }
 
         console.log("Iniciando envío de solicitud OT...", { equipoId, familiaId });
@@ -180,6 +190,7 @@ export const SolicitarOTPage: React.FC = () => {
                 equipoId,
                 descripcionFalla,
                 justificacion,
+                prioridad,
                 fotosGerente: [...selectedKardexPhotos, ...photoUrls]
             };
 
@@ -283,8 +294,11 @@ export const SolicitarOTPage: React.FC = () => {
                         value={descripcionFalla} onChange={e => setDescripcionFalla(e.target.value)}
                         placeholder="Ej: El refrigerador no enfría adecuadamente, se escucha un ruido extraño..."
                         maxLength={250} required
-                        style={{ width: '100%', padding: '1rem', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', minHeight: '100px', resize: 'vertical' }}
+                        style={{ width: '100%', boxSizing: 'border-box', padding: '1rem', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', minHeight: '100px', resize: 'vertical' }}
                     />
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-45px', marginRight: '10px', position: 'relative', zIndex: 10 }}>
+                        <VoiceInput onResult={(text) => setDescripcionFalla(prev => prev + (prev ? ' ' : '') + text)} />
+                    </div>
                 </div>
 
                 <div>
@@ -293,12 +307,15 @@ export const SolicitarOTPage: React.FC = () => {
                         value={justificacion} onChange={e => setJustificacion(e.target.value)}
                         placeholder="Ej: Afecta directamente la conservación de insumos críticos..."
                         required
-                        style={{ width: '100%', padding: '1rem', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', minHeight: '80px', resize: 'vertical' }}
+                        style={{ width: '100%', boxSizing: 'border-box', padding: '1rem', borderRadius: '12px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', minHeight: '80px', resize: 'vertical' }}
                     />
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '-45px', marginRight: '10px', position: 'relative', zIndex: 10 }}>
+                        <VoiceInput onResult={(text) => setJustificacion(prev => prev + (prev ? ' ' : '') + text)} />
+                    </div>
                 </div>
 
-                <div>
-                    <label style={{ display: 'block', marginBottom: '1.5rem', fontSize: '1.55rem', fontWeight: '600' }}>EVIDENCIA DOCUMENTAL</label>
+                <div style={{ marginTop: '1rem' }}>
+                    <label style={{ display: 'block', marginBottom: '1.5rem', fontSize: '1.55rem', fontWeight: '600', color: 'var(--text-main)' }}>EVIDENCIA DOCUMENTAL</label>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
                         {previewUrls.map((url, i) => (
                             <div key={i} style={{ position: 'relative', aspectRatio: '1', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--glass-border)' }}>
@@ -338,6 +355,33 @@ export const SolicitarOTPage: React.FC = () => {
                             </label>
                         </div>
                     </div>
+                </div>
+
+                <div style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '20px', border: '1px solid var(--glass-border)' }}>
+                    <label style={{ display: 'block', marginBottom: '1rem', fontSize: '0.9rem', fontWeight: '950', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>PRIORIDAD DEL SERVICIO</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+                        {(['ALTA', 'MEDIA', 'BAJA'] as WorkOrder['prioridad'][]).map(p => (
+                            <button
+                                key={p} type="button"
+                                onClick={() => setPrioridad(p)}
+                                style={{
+                                    padding: '1.25rem 0.5rem', borderRadius: '14px', fontSize: '0.85rem', fontWeight: '900', border: '2px solid transparent',
+                                    background: prioridad === p ? (p === 'ALTA' ? 'var(--priority-alta)' : p === 'MEDIA' ? 'var(--priority-media)' : 'var(--priority-baja)') : 'rgba(255,255,255,0.05)',
+                                    color: prioridad === p ? '#ffffff' : 'var(--text-muted)', cursor: 'pointer', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    boxShadow: prioridad === p ? '0 8px 24px rgba(0,0,0,0.3)' : 'none',
+                                    transform: prioridad === p ? 'scale(1.02)' : 'scale(1)',
+                                    borderColor: prioridad === p ? 'rgba(255,255,255,0.3)' : 'transparent'
+                                }}
+                            >
+                                {p}
+                            </button>
+                        ))}
+                    </div>
+                    {prioridad === 'ALTA' && (
+                        <p style={{ marginTop: '1rem', fontSize: '0.75rem', color: '#ef4444', fontWeight: '700', textAlign: 'center' }}>
+                            ⚠️ ESTA ACCIÓN DISPARARÁ UNA ALERTA CRÍTICA AL COORDINADOR
+                        </p>
+                    )}
                 </div>
 
                 <button

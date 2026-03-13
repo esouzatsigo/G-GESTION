@@ -42,6 +42,7 @@ export interface Sucursal {
         lat: number;
         lng: number;
     };
+    telefono?: string;
 }
 
 export interface Equipo {
@@ -100,6 +101,7 @@ export interface WorkOrder {
 
     // Detalles de ejecución (Técnico)
     descripcionServicio?: string;
+    audioDescripcionServicioUrl?: string; // Nuevo campo para audio de voz-a-texto
     fotoAntes?: string;
     fotoDespues?: string;
     fotoExtra?: string;
@@ -116,6 +118,7 @@ export interface WorkOrder {
     };
     firmaCliente?: string;
     comentariosCliente?: string;
+    audioComentarioClienteUrl?: string; // URL del storage para el audio del cliente
     repuestosUtilizados?: string;
 }
 

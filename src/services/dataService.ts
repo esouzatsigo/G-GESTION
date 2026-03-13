@@ -100,7 +100,7 @@ export const saveCliente = async (cliente: Omit<Cliente, 'id'>, user: User, id?:
                     campo: field,
                     valorAnterior: oldData[field] || 'Vacio',
                     valorNuevo: cliente[field as keyof Omit<Cliente, 'id'>]
-                });
+                }, user);
             }
         }
         return id;
@@ -117,7 +117,7 @@ export const saveCliente = async (cliente: Omit<Cliente, 'id'>, user: User, id?:
             campo: 'General',
             valorAnterior: 'N/A',
             valorNuevo: `Cliente: ${cliente.nombre} / ${cliente.razonSocial}`
-        });
+        }, user);
 
         // REGLA DE NEGOCIO: Sembrar Catálogos Base (Globales) al nuevo cliente.
         // EXCLUSIÓN CRÍTICA: Se filtran las categorías legacy 'Familia' para mantener la integridad de la BD.
@@ -242,7 +242,7 @@ export const saveCatalogo = async (catalogo: any, user: any, id?: string) => {
                     valorAnterior: oldData[field] || 'Vacio',
                     valorNuevo: catalogo[field],
                     collectionName: 'catalogos'
-                });
+                }, user);
             }
         }
         return id;
@@ -260,7 +260,7 @@ export const saveCatalogo = async (catalogo: any, user: any, id?: string) => {
             valorAnterior: 'N/A',
             valorNuevo: `Registro: ${catalogo.nombre} / ${catalogo.categoria}`,
             collectionName: 'catalogos'
-        });
+        }, user);
         return docRef.id;
     }
 };
@@ -456,7 +456,7 @@ export const createOT = async (ot: Omit<WorkOrder, 'id' | 'numero'>, user: User)
         campo: 'General',
         valorAnterior: 'N/A',
         valorNuevo: `OT Solicitada: ${ot.descripcionFalla.substring(0, 50)}...`
-    });
+    }, user);
 
     // *** NOTIFICACIÓN: Avisar a los Coordinadores del cliente ***
     try {
@@ -568,7 +568,7 @@ export const createMassivePreventiveOTsV2 = async (
         campo: 'batch_generation',
         valorAnterior: '',
         valorNuevo: `Sucursal: ${sucursal.nombre}`
-    });
+    }, user);
 
     return { otIds, batchRecordId: batchRef.id };
 };
@@ -773,7 +773,7 @@ export const updateMassiveBatchOTs = async (
                 campo: 'tecnicoId',
                 valorAnterior: oldTecName,
                 valorNuevo: newTecName,
-            });
+            }, user);
         }
 
         // Cambiar fecha programada
@@ -803,7 +803,7 @@ export const updateMassiveBatchOTs = async (
                 campo: 'fechas.programada',
                 valorAnterior: currentOT.fechas?.programada || 'Sin fecha',
                 valorNuevo: change.newFechaProgramada,
-            });
+            }, user);
         }
 
         // Ejecutar la actualización
@@ -894,7 +894,7 @@ export const updateCounterConfig = async (clienteId: string, otNumber: number, p
             campo: 'otNumber',
             valorAnterior: oldData.otNumber,
             valorNuevo: otNumber
-        });
+        }, user);
     }
     if (oldData.preventiveOtNumber !== preventiveOtNumber) {
         await logBitacora({
@@ -908,7 +908,7 @@ export const updateCounterConfig = async (clienteId: string, otNumber: number, p
             campo: 'preventiveOtNumber',
             valorAnterior: oldData.preventiveOtNumber,
             valorNuevo: preventiveOtNumber
-        });
+        }, user);
     }
 };
 
@@ -935,12 +935,13 @@ export const updateOTStatus = async (otId: string, status: string, user: User, a
         campo: 'estatus',
         valorAnterior: otData.estatus,
         valorNuevo: status
-    });
+    }, user);
 };
 
 // --- Bitácora de Auditoría ---
-export const logBitacora = async (entry: Omit<BitacoraEntry, 'id'>) => {
-    await trackedAddDoc(collection(db, 'bitacora'), entry);
+export const logBitacora = async (entry: Omit<BitacoraEntry, 'id'>, user?: User) => {
+    const isSuperAdminAction = entry.isSuperAdminAction ?? (user?.rol === 'Admin General' && user.clienteId === 'ADMIN');
+    await trackedAddDoc(collection(db, 'bitacora'), { ...entry, isSuperAdminAction });
 };
 
 export const addBitacoraEntry = async (entry: any) => {
@@ -978,7 +979,7 @@ export const updateOTWithAudit = async (
 ) => {
     const changes: any[] = [];
     const fieldsToTrack = [
-        'descripcionFalla', 'justificacion', 'prioridad', 'tecnicoId',
+        'estatus', 'descripcionFalla', 'justificacion', 'prioridad', 'tecnicoId',
         'descripcionServicio', 'repuestosUtilizados', 'fechas.programada'
     ];
 
@@ -1010,7 +1011,7 @@ export const updateOTWithAudit = async (
                 campo: change.field,
                 valorAnterior: change.old,
                 valorNuevo: change.new
-            });
+            }, user);
         }
         await trackedUpdateDoc(doc(db, 'ordenesTrabajo', otId), newData);
 

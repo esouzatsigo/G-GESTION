@@ -397,10 +397,13 @@ export const PreventivosPage: React.FC = () => {
         const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
         const maxDay = daysInMonth[mesIndex];
 
-        const parts = fechas.split('-').map(s => s.trim());
-        if (parts.length > 2) return "Formato inválido. Use 'Día' o 'DíaInicio - DíaFin'.";
+        const parts = fechas.split('-').map(s => s.trim().toLowerCase());
+        if (parts.length > 2) return "Formato inválido. Use 'Día', 'DíaInicio - DíaFin' o 'Mañana'.";
 
         for (const p of parts) {
+            if (p === 'mañana' || p === 'manana') {
+                continue;
+            }
             const d = parseInt(p);
             if (isNaN(d) || p === "") return `"${p}" no es un número válido.`;
             if (d < 1 || d > maxDay) return `El día ${d} no es válido para ${MESES[mesIndex]} (max: ${maxDay}).`;
@@ -1348,7 +1351,16 @@ export const PreventivosPage: React.FC = () => {
                                                             <p style={{ fontSize: '0.65rem', fontWeight: '900', color: getEventColor(e), textTransform: 'uppercase' }}>{MESES[e.mes]}</p>
                                                             <Edit3 size={11} color={getEventColor(e)} style={{ opacity: 0.6 }} />
                                                         </div>
-                                                        <p style={{ fontSize: '1.1rem', fontWeight: '900' }}>Día {e.fechas}</p>
+                                                        <p style={{ fontSize: '1.1rem', fontWeight: '900' }}>
+                                                            {e.fechas.toLowerCase() === 'mañana' || e.fechas.toLowerCase() === 'manana'
+                                                                ? `Mañana (${(() => {
+                                                                    const t = new Date();
+                                                                    t.setDate(t.getDate() + 1);
+                                                                    return t.getDate();
+                                                                })()})`
+                                                                : `Día ${e.fechas}`
+                                                            }
+                                                        </p>
                                                     </button>
 
                                                     <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '1rem' }}>

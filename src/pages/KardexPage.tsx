@@ -358,7 +358,17 @@ export const KardexPage: React.FC = () => {
                 }
             }
 
-            await updateOTWithAudit(selectedOT.id, selectedOT, editForm, user as any, accion);
+            // Si la OT está Pendiente y se le asigna un técnico, pasar a Asignada automáticamente
+            const finalEditForm = { ...editForm };
+            if (selectedOT.estatus === 'Pendiente' && finalEditForm.tecnicoId) {
+                finalEditForm.estatus = 'Asignada';
+                finalEditForm.fechas = {
+                    ...selectedOT.fechas,
+                    asignada: new Date().toISOString()
+                };
+            }
+
+            await updateOTWithAudit(selectedOT.id, selectedOT, finalEditForm, user as any, accion);
             setSelectedOT(null);
             setSearchParams({}); // Clear params
             fetchData();
@@ -976,8 +986,14 @@ export const KardexPage: React.FC = () => {
                                                 </div>
                                             </div>
                                             {selectedOT.comentariosCliente && (
-                                                <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', fontStyle: 'italic', color: 'var(--text-muted)', borderLeft: '2px solid var(--accent)', paddingLeft: '0.5rem' }}>
+                                                <div style={{ marginTop: '0.8rem', fontSize: '1rem', fontStyle: 'italic', color: 'var(--text-main)', borderLeft: '4px solid var(--accent)', paddingLeft: '1rem', background: 'rgba(255,255,255,0.05)', padding: '0.75rem', borderRadius: '0 12px 12px 0' }}>
                                                     "{selectedOT.comentariosCliente}"
+                                                </div>
+                                            )}
+                                            {selectedOT.audioComentarioClienteUrl && (
+                                                <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(59, 130, 246, 0.1)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                                                    <label style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--primary-light)', textTransform: 'uppercase' }}>Dictado de Conformidad Cliente</label>
+                                                    <audio src={selectedOT.audioComentarioClienteUrl} controls style={{ width: '100%', height: '36px' }} />
                                                 </div>
                                             )}
                                         </section>

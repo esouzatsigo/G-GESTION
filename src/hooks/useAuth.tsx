@@ -85,7 +85,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
         
         // Forzar recarga fría para purgar Vite Cache y Firebase en el cierre de sesión si se cambió de DB
-        window.location.replace('/T-GESTION-Lite/login');
+        // Redirección compatible con HashRouter y Capacitor
+        window.location.hash = '#/login';
     };
 
     useEffect(() => {
@@ -144,12 +145,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             if (!snapshot.empty) {
                 const userData = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as User;
+                
+                // Asegurar que tenemos lo mínimo necesario
+                if(!userData.rol) throw new Error("Datos de usuario corruptos");
+
                 setUser(userData);
                 localStorage.setItem('hgestion_light_user', JSON.stringify(userData));
 
                 if (userData.clienteId && userData.clienteId !== 'ADMIN') {
                     setActiveClienteId(userData.clienteId, userData.clienteNombre);
                 }
+                setLoading(false);
                 return 'success';
             }
             return 'not_found';
@@ -161,15 +167,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    // Auto-Login Post-Reload
+    // Auto-Login Post-Reload (SILENCIOSO Y AGRESIVO)
     useEffect(() => {
         const pendingEmail = localStorage.getItem('hgestion_pending_login');
         if (pendingEmail) {
             localStorage.removeItem('hgestion_pending_login');
-            // Dar tiempo extra para que Firebase / React terminen su mount inicial sin cache sucia
-            setTimeout(() => {
-                loginLight(pendingEmail);
-            }, 500);
+            loginLight(pendingEmail);
         }
     }, []);
 

@@ -7,7 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../context/NotificationContext';
 
 export const BitacoraPage: React.FC = () => {
-    const { user, isAdminCliente, isSuperAdmin, isGerente } = useAuth();
+    const { user, isAdminCliente, isSuperAdmin, isGerente, isCoordinador } = useAuth();
     const [entries, setEntries] = useState<BitacoraEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -15,7 +15,7 @@ export const BitacoraPage: React.FC = () => {
     const { showNotification } = useNotification();
 
     const fetchData = async () => {
-        if (!isAdminCliente && !isSuperAdmin && !isGerente) return;
+        if (!isAdminCliente && !isSuperAdmin && !isGerente && !isCoordinador) return;
         setLoading(true);
         try {
             const q = tenantQuery('bitacora', user!);
@@ -89,12 +89,12 @@ export const BitacoraPage: React.FC = () => {
         }
     };
 
-    if (!isAdminCliente && !isSuperAdmin && !isGerente) {
+    if (!isAdminCliente && !isSuperAdmin && !isGerente && !isCoordinador) {
         return (
             <div style={{ textAlign: 'center', padding: '5rem 2rem' }}>
                 <AlertTriangle size={48} color="var(--priority-alta)" style={{ marginBottom: '1rem' }} />
                 <h2 style={{ fontSize: '1.5rem', fontWeight: '800' }}>ACCESO RESTRINGIDO</h2>
-                <p style={{ color: 'var(--text-muted)' }}>Módulo exclusivo para Administradores y Gerentes.</p>
+                <p style={{ color: 'var(--text-muted)' }}>Módulo exclusivo para Administradores, Coordinadores y Gerentes.</p>
             </div>
         );
     }

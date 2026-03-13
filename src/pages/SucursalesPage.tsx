@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Edit2, Search, Save, X, Navigation, MapPin, Map as MapIcon, FileSpreadsheet, Store, Download } from 'lucide-react';
+import { Plus, Edit2, Search, Save, X, Navigation, MapPin, Map as MapIcon, FileSpreadsheet, Store, Download, Phone } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { downloadExcel, fileTimestamp } from '../utils/fileDownload';
 import { useNotification } from '../context/NotificationContext';
@@ -35,6 +35,7 @@ export const SucursalesPage: React.FC = () => {
     const [nombre, setNombre] = useState('');
     const [direccion, setDireccion] = useState('');
     const [nomenclatura, setNomenclatura] = useState('');
+    const [telefono, setTelefono] = useState('');
     const [lat, setLat] = useState<string>('');
     const [lng, setLng] = useState<string>('');
     const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
@@ -82,6 +83,7 @@ export const SucursalesPage: React.FC = () => {
             setNombre(sucursal.nombre);
             setDireccion(sucursal.direccion);
             setNomenclatura(sucursal.nomenclatura || '');
+            setTelefono(sucursal.telefono || '');
             setLat(sucursal.coordenadas.lat.toString());
             setLng(sucursal.coordenadas.lng.toString());
         } else {
@@ -91,6 +93,7 @@ export const SucursalesPage: React.FC = () => {
             setNombre('');
             setDireccion('');
             setNomenclatura('');
+            setTelefono('');
             setLat('');
             setLng('');
         }
@@ -129,6 +132,10 @@ export const SucursalesPage: React.FC = () => {
             showNotification("La dirección física es obligatoria.", "warning");
             return;
         }
+        if (!telefono.trim()) {
+            showNotification("El teléfono de contacto es obligatorio.", "warning");
+            return;
+        }
         if (!lat || !lng) {
             showNotification("Las coordenadas geográficas son obligatorias para el mapa.", "warning");
             return;
@@ -140,6 +147,7 @@ export const SucursalesPage: React.FC = () => {
             nombre,
             nomenclatura,
             direccion,
+            telefono,
             coordenadas: {
                 lat: parseFloat(lat),
                 lng: parseFloat(lng)
@@ -200,6 +208,7 @@ export const SucursalesPage: React.FC = () => {
                 Nombre: s.nombre,
                 Nomenclatura: s.nomenclatura || '',
                 Direccion: s.direccion || '',
+                Telefono: s.telefono || '',
                 Latitud: s.coordenadas?.lat || '',
                 Longitud: s.coordenadas?.lng || '',
                 Franquicia: franquicias.find(f => f.id === s.franquiciaId)?.nombre || '',
@@ -407,6 +416,12 @@ export const SucursalesPage: React.FC = () => {
                                             <MapPin size={16} style={{ flexShrink: 0, marginTop: '0.1rem' }} />
                                             <span style={{ lineHeight: '1.4' }}>{sucursal.direccion}</span>
                                         </div>
+                                        {sucursal.telefono && (
+                                            <div style={{ display: 'flex', gap: '0.5rem', color: 'var(--status-concluida)', fontSize: '0.8rem', fontWeight: '700' }}>
+                                                <Phone size={16} style={{ flexShrink: 0 }} />
+                                                <span>{sucursal.telefono} (GERENTE / SITIO)</span>
+                                            </div>
+                                        )}
                                         <button
                                             onClick={() => {
                                                 const query = encodeURIComponent(`${sucursal.direccion} ${sucursal.nombre}`);
@@ -529,6 +544,19 @@ export const SucursalesPage: React.FC = () => {
                                 </div>
                                 <textarea value={direccion} onChange={e => setDireccion(e.target.value)} rows={2} required
                                     style={{ width: '100%', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)', resize: 'none' }} />
+                            </div>
+
+                            <div>
+                                <label className="modal-label">Teléfono de Contacto en Sitio (MANDATORIO)</label>
+                                <p style={{ fontSize: '0.75rem', color: 'var(--priority-alta)', marginBottom: '0.5rem', fontWeight: '700' }}>
+                                    Indique el Celular del Gerente o Subgerente de Sucursal. 
+                                    Este número es para que el técnico llame si la sucursal está cerrada o no le dan acceso.
+                                </p>
+                                <div style={{ position: 'relative' }}>
+                                    <Phone size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                                    <input type="tel" value={telefono} onChange={e => setTelefono(e.target.value)} placeholder="CELULAR DEL GERENTE O SUBGERENTE DE LA SUCURSAL" required
+                                        style={{ width: '100%', padding: '0.75rem 0.75rem 0.75rem 2.5rem', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-input)', color: 'var(--text-main)' }} />
+                                </div>
                             </div>
 
                             <div>
