@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-    getDocs,
-    where
+    getDocs
 } from 'firebase/firestore';
 import { getActiveProjectKey } from '../services/firebase';
 import { tenantQuery } from '../services/tenantContext';
@@ -56,81 +55,53 @@ export const MisServiciosPage: React.FC = () => {
 
     const fetchData = useCallback(async () => {
         if (!user) return;
+        setLoading(true);
         
-        // 1. CARGA INSTANTÁNEA DESDE CACHÉ CON VERIFICACIÓN DE PROYECTO
         const currentProject = getActiveProjectKey();
         const lastProject = localStorage.getItem('ms_last_project');
-        
-        // Si cambiamos de proyecto (ej: BPT -> TEST), ignoramos la caché vieja
-        const isSameProject = currentProject === lastProject;
-
-        const cachedOTs = isSameProject ? sessionStorage.getItem('ms_ots_cache') : null;
-        const cachedSucs = isSameProject ? sessionStorage.getItem('ms_suc_cache') : null;
-        const cachedEqs = isSameProject ? sessionStorage.getItem('ms_eq_cache') : null;
-
-        if (cachedOTs && cachedSucs && cachedEqs) {
-            setOts(JSON.parse(cachedOTs));
-            setSucursales(JSON.parse(cachedSucs));
-            setEquipos(JSON.parse(cachedEqs));
-            setLoading(false);
-        } else {
-            setLoading(true);
+        if (currentProject !== lastProject) {
+            sessionStorage.removeItem('ms_ots_cache');
+            sessionStorage.removeItem('ms_suc_cache');
+            sessionStorage.removeItem('ms_eq_cache');
         }
 
         try {
-            const thirtyDaysAgo = new Date();
-            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-            const minDate = thirtyDaysAgo.toISOString();
-
-            // 2. CONSULTA A FIREBASE
-            const qOts = tenantQuery('ordenesTrabajo', user,
-                where('tecnicoId', '==', user.id),
-                where('fechas.solicitada', '>=', minDate)
-            );
-
+            // CONSULTA BLINDADA: Bajamos todo del cliente y filtramos en memoria
+            // Esto evita errores de índices, discrepancias de UIDs o fechas mal formateadas
+            const qOts = tenantQuery('ordenesTrabajo', user);
             const promises: any[] = [getDocs(qOts)];
-            if (!cachedSucs) promises.push(getDocs(tenantQuery('sucursales', user)));
-            if (!cachedEqs) promises.push(getDocs(tenantQuery('equipos', user)));
+            
+            // Catálogos
+            if (sucursales.length === 0) promises.push(getDocs(tenantQuery('sucursales', user)));
+            if (equipos.length === 0) promises.push(getDocs(tenantQuery('equipos', user)));
 
             const results = await Promise.all(promises);
+            const allDocs = results[0].docs.map((d: any) => ({ id: d.id, ...d.data() } as WorkOrder));
             
-            // 3. PROCESAMIENTO CON FILTRO FLEXIBLE
-            const allFetched = results[0].docs.map((d: any) => ({ id: d.id, ...d.data() } as WorkOrder));
+            console.log(`[DEBUG] Servicios totales en ${currentProject}: ${allDocs.length}`);
+
+            // Filtrado por Técnico y Estatus
+            const myOts = allDocs.filter((ot: WorkOrder) => ot.tecnicoId === user.id);
             
-            const fetchedOts = allFetched.filter((ot: WorkOrder) => {
-                if (showCompleted) {
-                    // Terminadas: Solo lo que el Coordinador ya cerró
-                    return ot.estatus === 'Finalizada' || ot.estatus === 'CANCELADA';
-                } else {
-                    // Pendientes: Todo lo demás (incluyendo las que esperan firma o están en curso)
-                    return ot.estatus !== 'Finalizada' && ot.estatus !== 'CANCELADA';
-                }
+            const fetchedOts = myOts.filter((ot: WorkOrder) => {
+                const isFinal = ot.estatus === 'Finalizada' || ot.estatus === 'CANCELADA';
+                return showCompleted ? isFinal : !isFinal;
             });
 
             setOts(fetchedOts);
-            sessionStorage.setItem('ms_ots_cache', JSON.stringify(allFetched));
+            sessionStorage.setItem('ms_ots_cache', JSON.stringify(myOts)); // Cacheamos solo lo del técnico
             
-            if (!cachedSucs && results[1]) {
-                const freshSuc = results[1].docs.map((d: any) => ({ id: d.id, ...d.data() } as Sucursal));
-                setSucursales(freshSuc);
-                sessionStorage.setItem('ms_suc_cache', JSON.stringify(freshSuc));
-            }
-            
-            const eqIndex = !cachedSucs ? 2 : 1;
-            if (!cachedEqs && results[eqIndex]) {
-                const freshEq = results[eqIndex].docs.map((d: any) => ({ id: d.id, ...d.data() } as Equipo));
-                setEquipos(freshEq);
-                sessionStorage.setItem('ms_eq_cache', JSON.stringify(freshEq));
-            }
+            if (results[1]) setSucursales(results[1].docs.map((d: any) => ({ id: d.id, ...d.data() } as Sucursal)));
+            if (results[2]) setEquipos(results[2].docs.map((d: any) => ({ id: d.id, ...d.data() } as Equipo)));
 
             localStorage.setItem('ms_last_project', currentProject);
-
-        } catch (error) {
-            console.error("Error fetching data:", error);
+        } catch (error: any) {
+            console.error("Error crítico en MisServicios:", error);
+            showNotification("Error al sincronizar servicios: " + error.message, "error");
         } finally {
             setLoading(false);
         }
-    }, [user, showCompleted]);
+    }, [user, showCompleted, sucursales.length, equipos.length]);
 
     useEffect(() => {
         fetchData();

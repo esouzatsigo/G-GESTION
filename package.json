@@ -1,7 +1,7 @@
 {
   "name": "h-gestion",
   "private": true,
-  "version": "1.54",
+  "version": "1.55",
   "type": "module",
   "scripts": {
     "dev": "vite",
