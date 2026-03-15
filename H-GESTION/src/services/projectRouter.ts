@@ -10,48 +10,89 @@
 // En un sistema automatizado, esto se buscaría en una "Cloud Function Global",
 // pero dada la arquitectura actual (y que sabemos exactamente quién va a dónde),
 // mantener un registry estático inicial es lo más seguro y rápido.
+// ESP - 12032026 MODIFICO LOS ROUTEOS DE LOS CORREOS
 
 export const ROUTING_TABLE: Record<string, 'BPT_GROUP' | 'TEST_BPT'> = {
     // ════════════════════════════════════════════════
     // CORREOS DE TEST BPT (Nuevo Proyecto Clonado)
     // ════════════════════════════════════════════════
-    'gerente@ba.com': 'TEST_BPT',
-    'tec@ba.com': 'TEST_BPT',
-    'tec.bpt@ba.com': 'TEST_BPT',
-    'sup@ba.com': 'TEST_BPT',
-    'gerente.ba@bpt.com': 'TEST_BPT',
-    'tecnico.ba@bpt.com': 'TEST_BPT',
-    'supervisor.ba@bpt.com': 'TEST_BPT',
-    'gerente.altabrisa@bpt.com': 'TEST_BPT',
-    'tecnico.altabrisa@bpt.com': 'TEST_BPT',
+    //'gerente@ba.com': 'TEST_BPT',
+    //'tec@ba.com': 'TEST_BPT',
+    //'tec.bpt@ba.com': 'TEST_BPT',
+    //'sup@ba.com': 'TEST_BPT',
+    //'gerente.ba@bpt.com': 'TEST_BPT',
+    //'tecnico.ba@bpt.com': 'TEST_BPT',
+    //'supervisor.ba@bpt.com': 'TEST_BPT',
+    //'gerente.altabrisa@bpt.com': 'TEST_BPT',
+    //'tecnico.altabrisa@bpt.com': 'TEST_BPT',
 
-    'gerente.caucel@hgestion.com': 'TEST_BPT',
-    'tecnico.caucel@bpt.com': 'TEST_BPT',
-    'gerente.pensiones@hgestion.com': 'TEST_BPT',
-    'tecnico.pensiones@bpt.com': 'TEST_BPT',
-    'gerente.granplaza@hgestion.com': 'TEST_BPT',
-    'tecnico.granplaza@bpt.com': 'TEST_BPT',
-    'gerente.citycenter@hgestion.com': 'TEST_BPT',
-    'tecnico.citycenter@bpt.com': 'TEST_BPT',
-    'gerente.campeche@hgestion.com': 'TEST_BPT',
-    'tecnico.campeche@bpt.com': 'TEST_BPT',
-    'gerente.montejo@hgestion.com': 'TEST_BPT',
-    'tecnico.montejo@bpt.com': 'TEST_BPT',
+    //ESP - cambio
+    'gerente@ba.com': 'BPT_GROUP',
+    'tec@ba.com': 'BPT_GROUP',
+    'tec.bpt@ba.com': 'BPT_GROUP',
+    'sup@ba.com': 'BPT_GROUP',
+    'gerente.ba@bpt.com': 'BPT_GROUP',
+    'tecnico.ba@bpt.com': 'BPT_GROUP',
+    'supervisor.ba@bpt.com': 'BPT_GROUP',
+    'gerente.altabrisa@bpt.com': 'BPT_GROUP',
+    'tecnico.altabrisa@bpt.com': 'BPT_GROUP',
 
-    'gerente.comisariatopanadera@hgestion.com': 'TEST_BPT',
-    'tecnico.comisariatopanadera@bpt.com': 'TEST_BPT',
-    'gerente.oficinacorporativambxcanatn@hgestion.com': 'TEST_BPT',
-    'tecnico.oficinacorporativambxcanatn@bpt.com': 'TEST_BPT',
-    'gerente.mbdzity@hgestion.com': 'TEST_BPT',
-    'tecnico.mbdzity@bpt.com': 'TEST_BPT',
+    //'gerente.caucel@hgestion.com': 'TEST_BPT',
+    //'tecnico.caucel@bpt.com': 'TEST_BPT',
+    //'gerente.pensiones@hgestion.com': 'TEST_BPT',
+    //'tecnico.pensiones@bpt.com': 'TEST_BPT',
+    //'gerente.granplaza@hgestion.com': 'TEST_BPT',
+    //'tecnico.granplaza@bpt.com': 'TEST_BPT',
+    //'gerente.citycenter@hgestion.com': 'TEST_BPT',
+    //'tecnico.citycenter@bpt.com': 'TEST_BPT',
+    //'gerente.campeche@hgestion.com': 'TEST_BPT',
+    //'tecnico.campeche@bpt.com': 'TEST_BPT',
+    //'gerente.montejo@hgestion.com': 'TEST_BPT',
+    //'tecnico.montejo@bpt.com': 'TEST_BPT',
 
-    'coord@bptgorup.com': 'TEST_BPT', // Note: Typo in original DB preserved for routing
-    'supervisor@t-sigo.com': 'TEST_BPT',
-    'tec.aires@esterno.com': 'TEST_BPT',
-    'tec.ref@externo': 'TEST_BPT',
-    'tec.ad@ba': 'TEST_BPT',
-    'ivango@bpt.com': 'TEST_BPT',
-    
+    //ESP - cambio
+    'gerente.caucel@hgestion.com': 'BPT_GROUP',
+    'tecnico.caucel@bpt.com': 'BPT_GROUP',
+    'gerente.pensiones@hgestion.com': 'BPT_GROUP',
+    'tecnico.pensiones@bpt.com': 'BPT_GROUP',
+    'gerente.granplaza@hgestion.com': 'BPT_GROUP',
+    'tecnico.granplaza@bpt.com': 'BPT_GROUP',
+    'gerente.citycenter@hgestion.com': 'BPT_GROUP',
+    'tecnico.citycenter@bpt.com': 'BPT_GROUP',
+    'gerente.campeche@hgestion.com': 'BPT_GROUP',
+    'tecnico.campeche@bpt.com': 'BPT_GROUP',
+    'gerente.montejo@hgestion.com': 'BPT_GROUP',
+    'tecnico.montejo@bpt.com': 'BPT_GROUP',
+
+    //'gerente.comisariatopanadera@hgestion.com': 'TEST_BPT',
+    //'tecnico.comisariatopanadera@bpt.com': 'TEST_BPT',
+    //'gerente.oficinacorporativambxcanatn@hgestion.com': 'TEST_BPT',
+    //'tecnico.oficinacorporativambxcanatn@bpt.com': 'TEST_BPT',
+    //'gerente.mbdzity@hgestion.com': 'TEST_BPT',
+    //'tecnico.mbdzity@bpt.com': 'TEST_BPT',
+
+    //ESP - cambio
+    'gerente.comisariatopanadera@hgestion.com': 'BPT_GROUP',
+    'tecnico.comisariatopanadera@bpt.com': 'BPT_GROUP',
+    'gerente.oficinacorporativambxcanatn@hgestion.com': 'BPT_GROUP',
+    'tecnico.oficinacorporativambxcanatn@bpt.com': 'BPT_GROUP',
+    'gerente.mbdzity@hgestion.com': 'BPT_GROUP',
+    'tecnico.mbdzity@bpt.com': 'BPT_GROUP',
+
+    //'coord@bptgorup.com': 'TEST_BPT', // Note: Typo in original DB preserved for routing
+    //'supervisor@t-sigo.com': 'TEST_BPT',
+    //'tec.aires@esterno.com': 'TEST_BPT',
+    //'tec.ref@externo': 'TEST_BPT',
+    //'tec.ad@ba': 'TEST_BPT',
+    //'ivango@bpt.com': 'TEST_BPT',
+
+    'coord@bptgorup.com': 'BPT_GROUP', // Note: Typo in original DB preserved for routing
+    'supervisor@t-sigo.com': 'BPT_GROUP',
+    'tec.aires@esterno.com': 'BPT_GROUP',
+    'tec.ref@externo': 'BPT_GROUP',
+    'tec.ad@ba': 'BPT_GROUP',
+    'ivango@bpt.com': 'BPT_GROUP',
+
     // ════════════════════════════════════════════════
     // CORREOS GLOBALES / ADMINS (PROYECTO ORIGINAL)
     // ════════════════════════════════════════════════
@@ -71,17 +112,17 @@ export const ROUTING_TABLE: Record<string, 'BPT_GROUP' | 'TEST_BPT'> = {
  */
 export const resolveProjectForEmail = (email: string): 'BPT_GROUP' | 'TEST_BPT' => {
     const cleanEmail = email.trim().toLowerCase();
-    
+
     // 1. Búsqueda exacta en la tabla estática
     // (Asegurar que todas las llaves de ROUTING_TABLE estén en lowercase)
     const exactMatch = Object.entries(ROUTING_TABLE).find(
         ([key]) => key.toLowerCase() === cleanEmail
     );
-    
+
     if (exactMatch) {
         return exactMatch[1];
     }
-    
+
     // 2. Heurística Corporativa (Opcional - actualmente todos al Lobby por defecto)
     // Usuarios de Comercializadora Nacional (BPT GROUP original)
     if (cleanEmail.includes('ger.altabrisa@bp.com') || cleanEmail.includes('tecnico.altabrisa@hgestion.com')) {
